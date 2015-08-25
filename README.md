@@ -1,7 +1,7 @@
 # LatentGaussianMixtureModel
 
 
-The Julia code for Generalized Linear Mixed Model with Normal Mixture random effects. 
+The Julia package for Generalized Linear Mixed Model with Normal Mixture random effects. 
 
 Most of the core functions are provided in utility.jl. The function `latentgmm` is the major function estimating the parameters. 
 
