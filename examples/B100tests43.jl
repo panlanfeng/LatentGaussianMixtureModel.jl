@@ -2,7 +2,7 @@
 
 
 using LatentGaussianMixtureModel
-require("datagen3comp.jl")
+@everywhere include(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples/datagen3comp.jl"))
 
 
 #Brun calculate the statistic for one data set;

@@ -4,7 +4,7 @@ using StatsBase
 
 
 nF = 282
-n_ij = readcsv("count2.csv", Int64, header=true)[1][:,1]
+n_ij = readcsv(joinpath(Pkg.dir("LatentGaussianMixtureModel"),"examples/count2.csv"), Int64, header=true)[1][:,1]
 for i in 1:length(n_ij)
     if n_ij[i] > 20
         n_ij[i] = round(n_ij[i] / 10.0, 0)

@@ -9,7 +9,7 @@ if !("FastGaussQuadrature" in keys(Pkg.installed()))
 end
 using FastGaussQuadrature
 import Yeppp: add!, exp!, log!
-export gmm, latentgmm, latentgmm_ctau, marginallikelihood, loglikelihoodratio, loglikelihoodratio_ctau
+export eachrepeat, gmm, latentgmm, latentgmm_ctau, marginallikelihood, loglikelihoodratio, loglikelihoodratio_ctau
 include("utility.jl")
 # package code goes here
 

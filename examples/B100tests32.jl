@@ -2,8 +2,7 @@
 using LatentGaussianMixtureModel
 
 
-require("datagen2comp.jl")
-
+r@everywhere include(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples/datagen2comp.jl"))
 
 #Brun calculate the statistic for one data set;
 #b is the the random number seed, from 1 to 100

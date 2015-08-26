@@ -7,7 +7,7 @@ using StatsBase
 
 
 nF = 282
-n_ij = readcsv("count2.csv", Int64, header=true)[1][:,1]
+n_ij = readcsv(joinpath(Pkg.dir("LatentGaussianMixtureModel"),"examples/count2.csv"), Int64, header=true)[1][:,1]
 N = sum(n_ij)
 
 facility = eachrepeat(1:nF, n_ij)
