@@ -858,7 +858,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
 end
 
 #Starting from 25 initial values, find the best for fixed wi, used as start of the next 2 more iterations
-function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, nF::Int, ncomponent1::Int,  betas0::Vector{Float64}, wi0::Vector{Float64},  whichtosplit::Int64, tau::Float64, mu_lb::Vector{Float64}, mu_ub::Vector{Float64}, sigmas_lb::Vector{Float64}, sigmas_ub::Vector{Float64}; ntrials::Int=25, ml_base::Float64=-Inf, ngh::Int=1000)
+function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, nF::Int, ncomponent1::Int,  betas0::Vector{Float64}, wi0::Vector{Float64},  whichtosplit::Int64, tau::Float64, mu_lb::Vector{Float64}, mu_ub::Vector{Float64}, sigmas_lb::Vector{Float64}, sigmas_ub::Vector{Float64}, gamma0::Vector{Float64}; ntrials::Int=25, ml_base::Float64=-Inf, ngh::Int=1000)
 
     tau = min(tau, 1-tau)
     ind = [1:whichtosplit, whichtosplit:(ncomponent1 - 1)]
@@ -875,9 +875,10 @@ function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, 
     for i in 1:4*ntrials
         mu[:, i] = rand(ncomponent1) .* (mu_ub .- mu_lb) .+ mu_lb
         sigmas[:, i] = rand(ncomponent1) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
-
-        #fit gmm on gamma_hat with the starting points, to accelerate the latentgmm_ctau
-        #wi[:, i], mu[:, i], sigmas[:, i], tmp = gmm(gamma0, ncomponent1, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb,mu_ub=mu_ub, wifixed=true)
+        if ncomponent1 != 2
+            #fit gmm on gamma_hat with the starting points, to accelerate the latentgmm_ctau
+            wi[:, i], mu[:, i], sigmas[:, i], tmp = gmm(gamma0, ncomponent1, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb,mu_ub=mu_ub, wifixed=true)
+        end
         wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmm_ctau(X, Y, facility, nF, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=5, Mmax=500, M_discard=500)
     end
     
@@ -896,7 +897,7 @@ function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, 
     return(re[1], re[2], re[3], re[4], lr)
 end
 
-function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, nF::Int, ncomponent1::Int,  betas_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}, mingamma::Float64, maxgamma::Float64; vtau::Vector{Float64}=[.5,.3,.1;], ntrials::Int=25, ml_base::Float64=-Inf, ngh::Int=1000)
+function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, nF::Int, ncomponent1::Int,  betas_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}, gamma0::Vector{Float64}, mingamma::Float64, maxgamma::Float64; vtau::Vector{Float64}=[.5,.3,.1;], ntrials::Int=25, ml_base::Float64=-Inf, ngh::Int=1000)
     C0 = ncomponent1 - 1
     C1 = ncomponent1 
     lr = zeros(length(vtau), C0)
@@ -920,7 +921,7 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facil
         sigmas_lb = 0.25 .* sigmas0[ind]
         sigmas_ub = 2 .* sigmas0[ind]
         for i in 1:length(vtau)
-            wi, mu, sigmas, beta, lr[i, whichtosplit] = loglikelihoodratio_ctau(X, Y, facility, nF, ncomponent1, betas0, wi0, whichtosplit, vtau[i], mu_lb, mu_ub,sigmas_lb, sigmas_ub, ntrials=ntrials, ml_base=ml_base, ngh=ngh)
+            wi, mu, sigmas, beta, lr[i, whichtosplit] = loglikelihoodratio_ctau(X, Y, facility, nF, ncomponent1, betas0, wi0, whichtosplit, vtau[i], mu_lb, mu_ub,sigmas_lb, sigmas_ub, gamma0, ntrials=ntrials, ml_base=ml_base, ngh=ngh)
         end
 
     end

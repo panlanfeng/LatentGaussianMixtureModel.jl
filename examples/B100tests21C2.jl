@@ -31,7 +31,7 @@ require("datagen2comp.jl")
     #One component model
     re = latentgmm(X, Y, facility, nF, 1, beta_init, [1.0;], [mu_init;], [std(gamma_init);], Mmax=10000)
     gamma_hat = vec(mean(re[6], 2))
-    lr = loglikelihoodratio(X, Y, facility, nF, 2, re[4], re[1], re[2], re[3], minimum(gamma_hat), maximum(gamma_hat), ml_base=re[5])
+    lr = loglikelihoodratio(X, Y, facility, nF, 2, re[4], re[1], re[2], re[3], gamma_hat, minimum(gamma_hat), maximum(gamma_hat), ml_base=re[5])
     maximum(lr)
 end
 

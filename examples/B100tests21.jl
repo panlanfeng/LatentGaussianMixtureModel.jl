@@ -31,7 +31,7 @@ require("datagen1comp.jl")
 
     gamma_hat = vec(mean(re[6], 2))
     
-    lr = loglikelihoodratio(X, Y, facility, nF, 2, re[4], re[1], re[2], re[3], minimum(gamma_hat), maximum(gamma_hat), ml_base=re[5])
+    lr = loglikelihoodratio(X, Y, facility, nF, 2, re[4], re[1], re[2], re[3], gamma_hat, minimum(gamma_hat), maximum(gamma_hat), ml_base=re[5])
     maximum(lr)
 end
 
