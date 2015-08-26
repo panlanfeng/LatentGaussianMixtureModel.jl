@@ -1,6 +1,5 @@
 #find out the test statistic when m0=1
 
-@everywhere using HDF5, JLD
 
 using LatentGaussianMixtureModel
 require("datagen3comp.jl")
