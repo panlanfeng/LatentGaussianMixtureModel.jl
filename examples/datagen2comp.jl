@@ -1,7 +1,9 @@
+module datagen2
+export X, Y, facility, beta_true, mu_true, wi_true, sigmas_true, nF, n_ij, J
 
 using Distributions
 using StatsBase
-
+using LatentGaussianMixtureModel
 
 nF = 282
 n_ij = readcsv(joinpath(Pkg.dir("LatentGaussianMixtureModel"),"examples/count2.csv"), Int64, header=true)[1][:,1]
@@ -26,3 +28,4 @@ beta_true=ones(J) #rand(Normal(0,1), J)
 mu_true = [log(1/0.779 - 1) - 1.0, log(1/0.779 - 1) + 1.0]
 wi_true = [.5, .5]
 sigmas_true = [1.2, .8]
+end
