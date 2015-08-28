@@ -3,12 +3,7 @@
 
 @everywhere using LatentGaussianMixtureModel
 @everywhere using Distributions
-if VERSION >=v"0.4.0-dev"
-    @everywhere import datagen3
-else
-    require(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples/datagen3comp.jl"))
-end
-
+@everywhere using datagen3comp
 #Brun calculate the statistic for one data set;
 #b is the the random number seed, from 1 to 100
 @everywhere function Brun(b::Integer)

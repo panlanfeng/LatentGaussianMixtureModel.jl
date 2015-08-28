@@ -1,11 +1,7 @@
 #find out the test statistic when m0=1
 @everywhere using LatentGaussianMixtureModel
 @everywhere using Distributions
-if VERSION >=v"0.4.0-dev"
-    @everywhere import datagen2
-else
-    require(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples/datagen2comp.jl"))
-end
+@everywhere using datagen2comp
 
 #Brun calculate the statistic for one data set;
 #b is the the random number seed, from 1 to 100
