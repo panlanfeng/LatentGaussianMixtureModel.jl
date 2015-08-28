@@ -2,7 +2,7 @@
 
 
 @everywhere using LatentGaussianMixtureModel
-@everywhere using Distributions
+@everywhere using Distributions, Yeppp
 @everywhere using datagen3comp
 #Brun calculate the statistic for one data set;
 #b is the the random number seed, from 1 to 100
@@ -25,7 +25,7 @@
 
     #Initialized one component model using max posterior model
     gamma_init, beta_init, sigmas_init = maxposterior(X, Y, facility)
-    wi_init, mu_init, sigmas_init, ml1 = gmm(gamma_init, 3, ones(3)/3, percentile(gamma_init, [20,50,80]), ones(3))
+    wi_init, mu_init, sigmas_init, ml1 = gmm(gamma_init, 3, ones(3)/3, quantile(gamma_init, [.20,.50,.80]), ones(3))
 
     #two component model
     #M=20000

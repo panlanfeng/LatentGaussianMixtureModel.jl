@@ -2,7 +2,7 @@
 
 
 @everywhere using LatentGaussianMixtureModel
-@everywhere using Distributions
+@everywhere using Distributions, Yeppp
 @everywhere using datagen3comp
 
 #Brun calculate the statistic for one data set;
@@ -26,7 +26,7 @@
 
     #Initialized one component model using max posterior model
     gamma_init, beta_init, sigmas_init = maxposterior(X, Y, facility)
-    wi_init, mu_init, sigmas_init, ml1 = gmm(gamma_init, 2, ones(2)/2, percentile(gamma_init, [25,75]), ones(2))
+    wi_init, mu_init, sigmas_init, ml1 = gmm(gamma_init, 2, ones(2)/2, quantile(gamma_init, [.25,.75]), ones(2))
 
     #two component model
     #M=20000

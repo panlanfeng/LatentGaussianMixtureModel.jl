@@ -1,5 +1,5 @@
 module datagen1comp
-export X, Y, facility, beta_true, mu_true, wi_true, sigmas_true, nF, n_ij, J
+export X, Y, facility, beta_true, mu_true, wi_true, sigmas_true, nF, n_ij, J, N
 using Distributions
 using StatsBase
 using LatentGaussianMixtureModel

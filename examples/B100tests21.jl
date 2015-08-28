@@ -1,6 +1,6 @@
 #find out the test statistic when m0=1
 @everywhere using LatentGaussianMixtureModel
-@everywhere using Distributions
+@everywhere using Distributions, Yeppp
 @everywhere using datagen1comp
 
 #Brun calculate the statistic for one data set;
