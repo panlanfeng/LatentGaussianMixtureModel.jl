@@ -3,8 +3,12 @@
 
 @everywhere using LatentGaussianMixtureModel
 @everywhere using Distributions
-include(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples/datagen3comp.jl"))
-@everywhere import datagen3
+if VERSION >=v"0.4"
+    push!(LOAD_PATH, joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples"))
+    @everywhere import datagen3
+else
+    require(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples/datagen3comp.jl"))
+end
 
 #Brun calculate the statistic for one data set;
 #b is the the random number seed, from 1 to 100

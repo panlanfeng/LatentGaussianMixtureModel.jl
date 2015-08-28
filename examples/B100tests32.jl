@@ -1,8 +1,13 @@
 #find out the test statistic when m0=1
 @everywhere using LatentGaussianMixtureModel
 @everywhere using Distributions
-include(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples/datagen2comp.jl"))
-@everywhere import datagen2
+if VERSION >=v"0.4"
+    push!(LOAD_PATH, joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples"))
+    @everywhere import datagen2
+else
+    require(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples/datagen2comp.jl"))
+end
+
 #Brun calculate the statistic for one data set;
 #b is the the random number seed, from 1 to 100
 @everywhere function Brun(b::Integer)
