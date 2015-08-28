@@ -1,8 +1,7 @@
 #find out the test statistic when m0=1
 @everywhere using LatentGaussianMixtureModel
 @everywhere using Distributions
-if VERSION >=v"0.4"
-    push!(LOAD_PATH, joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples"))
+if VERSION >=v"0.4.0-dev"
     @everywhere import datagen2
 else
     require(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples/datagen2comp.jl"))

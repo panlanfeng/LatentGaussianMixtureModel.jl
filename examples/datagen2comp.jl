@@ -1,4 +1,4 @@
-module datagen2
+module datagen2comp
 export X, Y, facility, beta_true, mu_true, wi_true, sigmas_true, nF, n_ij, J
 
 using Distributions

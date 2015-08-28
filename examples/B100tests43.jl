@@ -3,8 +3,7 @@
 
 @everywhere using LatentGaussianMixtureModel
 @everywhere using Distributions
-if VERSION >=v"0.4"
-    push!(LOAD_PATH, joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples"))
+if VERSION >=v"0.4.0-dev"
     @everywhere import datagen3
 else
     require(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples/datagen3comp.jl"))
