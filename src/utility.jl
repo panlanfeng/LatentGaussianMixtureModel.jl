@@ -616,6 +616,10 @@ macro GibbsLgamma()
                 #     tmp_p[j] = tmp_p[j]/tmpsum
                 # end
                 #try
+		#if(!isprobvec(tmp_p))
+		#    println(tmp_p)
+	        #    return(wi,mu,sigmas,β, -Inf,[0.0])
+		#end
                 L_new[i] = rand(Categorical(tmp_p))
                 # catch
                 #     println(wi, mu, sigmas, tmp_p)
@@ -709,7 +713,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
         mu = mupool ./ wipool
         sigmas = sqrt( sigmaspool ./ wipool .- mu.^2 )
 
-        if any(wi .< 1e-8)
+        if any(wi .< 1e-8) | any(sigmas.<1e-10) | any(isnan(sigmas))
             warn("wi is close to 0!")
             return(wi, mu, sigmas, β, -Inf)
         end
@@ -789,14 +793,11 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
     no_iter=1
     M = 2000
     Q_maxiter = 2
+    lessthanmax = 0
     for iter_em in 1:maxiteration
         if iter_em == (initial_iteration + 1)
             M = Mmax
             Q_maxiter = 10
-        end
-        if any(wi .< 1e-8) | any(sigmas.< 1e-10)
-            warn("wi is close to 0!")
-            return(wi, mu, sigmas, β, -Inf)
         end
         L[:] = rand(Categorical(wi), nF)
         sample_gamma[:] = rand(Normal(), nF) .* sigmas[L] .+ mu[L]
@@ -835,9 +836,17 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         if iter_em == maxiteration & maxiteration > 20
             warn("latentgmm_ctau not yet converge!")
         end
+        if any(wi .< 1e-8) | any(sigmas.< 1e-10) | any(isnan(sigmas))
+            warn("Some wi or sigmas is close to 0 or NaN!")
+            return(wi, mu, sigmas, β, -Inf)
+        end
         #m = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
         ml1 = marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw)
-        #print(ml1, "  ", ml0, "\t")
+        if(isnan(ml1))
+            warn("Some thing wrong, try other starting values")
+            println(ml1, "  ", wi,mu,sigmas, "\t")
+	    return(wi, mu, sigmas, β, -Inf)
+	end
         if ml1 > ml0
             ml0 = ml1
             mu0=copy(mu)
