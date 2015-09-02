@@ -616,10 +616,10 @@ macro GibbsLgamma()
                 #     tmp_p[j] = tmp_p[j]/tmpsum
                 # end
                 #try
-		#if(!isprobvec(tmp_p))
-		#    println(tmp_p)
-	        #    return(wi,mu,sigmas,β, -Inf,[0.0])
-		#end
+		if(!isprobvec(tmp_p))
+		    println(wi, mu, sigmas, tmp_p)
+	            return(wi,mu,sigmas,β, -Inf,[0.0])
+		end
                 L_new[i] = rand(Categorical(tmp_p))
                 # catch
                 #     println(wi, mu, sigmas, tmp_p)
@@ -799,6 +799,11 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
             M = Mmax
             Q_maxiter = 10
         end
+        if any(wi .< 1e-8) | any(sigmas.< 1e-10) | any(isnan(sigmas))
+            warn("Some wi or sigmas is close to 0 or NaN!")
+            return(wi, mu, sigmas, β, -Inf)
+        end
+ 
         L[:] = rand(Categorical(wi), nF)
         sample_gamma[:] = rand(Normal(), nF) .* sigmas[L] .+ mu[L]
         wipool[:] = zeros(ncomponent)
