@@ -5,12 +5,13 @@ using StatsBase
 using LatentGaussianMixtureModel
 
 nF = 282
-n_ij = readcsv(joinpath(Pkg.dir("LatentGaussianMixtureModel"),"examples/count2.csv"), Int64, header=true)[1][:,1]
-for i in 1:length(n_ij)
-    if n_ij[i] > 20
-        n_ij[i] = round(n_ij[i] / 10.0, 0)
-    end
-end
+n_ij = convert(Int64, round(rand(Poisson(5), 282).+rand(Exponential(45), 282)))
+# n_ij = readcsv(joinpath(Pkg.dir("LatentGaussianMixtureModel"),"examples/count2.csv"), Int64, header=true)[1][:,1]
+# for i in 1:length(n_ij)
+#     if n_ij[i] > 20
+#         n_ij[i] = round(n_ij[i] / 10.0, 0)
+#     end
+# end
 N = sum(n_ij)
 
 facility = eachrepeat(1:nF, n_ij)
