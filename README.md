@@ -7,7 +7,17 @@ Most of the core functions are provided in utility.jl. The function `latentgmm` 
 
     latentgmm(X, Y, facility, nF, 3, beta_init, wi_init, mu_init, sigmas_init, Mmax=10000, M_discard=1000, initial_iteration=3, maxiteration=150, tol=0.005, proposingsigma=1.0, ngh=1000)
 
-where `X` and `Y` are the covariates and response. `facility` means denote which facility a patient belongs to, i.e. the random effect levels. `nF` is the number of levels of random effects and 3 is the number of components. `beta_init`, `wi_init`, `mu_init`, `sigmas_init` are the starting values for the fixed effects and parameters of the random effects. `Mmax` means the number of Gibbs samples generated while `M_discard` means how many burn in samples to be dropped. `maxiteration` is the maximum MCEM iterations allowed. `tol` means the stopping criteria. `proposingsigma` is the standard deviation of the proposing distribution in Metropolis Hasting algorithm. `ngh` means the number of points used in gaussian hermite quadrature approximation in calculating the marginal log likelihood.   
+where 
+- `X` and `Y` are the covariates and response. 
+- `facility` means denote which facility a patient belongs to, i.e. the random effect levels. 
+- `nF` is the number of levels of random effects and 3 is the number of components. 
+- `beta_init`, `wi_init`, `mu_init`, `sigmas_init` are the starting values for the fixed effects and parameters of the random effects. 
+- `Mmax` means the number of Gibbs samples generated while `M_discard` means how many burn in samples to be dropped. 
+- `maxiteration` is the maximum MCEM iterations allowed. `tol` means the stopping criteria.
+-  `proposingsigma` is the standard deviation of the proposing distribution in Metropolis Hasting algorithm. 
+- `ngh` means the number of points used in Gaussian-Hermite quadrature approximation in calculating the marginal log likelihood.   
+
+There is also a function `loglikelihoodratio` to calculate the log likelihood ratio between m=m0+1 and m=m0.
 
 See the `examples` folder for more examples. In examples folder,
 
