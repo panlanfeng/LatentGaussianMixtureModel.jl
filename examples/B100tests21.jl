@@ -36,5 +36,5 @@ end
 
 #run on all available cores using:
 #
-#teststat= pmap(Brun, 101:200)
-#writecsv("teststat21.csv", teststat)
+teststat= pmap(Brun, 101:200)
+writecsv("teststat21.csv", teststat)

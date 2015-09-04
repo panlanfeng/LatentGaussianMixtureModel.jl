@@ -726,9 +726,9 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
             (minf,β,ret) = optimize(opt, β)
         end
 
-        if iter_em % 10 == 0
-            println(iter_em)
-        end
+        # if iter_em % 10 == 0
+        #     println(iter_em)
+        # end
 
         if iter_em == maxiteration & maxiteration > 3
             warn("latentgmm not converge!")
