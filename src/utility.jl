@@ -839,7 +839,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         # end
 
         if iter_em == maxiteration & maxiteration > 20
-            warn("latentgmm_ctau not yet converge!")
+            #warn("latentgmm_ctau not yet converge!")
         end
         if any(wi .< 1e-8) | any(sigmas.< 1e-10) | any(isnan(sigmas))
             warn("Some wi or sigmas is close to 0 or NaN!")
@@ -892,7 +892,7 @@ function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, 
         sigmas[:, i] = rand(ncomponent1) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
         if ncomponent1 != 2
             #fit gmm on gamma_hat with the starting points, to accelerate the latentgmm_ctau
-            wi[:, i], mu[:, i], sigmas[:, i], tmp = gmm(gamma0, ncomponent1, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb,mu_ub=mu_ub, maxiter=3, wifixed=true)
+            wi[:, i], mu[:, i], sigmas[:, i], tmp = gmm(gamma0, ncomponent1, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb,mu_ub=mu_ub, maxiter=10, wifixed=true)
             for ik in 1:ncomponent1
                 if sigmas[ik, i] < 1e-8
                     sigmas[ik, i] = 0.2
