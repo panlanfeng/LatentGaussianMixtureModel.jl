@@ -4,7 +4,8 @@ using Distributions
 using StatsBase
 using LatentGaussianMixtureModel
 nF = 282
-n_ij = convert(Int64, round(rand(Poisson(5), 282).+rand(Exponential(45), 282)))
+srand(100)
+n_ij = convert(Vector{Int64}, round(rand(Poisson(5), 282).+rand(Exponential(15), 282)))
 # n_ij = readcsv(joinpath(Pkg.dir("LatentGaussianMixtureModel"),"examples/count2.csv"), Int64, header=true)[1][:,1]
 # for i in 1:length(n_ij)
 #     if n_ij[i] > 20

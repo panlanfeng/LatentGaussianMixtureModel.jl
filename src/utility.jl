@@ -847,11 +847,12 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         end
         #m = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
         ml1 = marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw)
+        #println(ml1, mu, "\t")
         if(isnan(ml1))
             warn("Some thing wrong, try other starting values")
             println(ml1, "  ", wi,mu,sigmas, "\t")
-	    return(wi, mu, sigmas, β, -Inf)
-	end
+            return(wi, mu, sigmas, β, -Inf)
+        end
         if ml1 > ml0
             ml0 = ml1
             mu0=copy(mu)
