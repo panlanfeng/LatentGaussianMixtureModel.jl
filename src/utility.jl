@@ -605,8 +605,19 @@ macro GibbsLgamma()
 
             #update Lᵢ
             tmp_p[:]=tmp_p0
+            wi_divide_sigmas = zeros(wi)
+            inv_2sigmas_sq = ones(sigmas) .* 1e20
+            for i in 1:length(wi)
+                if sigmas[i] < 1e-20
+                    wi_divide_sigmas[i] = 0.0
+                    inv_2sigmas_sq[i] = 1e20
+                else
+                    wi_divide_sigmas[i] = wi[i]/sigmas[i]
+                    inv_2sigmas_sq[i] = 0.5 / sigmas[i]^2
+                end
+            end
             for i in 1:nF
-                tmp_p[:] = ratiosumexp(-(mu .- sample_gamma[i]).^2 ./ (2.*sigmas.^2), wi./sigmas)
+                tmp_p[:] = ratiosumexp(-(mu .- sample_gamma[i]).^2 .* inv_2sigmas_sq, wi_divide_sigmas)
                 # for j in 1:ncomponent
                 #     tmp_p[j] = pdf(Normal(mu[j], sigmas[j]), sample_gamma[i]) * wi[j]
                 # end
@@ -616,10 +627,10 @@ macro GibbsLgamma()
                 #     tmp_p[j] = tmp_p[j]/tmpsum
                 # end
                 #try
-		if(!isprobvec(tmp_p))
-		    println(wi, mu, sigmas, tmp_p)
-	            return(wi,mu,sigmas,β, -Inf,[0.0])
-		end
+                # if(!isprobvec(tmp_p))
+                #     println(wi, mu, sigmas, tmp_p)
+                #     return(wi,mu,sigmas,β, -Inf,[0.0])
+                # end
                 L_new[i] = rand(Categorical(tmp_p))
                 # catch
                 #     println(wi, mu, sigmas, tmp_p)
@@ -709,13 +720,23 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
         mu_old=copy(mu)
         sigmas_old = copy(sigmas)
         #update wi, mu and sigmas
+        
         wi = wipool ./ sum(wipool)
         mu = mupool ./ wipool
         sigmas = sqrt( sigmaspool ./ wipool .- mu.^2 )
+        if any(wipool . == 0)
+            for i in length(wipool)
+                if wipool[i] == 0
+                    wi[i] = 0.0
+                    mu[i] = mupool[i] #i.e. 0.0
+                    sigmas[i] = 0.0
+                end
+            end
+        end
 
-        if any(wi .< 1e-8) | any(sigmas.<1e-10)
+        if any(wi .< 1e-10) | any(sigmas.<1e-10)
             for ik in 1:ncomponent
-                if sigmas[ik] < 1e-8
+                if sigmas[ik] < 1e-10
                     sigmas[ik] = 0.2
                 end
                 if wi[ik] < 1e-8
@@ -725,10 +746,10 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
             wi[:] = wi ./ sum(wi)
         end
             
-        if any(isnan(sigmas))
-            warn("sigmas in latentgmm is NaN!")
-            return(wi, mu, sigmas, β, -Inf)
-        end
+        # if any(isnan(sigmas))
+        #     warn("sigmas in latentgmm is NaN! Try some other starting values")
+        #     return(wi, mu, sigmas, β, -Inf)
+        # end
         #no longer update beta if it already converged
         if !stopRule(β, beta_old, tol=tol) #(mod(iter_em, 5) == 1 ) & (
             beta_old = copy(β)
@@ -811,11 +832,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
             M = Mmax
             Q_maxiter = 10
         end
-        if any(wi .< 1e-8) | any(sigmas.< 1e-10) | any(isnan(sigmas))
-            warn("Some wi or sigmas is close to 0 or NaN!")
-            return(wi, mu, sigmas, β, -Inf)
-        end
- 
+
         L[:] = rand(Categorical(wi), nF)
         sample_gamma[:] = rand(Normal(), nF) .* sigmas[L] .+ mu[L]
         wipool[:] = zeros(ncomponent)
@@ -830,8 +847,26 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         wi = wipool ./ sum(wipool)
         mu = mupool ./ wipool
         sigmas = sqrt( sigmaspool ./ wipool .- mu.^2 )
-
-
+        if any(wipool . == 0)
+            for i in length(wipool)
+                if wipool[i] == 0
+                    wi[i] = 0.0
+                    mu[i] = mupool[i] #i.e. 0.0
+                    sigmas[i] = 0.0
+                end
+            end
+        end
+        if any(wi .< 1e-10) | any(sigmas.<1e-10)
+            for ik in 1:ncomponent
+                if sigmas[ik] < 1e-10
+                    sigmas[ik] = 0.2
+                end
+                if wi[ik] < 1e-8
+                    wi[ik] = .02
+                end
+            end
+            wi[:] = wi ./ sum(wi)
+        end
         wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
         wi[whichtosplit] = wi_tmp*tau
         wi[whichtosplit+1] = wi_tmp*(1-tau)
@@ -853,18 +888,18 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         if iter_em == maxiteration & maxiteration > 20
             #warn("latentgmm_ctau not yet converge!")
         end
-        if any(wi .< 1e-8) | any(sigmas.< 1e-10) | any(isnan(sigmas))
-            warn("Some wi or sigmas is close to 0 or NaN!")
-            return(wi, mu, sigmas, β, -Inf)
-        end
+        # if any(wi .< 1e-8) | any(sigmas.< 1e-10) | any(isnan(sigmas))
+        #     warn("Some wi or sigmas is close to 0 or NaN!")
+        #     return(wi, mu, sigmas, β, -Inf)
+        # end
         #m = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
         ml1 = marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw)
         #println(ml1, mu, "\t")
-        if(isnan(ml1))
-            warn("Some thing wrong, try other starting values")
-            println(ml1, "  ", wi,mu,sigmas, "\t")
-            return(wi, mu, sigmas, β, -Inf)
-        end
+        # if(isnan(ml1))
+        #     warn("Some thing wrong, try other starting values")
+        #     println(ml1, "  ", wi,mu,sigmas, "\t")
+        #     return(wi, mu, sigmas, β, -Inf)
+        # end
         if ml1 > ml0
             ml0 = ml1
             mu0=copy(mu)
@@ -906,7 +941,7 @@ function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, 
             #fit gmm on gamma_hat with the starting points, to accelerate the latentgmm_ctau
             wi[:, i], mu[:, i], sigmas[:, i], tmp = gmm(gamma0, ncomponent1, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb,mu_ub=mu_ub, maxiter=5, wifixed=true)
             for ik in 1:ncomponent1
-                if sigmas[ik, i] < 1e-8
+                if sigmas[ik, i] < 1e-10
                     sigmas[ik, i] = 0.2
                 end
             end
