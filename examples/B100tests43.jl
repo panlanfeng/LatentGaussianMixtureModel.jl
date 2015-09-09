@@ -30,8 +30,8 @@ import datagen3comp
     gamma_init, beta_init, sigmas_init = maxposterior(X, Y, facility)
     wi_init, mu_init, sigmas_init, ml1 = gmm(gamma_init, 3, ones(3)/3, quantile(gamma_init, [.20,.50,.80]), ones(3))
     for ik in 1:length(sigmas)
-        if sigmas[ik] < 1e-8
-            sigmas[ik] = 0.2
+        if sigmas_init[ik] < 1e-8
+            sigmas_init[ik] = 0.2
         end
     end
     #two component model
