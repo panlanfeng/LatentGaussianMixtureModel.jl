@@ -656,7 +656,7 @@ end
 #nF is the number of facilities
 #intial values of β, ω, μ and σ must be supplied
 
-function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, nF::Int, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; Mmax::Int=10000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=3, tol::Real=.005, proposingsigma::Float64=1.0, ngh::Int=1000)
+function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, nF::Int, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; Mmax::Int=10000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, ngh::Int=1000)
 
     # initialize theta
     N,J=size(X)
@@ -713,8 +713,20 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
         mu = mupool ./ wipool
         sigmas = sqrt( sigmaspool ./ wipool .- mu.^2 )
 
-        if any(wi .< 1e-8) | any(sigmas.<1e-10) | any(isnan(sigmas))
-            warn("wi is close to 0!")
+        if any(wi .< 1e-8) | any(sigmas.<1e-10)
+            for ik in 1:ncomponent
+                if sigmas[ik] < 1e-8
+                    sigmas[ik] = 0.2
+                end
+                if wi[ik] < 1e-8
+                    wi[ik] = .02
+                end
+            end
+            wi[:] = wi ./ sum(wi)
+        end
+            
+        if any(isnan(sigmas))
+            warn("sigmas in latentgmm is NaN!")
             return(wi, mu, sigmas, β, -Inf)
         end
         #no longer update beta if it already converged
@@ -892,7 +904,7 @@ function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, 
         sigmas[:, i] = rand(ncomponent1) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
         if ncomponent1 != 2
             #fit gmm on gamma_hat with the starting points, to accelerate the latentgmm_ctau
-            wi[:, i], mu[:, i], sigmas[:, i], tmp = gmm(gamma0, ncomponent1, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb,mu_ub=mu_ub, maxiter=10, wifixed=true)
+            wi[:, i], mu[:, i], sigmas[:, i], tmp = gmm(gamma0, ncomponent1, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb,mu_ub=mu_ub, maxiter=5, wifixed=true)
             for ik in 1:ncomponent1
                 if sigmas[ik, i] < 1e-8
                     sigmas[ik, i] = 0.2
