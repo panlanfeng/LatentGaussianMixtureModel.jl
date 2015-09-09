@@ -4,9 +4,6 @@ module LatentGaussianMixtureModel
 using Distributions
 using StatsBase
 using NLopt
-if !("FastGaussQuadrature" in keys(Pkg.installed()))
-    Pkg.clone("https://github.com/ajt60gaibb/FastGaussQuadrature.jl.git")
-end
 using FastGaussQuadrature
 using Yeppp
 import Yeppp: add!, exp!, log!
