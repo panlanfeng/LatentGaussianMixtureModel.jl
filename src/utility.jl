@@ -876,7 +876,7 @@ end
 function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, nF::Int, ncomponent1::Int,  betas0::Vector{Float64}, wi0::Vector{Float64},  whichtosplit::Int64, tau::Float64, mu_lb::Vector{Float64}, mu_ub::Vector{Float64}, sigmas_lb::Vector{Float64}, sigmas_ub::Vector{Float64}, gamma0::Vector{Float64}; ntrials::Int=25, ml_base::Float64=-Inf, ngh::Int=1000)
 
     tau = min(tau, 1-tau)
-    ind = [1:whichtosplit, whichtosplit:(ncomponent1 - 1)]
+    ind = [1:whichtosplit, whichtosplit:(ncomponent1 - 1);]
     ghx, ghw = gausshermite(ngh)
     wi_tmp = wi0[ind]
     wi_tmp[whichtosplit] = wi_tmp[whichtosplit]*tau
@@ -933,8 +933,8 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facil
             mu_lb = mingamma .* ones(2)
             mu_ub = maxgamma .* ones(2)
         elseif C1>2
-            mu_lb = [mingamma, (mu0[1:(C0-1)] .+ mu0[2:C0])./2]
-            mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2, maxgamma]
+            mu_lb = [mingamma, (mu0[1:(C0-1)] .+ mu0[2:C0])./2;]
+            mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2, maxgamma;]
             mu_lb = mu_lb[ind]
             mu_ub = mu_ub[ind]
         end
