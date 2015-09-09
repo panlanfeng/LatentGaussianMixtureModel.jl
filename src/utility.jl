@@ -724,7 +724,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
         wi = wipool ./ sum(wipool)
         mu = mupool ./ wipool
         sigmas = sqrt( sigmaspool ./ wipool .- mu.^2 )
-        if any(wipool . == 0)
+        if any(wipool .== 0)
             for i in length(wipool)
                 if wipool[i] == 0
                     wi[i] = 0.0
@@ -847,7 +847,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         wi = wipool ./ sum(wipool)
         mu = mupool ./ wipool
         sigmas = sqrt( sigmaspool ./ wipool .- mu.^2 )
-        if any(wipool . == 0)
+        if any(wipool .== 0)
             for i in length(wipool)
                 if wipool[i] == 0
                     wi[i] = 0.0
