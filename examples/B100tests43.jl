@@ -1,6 +1,9 @@
 #find out the test statistic when m0=1
 
-
+import LatentGaussianMixtureModel
+import Distributions
+import Yeppp
+import datagen3comp
 @everywhere using LatentGaussianMixtureModel
 @everywhere using Distributions, Yeppp
 @everywhere using datagen3comp

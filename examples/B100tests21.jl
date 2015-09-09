@@ -1,4 +1,8 @@
 #find out the test statistic when m0=1
+import LatentGaussianMixtureModel
+import Distributions
+import Yeppp
+import datagen3comp
 @everywhere using LatentGaussianMixtureModel
 @everywhere using Distributions, Yeppp
 @everywhere using datagen1comp
@@ -36,5 +40,5 @@ end
 
 #run on all available cores using:
 #
-teststat= pmap(Brun, 101:200)
+teststat= pmap(Brun, 1:100)
 writecsv("teststat21.csv", teststat)
