@@ -40,7 +40,7 @@ import datagen3comp
     re = latentgmm(X, Y, facility, nF, 3, beta_init, wi_init, mu_init, sigmas_init, Mmax=10000, initial_iteration=0, maxiteration=150)
     gamma_hat = vec(mean(re[6], 2))
     
-    lr = loglikelihoodratio(X, Y, facility, nF, 4, re[4], re[1], re[2], re[3], gamma_hat, minimum(gamma_hat), maximum(gamma_hat), ml_base=re[5])
+    lr = loglikelihoodratio(X, Y, facility, nF, 4, re[4], re[1], re[2], re[3], gamma_hat, minimum(gamma_hat), maximum(gamma_hat), ml_base=re[5], ntrials=10)
     maximum(lr)
 end
 

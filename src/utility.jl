@@ -300,12 +300,27 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
             wi[j] = mean(pwi[:, j])
             mu[j] = wsum(pwi[:,j]./sum(pwi[:,j]), x)
             sigmas[j] = (wsum(pwi[:,j], (x .- mu[j]).^2) + 2 * an * sn[j]) / (sum(pwi[:,j]) + 2*an) |> sqrt
+            if wi[j] .== 0.0
+                mu[j] = mu_old[j]
+                #wi[j] = 0.0
+            end
+        end
+        sigmasmax = maximum(sigmas)
+        for j in 1:ncomponent
+            if sigmas[j] / sigmasmax < .01
+                sigmas[j] = .01 * sigmasmax
+            end
+        end
+        if any(wi .< 1e-10)
+            for ik in 1:ncomponent
+                if wi[ik] < 1e-10
+                    wi[ik] = .02
+                    warn("In gmm wi = $wi")
+                end
+            end
+            wi[:] = wi ./ sum(wi)
         end
         
-        if any(wi .< 1e-8)
-            warn("wi in gmm is close to 0!")
-            return(wi, mu, sigmas, -Inf)
-        end
         if wifixed
             wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
             wi[whichtosplit] = wi_tmp*tau
@@ -313,11 +328,7 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
             mu = min(max(mu, mu_lb), mu_ub)
         end
         #println(wi, mu, sigmas, "----")
-        sigmasmax = maximum(sigmas)
-        sigmasmin, minind = findmin(sigmas)
-        if sigmasmin / sigmasmax < .01
-            sigmas[minind] = .01 * sigmasmax
-        end
+
         if stopRule(vcat(wi, mu, sigmas), vcat(wi_old, mu_old, sigmas_old), tol=tol)
             break
         end
@@ -728,7 +739,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
             for i in length(wipool)
                 if wipool[i] == 0
                     wi[i] = 0.0
-                    mu[i] = mupool[i] #i.e. 0.0
+                    mu[i] = mu_old[i]
                     sigmas[i] = 0.0
                 end
             end
@@ -738,9 +749,11 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
             for ik in 1:ncomponent
                 if sigmas[ik] < 1e-10
                     sigmas[ik] = 0.2
+                    warn("In latentgmm sigmas = $sigmas")
                 end
-                if wi[ik] < 1e-8
+                if wi[ik] < 1e-10
                     wi[ik] = .02
+                    warn("In latengmm wi = $wi")
                 end
             end
             wi[:] = wi ./ sum(wi)
@@ -851,7 +864,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
             for i in length(wipool)
                 if wipool[i] == 0
                     wi[i] = 0.0
-                    mu[i] = mupool[i] #i.e. 0.0
+                    mu[i] = mu_old[i]
                     sigmas[i] = 0.0
                 end
             end
@@ -859,10 +872,12 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         if any(wi .< 1e-10) | any(sigmas.<1e-10)
             for ik in 1:ncomponent
                 if sigmas[ik] < 1e-10
-                    sigmas[ik] = 0.2
+                    warn("In latentgmm_ctau sigmas = $sigmas is close to 0")
+                    return(wi, mu, sigmas, β, marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw))
                 end
-                if wi[ik] < 1e-8
-                    wi[ik] = .02
+                if wi[ik] < 1e-10
+                    warn("In latentgmm_ctau wi = $wi is close to 0")
+                    return(wi, mu, sigmas, β, marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw))
                 end
             end
             wi[:] = wi ./ sum(wi)
@@ -886,7 +901,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         # end
 
         if iter_em == maxiteration & maxiteration > 20
-            #warn("latentgmm_ctau not yet converge!")
+            warn("latentgmm_ctau not yet converge!")
         end
         # if any(wi .< 1e-8) | any(sigmas.< 1e-10) | any(isnan(sigmas))
         #     warn("Some wi or sigmas is close to 0 or NaN!")
