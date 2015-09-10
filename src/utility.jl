@@ -311,11 +311,11 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
                 sigmas[j] = .01 * sigmasmax
             end
         end
-        if any(wi .< 1e-10)
+        if any(wi .< 1e-3)
+            warn("In gmm wi = $wi")
             for ik in 1:ncomponent
-                if wi[ik] < 1e-10
+                if wi[ik] < 1e-3
                     wi[ik] = .02
-                    warn("In gmm wi = $wi")
                 end
             end
             wi[:] = wi ./ sum(wi)
@@ -619,9 +619,12 @@ macro GibbsLgamma()
             wi_divide_sigmas = zeros(wi)
             inv_2sigmas_sq = ones(sigmas) .* 1e20
             for i in 1:length(wi)
-                if sigmas[i] < 1e-20
+                if sigmas[i] == 0.0
                     wi_divide_sigmas[i] = 0.0
                     inv_2sigmas_sq[i] = 1e20
+                elseif isnan(sigmas[i])
+                    warn("sigmas = $sigmas")
+                    return(wi, mu, sigmas, β, -Inf)
                 else
                     wi_divide_sigmas[i] = wi[i]/sigmas[i]
                     inv_2sigmas_sq[i] = 0.5 / sigmas[i]^2
@@ -735,9 +738,9 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
         wi = wipool ./ sum(wipool)
         mu = mupool ./ wipool
         sigmas = sqrt( sigmaspool ./ wipool .- mu.^2 )
-        if any(wipool .== 0)
+        if any(wipool .== 0.0)
             for i in length(wipool)
-                if wipool[i] == 0
+                if wipool[i] == 0.0
                     wi[i] = 0.0
                     mu[i] = mu_old[i]
                     sigmas[i] = 0.0
@@ -745,13 +748,13 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
             end
         end
 
-        if any(wi .< 1e-10) | any(sigmas.<1e-10)
+        if any(wi .< 1e-3) | any(sigmas.<1e-3)
             for ik in 1:ncomponent
-                if sigmas[ik] < 1e-10
+                if sigmas[ik] < 1e-3
                     sigmas[ik] = 0.2
                     warn("In latentgmm sigmas = $sigmas")
                 end
-                if wi[ik] < 1e-10
+                if wi[ik] < 1e-3
                     wi[ik] = .02
                     warn("In latengmm wi = $wi")
                 end
@@ -862,20 +865,20 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         sigmas = sqrt( sigmaspool ./ wipool .- mu.^2 )
         if any(wipool .== 0)
             for i in length(wipool)
-                if wipool[i] == 0
+                if wipool[i] == 0.0
                     wi[i] = 0.0
                     mu[i] = mu_old[i]
                     sigmas[i] = 0.0
                 end
             end
         end
-        if any(wi .< 1e-10) | any(sigmas.<1e-10)
+        if any(wi .< 1e-3) | any(sigmas.<1e-3)
             for ik in 1:ncomponent
-                if sigmas[ik] < 1e-10
+                if sigmas[ik] < 1e-3
                     warn("In latentgmm_ctau sigmas = $sigmas is close to 0")
                     return(wi, mu, sigmas, β, marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw))
                 end
-                if wi[ik] < 1e-10
+                if wi[ik] < 1e-3
                     warn("In latentgmm_ctau wi = $wi is close to 0")
                     return(wi, mu, sigmas, β, marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw))
                 end
@@ -954,7 +957,7 @@ function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, 
         sigmas[:, i] = rand(ncomponent1) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
         if ncomponent1 != 2
             #fit gmm on gamma_hat with the starting points, to accelerate the latentgmm_ctau
-            wi[:, i], mu[:, i], sigmas[:, i], tmp = gmm(gamma0, ncomponent1, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb,mu_ub=mu_ub, maxiter=5, wifixed=true)
+            wi[:, i], mu[:, i], sigmas[:, i], tmp = gmm(gamma0, ncomponent1, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb,mu_ub=mu_ub, maxiter=1, wifixed=true)
             for ik in 1:ncomponent1
                 if sigmas[ik, i] < 1e-10
                     sigmas[ik, i] = 0.2
