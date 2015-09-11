@@ -26,15 +26,7 @@ import datagen3comp
         end
     end
 
-    #Initialized one component model using max posterior model
-    gamma_init, beta_init, sigmas_init = maxposterior(X, Y, facility)
-    wi_init, mu_init, sigmas_init, ml1 = gmm(gamma_init, 2, ones(2)/2, quantile(gamma_init, [.25,.75]), ones(2))
-
-    #two component model
-    #M=20000
-    re = latentgmm(X, Y, facility, nF, 2, beta_init, wi_init, mu_init, sigmas_init, Mmax=10000,initial_iteration=10)
-    gamma_hat = vec(mean(re[6], 2))
-    lr = loglikelihoodratio(X, Y, facility, nF, 3, re[4], re[1], re[2], re[3], gamma_hat, minimum(gamma_hat), maximum(gamma_hat), ml_base=re[5])
+    lr = loglikelihoodratio(X, Y, facility, nF, 3)
     maximum(lr)
 
 end
