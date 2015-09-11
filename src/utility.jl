@@ -297,7 +297,7 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
         sigmas_old=copy(sigmas)
 
         for j in 1:ncomponent
-            colsum = sum(pwi:, j)
+            colsum = sum(pw[:, j])
             wi[j] = (colsum + 1) / (ncomponent + nF)
             mu[j] = wsum(pwi[:,j] ./ (colsum + 1), x)
             sigmas[j] = (wsum(pwi[:,j], (x .- mu[j]).^2) + 2 * an * sn[j]) / (sum(pwi[:,j]) + 2*an) |> sqrt
