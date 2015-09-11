@@ -2,10 +2,10 @@
 import LatentGaussianMixtureModel
 import Distributions
 import Yeppp
-import datagen1comp
+
 @everywhere using LatentGaussianMixtureModel
 @everywhere using Distributions, Yeppp
-@everywhere using datagen1comp
+
 
 #Brun calculate the statistic for one data set;
 #b is the the random number seed, from 1 to 100
@@ -20,15 +20,15 @@ import datagen1comp
     srand(100)
     X = rand(Normal(), (N, J))
     beta_true=ones(J) #rand(Normal(0,1), J)
-    if Ctrue = 1
+    if Ctrue == 1
         mu_true = [log(1/0.779 - 1)]
         wi_true = [1.0]
         sigmas_true = [1.2]
-    elseif Cture = 2
+    elseif Cture == 2
         mu_true = [log(1/0.779 - 1) - 1.0, log(1/0.779 - 1) + 1.0]
         wi_true = [.5, .5]
         sigmas_true = [1.2, .8]
-    elseif Ctrue = 3
+    elseif Ctrue == 3
         mu_true = [log(1/0.779 - 1)/3 - 4.0, log(1/0.779 - 1)/3 + 1.0, log(1/0.779 - 1)/3 + 4.0;]
         wi_true = [.3, .4, .3]
         sigmas_true = [1.2, .8, .9]
@@ -50,12 +50,11 @@ import datagen1comp
         end
     end
 
-    lr = loglikelihoodratio(X, Y, facility, Calternative)
-    maximum(lr)
+    loglikelihoodratio(X, Y, facility, Calternative, ntrials=25)
 end
 
 #run on all available cores using:
-Ctrue = 1
-Calternative = 2
-teststat = pmap((b) -> Brun(b, Ctrue, Calternative), 1:100)
-writecsv("teststat$(Calternative)$(Ctrue).csv", teststat)
+#Ctrue = 1
+#Calternative = 2
+#teststat = pmap((b) -> Brun(b, Ctrue, Calternative), 1:100)
+#writecsv("teststat$(Calternative)$(Ctrue).csv", teststat)
