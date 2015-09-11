@@ -2,7 +2,7 @@
 import LatentGaussianMixtureModel
 import Distributions
 import Yeppp
-import datagen3comp
+import datagen2comp
 @everywhere using LatentGaussianMixtureModel
 @everywhere using Distributions, Yeppp
 @everywhere using datagen2comp
@@ -26,7 +26,7 @@ import datagen3comp
         end
     end
 
-    lr = loglikelihoodratio(X, Y, facility, nF, 3)
+    lr = loglikelihoodratio(X, Y, facility, 3)
     maximum(lr)
 
 end

@@ -27,7 +27,7 @@ import datagen3comp
         end
     end
 
-    lr = loglikelihoodratio(X, Y, facility, nF, 3)
+    lr = loglikelihoodratio(X, Y, facility, 3)
     maximum(lr)
 end
 

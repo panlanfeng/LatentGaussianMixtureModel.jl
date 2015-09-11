@@ -2,7 +2,7 @@
 import LatentGaussianMixtureModel
 import Distributions
 import Yeppp
-import datagen3comp
+import datagen1comp
 @everywhere using LatentGaussianMixtureModel
 @everywhere using Distributions, Yeppp
 @everywhere using datagen1comp
@@ -12,8 +12,9 @@ import datagen3comp
 @everywhere function Brun(b::Integer)
     #Randomly data generation based on the setting on datagen.jl
     srand(b * 100)
-
-    gamma_true = rand(Normal(mu_true, sigmas_true), nF)
+    m = MixtureModel(map((u, v) -> Normal(u, v), mu_true, sigmas_true), wi_true)
+    gamma_true = rand(m, nF)
+    
     prob = exp(gamma_true[facility] .+ X*beta_true)
     prob= prob ./ (1 .+ prob)
     Y = Array(Bool, N)
@@ -25,7 +26,7 @@ import datagen3comp
         end
     end
 
-    lr = loglikelihoodratio(X, Y, facility, nF, 2)
+    lr = loglikelihoodratio(X, Y, facility, 2)
     maximum(lr)
 end
 

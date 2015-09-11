@@ -26,7 +26,7 @@ J=2  #42 #beta dimension
 srand(100)
 X = rand(Normal(), (N, J))
 beta_true=ones(J) #rand(Normal(0,1), J)
-mu_true = log(1/0.779 - 1)
-wi_true = 1.0
-sigmas_true = 1.2
+mu_true = [log(1/0.779 - 1)]
+wi_true = [1.0]
+sigmas_true = [1.2]
 end
