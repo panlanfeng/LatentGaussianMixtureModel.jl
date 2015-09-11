@@ -297,8 +297,9 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
         sigmas_old=copy(sigmas)
 
         for j in 1:ncomponent
-            wi[j] = mean(pwi[:, j])
-            mu[j] = wsum(pwi[:,j]./sum(pwi[:,j]), x)
+            colsum = sum(pwi:, j)
+            wi[j] = (colsum + 1) / (1 + nF)
+            mu[j] = wsum(pwi[:,j] ./ (colsum + 1), x)
             sigmas[j] = (wsum(pwi[:,j], (x .- mu[j]).^2) + 2 * an * sn[j]) / (sum(pwi[:,j]) + 2*an) |> sqrt
             if wi[j] .== 0.0
                 mu[j] = mu_old[j]
@@ -315,7 +316,7 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
             warn("In gmm wi = $wi")
             for ik in 1:ncomponent
                 if wi[ik] < 1e-3
-                    wi[ik] = .02
+                    wi[ik] = .05
                 end
             end
             wi[:] = wi ./ sum(wi)
@@ -681,7 +682,7 @@ end
 #nF is the number of facilities
 #intial values of β, ω, μ and σ must be supplied
 
-function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, nF::Int, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; Mmax::Int=10000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, ngh::Int=1000)
+function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, nF::Int, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; Mmax::Int=10000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, ngh::Int=1000, sn::Vector{Float64}=sigmas_init, an::Float64=1.0)
 
     # initialize theta
     N,J=size(X)
@@ -703,7 +704,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
     llvec = zeros(N)
     llvecnew = zeros(N)
     ll_nF = zeros(nF)
-    wipool = zeros(ncomponent)
+    wipool = ones(ncomponent)
     mupool = zeros(ncomponent)
     sigmaspool = zeros(ncomponent)
     tmp_p0=ones(ncomponent) / ncomponent
@@ -723,7 +724,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
 
         L[:] = rand(Categorical(wi), nF)
         sample_gamma[:] = rand(Normal(), nF) .* sigmas[L] .+ mu[L]
-        wipool[:] = zeros(ncomponent)
+        wipool[:] = ones(ncomponent)
         mupool[:] = zeros(ncomponent)
         sigmaspool[:] = zeros(ncomponent)
 
@@ -737,7 +738,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
         
         wi = wipool ./ sum(wipool)
         mu = mupool ./ wipool
-        sigmas = sqrt( sigmaspool ./ wipool .- mu.^2 )
+        sigmas = sqrt((sigmaspool .- wipool .* mu.^2 .+ 2 .* an .* sn) ./ wipool .+ 2 * an))
         if any(wipool .== 0.0)
             for i in length(wipool)
                 if wipool[i] == 0.0
@@ -755,7 +756,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
                     warn("In latentgmm sigmas = $sigmas")
                 end
                 if wi[ik] < 1e-3
-                    wi[ik] = .02
+                    wi[ik] = .05
                     warn("In latengmm wi = $wi")
                 end
             end
@@ -829,7 +830,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
     llvec = zeros(N)
     llvecnew = zeros(N)
     ll_nF = zeros(nF)
-    wipool = zeros(ncomponent)
+    wipool = ones(ncomponent)
     mupool = zeros(ncomponent)
     sigmaspool = zeros(ncomponent)
     tmp_p0=ones(ncomponent) / ncomponent
@@ -851,7 +852,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
 
         L[:] = rand(Categorical(wi), nF)
         sample_gamma[:] = rand(Normal(), nF) .* sigmas[L] .+ mu[L]
-        wipool[:] = zeros(ncomponent)
+        wipool[:] = ones(ncomponent)
         mupool[:] = zeros(ncomponent)
         sigmaspool[:] = zeros(ncomponent)
 
@@ -862,7 +863,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         #update wi, mu and sigmas
         wi = wipool ./ sum(wipool)
         mu = mupool ./ wipool
-        sigmas = sqrt( sigmaspool ./ wipool .- mu.^2 )
+        sigmas = sqrt((sigmaspool .- wipool .* mu.^2 .+ 2 .* an .* sn) ./ wipool .+ 2 * an))
         if any(wipool .== 0)
             for i in length(wipool)
                 if wipool[i] == 0.0
