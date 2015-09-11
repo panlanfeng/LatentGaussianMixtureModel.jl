@@ -254,20 +254,6 @@ function q_gamma(sample_gamma_new::Array{Float64,1}, sample_gamma::Array{Float64
 
 end
 
-
-#the conditional likelihood given α and γ, divided by N;
-# can be used for checking the stability of mc samples
-# function conditionallikelihood{T<:FloatingPoint}(xb::Vector{T}, mygamma::Vector{T}, Y::AbstractArray{Bool, 1},facility::Vector{Int64})
-#     # myvec = xb .+ mygamma[facility]
-#     relocate!(myvec, mygamma, facility, length(facility))
-#     Yeppp.add!(myvec, myvec, xb)
-#     # map!(LogLogistic(), myvec, myvec, Y)
-#     loglogistic!(myvec, Y)
-#     mean(myvec)
-# end
-
-
-
 #Estimate gaussian mixture parameters given the initial value of γ
 function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; whichtosplit::Int64=1, tau::Float64=.5, mu_lb::Vector{Float64}=-Inf.*ones(wi_init), mu_ub::Vector{Float64}=Inf.*ones(wi_init), an::Float64=1.0, sn::Vector{Float64}=ones(wi_init).*var(x), maxiter::Int64=10000, tol=.001, wifixed=false)
 
@@ -301,27 +287,15 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
             wi[j] = (colsum + 1) / (ncomponent + nF)
             mu[j] = wsum(pwi[:,j] ./ (colsum + 1), x)
             sigmas[j] = (wsum(pwi[:,j], (x .- mu[j]).^2) + 2 * an * sn[j]) / (sum(pwi[:,j]) + 2*an) |> sqrt
-            if wi[j] .== 0.0
-                mu[j] = mu_old[j]
-                #wi[j] = 0.0
-            end
+
         end
-        sigmasmax = maximum(sigmas)
-        for j in 1:ncomponent
-            if sigmas[j] / sigmasmax < .01
-                sigmas[j] = .01 * sigmasmax
-            end
-        end
-        if any(wi .< 1e-3)
-            warn("In gmm wi = $wi")
-            for ik in 1:ncomponent
-                if wi[ik] < 1e-3
-                    wi[ik] = .05
-                end
-            end
-            wi[:] = wi ./ sum(wi)
-        end
-        
+        # sigmasmax = maximum(sigmas)
+        # for j in 1:ncomponent
+        #     if sigmas[j] / sigmasmax < .01
+        #         sigmas[j] = .01 * sigmasmax
+        #     end
+        # end
+
         if wifixed
             wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
             wi[whichtosplit] = wi_tmp*tau
@@ -581,34 +555,6 @@ end
 #     # ll
 # end
 
-
-# function Q2(thetagamma::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64},  wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, ghx::Vector{Float64}, ghw::Vector{Float64}, llvec::Vector{Float64}, llvecnew::Vector{Float64})
-
-#     N,J = size(X)
-#     M = length(ghx)
-#     C = length(wi)
-#     m = MixtureModel(map((u, v) -> Normal(u, v), thetagamma[3:4], thetagamma[5:6]), thetagamma[1:2])
-#     ll=0.0
-#     if length(storage)>0
-#         fill!(storage, 0.0)
-#     end
-
-#     for jcol in 1:M
-#         for c in 1:C
-
-#             ll += wi[c]*ghw[jcol]*logpdf(m, ghx[jcol]*sigmas[c]*sqrt(2)+mu[c])
-
-#             if length(storage) > 0
-
-
-#             end
-
-#         end
-#     end
-#     ll
-# end
-
-
 macro GibbsLgamma()
     quote
         #Gibbs samping for M+M_discard times
@@ -641,11 +587,11 @@ macro GibbsLgamma()
                 # for j in 1:ncomponent
                 #     tmp_p[j] = tmp_p[j]/tmpsum
                 # end
-                #try
                 # if(!isprobvec(tmp_p))
                 #     println(wi, mu, sigmas, tmp_p)
                 #     return(wi,mu,sigmas,β, -Inf,[0.0])
                 # end
+                #try                
                 L_new[i] = rand(Categorical(tmp_p))
                 # catch
                 #     println(wi, mu, sigmas, tmp_p)
@@ -739,34 +685,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
         wi = wipool ./ sum(wipool)
         mu = mupool ./ wipool
         sigmas = sqrt((sigmaspool .- wipool .* mu.^2 .+ 2 .* an .* sn) ./ (wipool .+ 2 * an))
-        if any(wipool .== 0.0)
-            for i in length(wipool)
-                if wipool[i] == 0.0
-                    wi[i] = 0.0
-                    mu[i] = mu_old[i]
-                    sigmas[i] = 0.0
-                end
-            end
-        end
 
-        if any(wi .< 1e-3) | any(sigmas.<1e-3)
-            for ik in 1:ncomponent
-                if sigmas[ik] < 1e-3
-                    sigmas[ik] = 0.2
-                    warn("In latentgmm sigmas = $sigmas")
-                end
-                if wi[ik] < 1e-3
-                    wi[ik] = .05
-                    warn("In latengmm wi = $wi")
-                end
-            end
-            wi[:] = wi ./ sum(wi)
-        end
-            
-        # if any(isnan(sigmas))
-        #     warn("sigmas in latentgmm is NaN! Try some other starting values")
-        #     return(wi, mu, sigmas, β, -Inf)
-        # end
         #no longer update beta if it already converged
         if !stopRule(β, beta_old, tol=tol) #(mod(iter_em, 5) == 1 ) & (
             beta_old = copy(β)
@@ -775,10 +694,6 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
             max_objective!(opt, (beta_new, storage)->Q1(beta_new, storage, X,Y, sample_gamma_mat[:,1:M], facility, llvec, llvecnew))
             (minf,β,ret) = optimize(opt, β)
         end
-
-        # if iter_em % 10 == 0
-        #     println(iter_em)
-        # end
 
         if iter_em == maxiteration & maxiteration > 3
             warn("latentgmm not converge!")
@@ -864,28 +779,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         wi = wipool ./ sum(wipool)
         mu = mupool ./ wipool
         sigmas = sqrt((sigmaspool .- wipool .* mu.^2 .+ 2 .* an .* sn) ./ (wipool .+ 2 * an))
-        if any(wipool .== 0)
-            for i in length(wipool)
-                if wipool[i] == 0.0
-                    wi[i] = 0.0
-                    mu[i] = mu_old[i]
-                    sigmas[i] = 0.0
-                end
-            end
-        end
-        if any(wi .< 1e-3) | any(sigmas.<1e-3)
-            for ik in 1:ncomponent
-                if sigmas[ik] < 1e-3
-                    warn("In latentgmm_ctau sigmas = $sigmas is close to 0")
-                    return(wi, mu, sigmas, β, marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw))
-                end
-                if wi[ik] < 1e-3
-                    warn("In latentgmm_ctau wi = $wi is close to 0")
-                    return(wi, mu, sigmas, β, marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw))
-                end
-            end
-            wi[:] = wi ./ sum(wi)
-        end
+
         wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
         wi[whichtosplit] = wi_tmp*tau
         wi[whichtosplit+1] = wi_tmp*(1-tau)
@@ -900,25 +794,10 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
              (minf,β,ret) = optimize(opt, β)
          end
 
-        # if iter_em % 10 == 0
-        #     println(iter_em)
-        # end
-
         if iter_em == maxiteration & maxiteration > 20
             warn("latentgmm_ctau not yet converge!")
         end
-        # if any(wi .< 1e-8) | any(sigmas.< 1e-10) | any(isnan(sigmas))
-        #     warn("Some wi or sigmas is close to 0 or NaN!")
-        #     return(wi, mu, sigmas, β, -Inf)
-        # end
-        #m = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
         ml1 = marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw)
-        #println(ml1, mu, "\t")
-        # if(isnan(ml1))
-        #     warn("Some thing wrong, try other starting values")
-        #     println(ml1, "  ", wi,mu,sigmas, "\t")
-        #     return(wi, mu, sigmas, β, -Inf)
-        # end
         if ml1 > ml0
             ml0 = ml1
             mu0=copy(mu)

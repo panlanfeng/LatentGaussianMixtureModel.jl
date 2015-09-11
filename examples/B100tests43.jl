@@ -39,8 +39,7 @@ import datagen3comp
         end
     end
     wi_init[:] = wi_init ./ sum(wi_init)
-    #two component model
-    #M=20000
+    
     re = latentgmm(X, Y, facility, nF, 3, beta_init, wi_init, mu_init, sigmas_init, Mmax=10000, initial_iteration=0, maxiteration=150)
     gamma_hat = vec(mean(re[6], 2))
     
