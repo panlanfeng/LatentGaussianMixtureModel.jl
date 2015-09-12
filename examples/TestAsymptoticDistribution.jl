@@ -12,7 +12,7 @@ import Yeppp
 @everywhere function Brun(b::Integer, Ctrue::Integer, Calternative::Integer)
     nF = 282
     srand(100)
-    n_ij = round(Int64, rand(Poisson(5), 282).+rand(Exponential(15), 282))
+    n_ij = round(Int64, rand(Poisson(5), 282).+rand(Exponential(45), 282))
     N = sum(n_ij)
 
     facility = eachrepeat(1:nF, n_ij)
@@ -24,7 +24,7 @@ import Yeppp
         mu_true = [log(1/0.779 - 1)]
         wi_true = [1.0]
         sigmas_true = [1.2]
-    elseif Cture == 2
+    elseif Ctrue == 2
         mu_true = [log(1/0.779 - 1) - 1.0, log(1/0.779 - 1) + 1.0]
         wi_true = [.5, .5]
         sigmas_true = [1.2, .8]
@@ -50,11 +50,13 @@ import Yeppp
         end
     end
 
-    loglikelihoodratio(X, Y, facility, Calternative, ntrials=25)
+    lr=loglikelihoodratio(X, Y, facility, Calternative, ntrials=25)
+    println("Mission $b completed with lr=$lr")
+    lr
 end
 
 #run on all available cores using:
-#Ctrue = 1
-#Calternative = 2
-#teststat = pmap((b) -> Brun(b, Ctrue, Calternative), 1:100)
-#writecsv("teststat$(Calternative)$(Ctrue).csv", teststat)
+# @everywhere Ctrue = 3
+# @everywhere Calternative = 4
+# teststat = pmap((b) -> Brun(b, Ctrue, Calternative), 1:100)
+# writecsv("teststat$(Calternative)$(Ctrue).csv", teststat)
