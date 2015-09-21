@@ -49,8 +49,8 @@ import Yeppp
             Y[i] = false
         end
     end
-
-    lr=loglikelihoodratio(X, Y, facility, Calternative, ntrials=25)
+    an = 0.1
+    lr=loglikelihoodratio(X, Y, facility, Calternative, ntrials=25, an=an)
     println("Mission $b completed with lr=$lr")
     lr
 end

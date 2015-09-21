@@ -548,7 +548,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
      # llmc = Float64[conditionallikelihood(xb, sample_gamma_mat[:,i], Y, facility) for i in 1:M]
     #m = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
 
-    return(wi, mu, sigmas, β, marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw)+sum(pn(sigmas.^2, sn, an=an)), sample_gamma_mat[:,1:M])
+    return(wi, mu, sigmas, β, marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw), sample_gamma_mat[:,1:M]) #+sum(pn(sigmas.^2, sn, an=an))
 end
 
 #For fixed wi
@@ -642,7 +642,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         if iter_em == maxiteration & maxiteration > 20
             warn("latentgmm_ctau not yet converge!")
         end
-        ml1 = marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw) + sum(pn(sigmas.^2, sn, an=an))
+        ml1 = marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw)# + sum(pn(sigmas.^2, sn, an=an))
         if ml1 > ml0
             ml0 = ml1
             mu0=copy(mu)
