@@ -54,9 +54,3 @@ import Yeppp
     println("Mission $b completed with lr=$lr")
     lr
 end
-
-#run on all available cores using:
-# @everywhere Ctrue = 3
-# @everywhere Calternative = 4
-# teststat = pmap((b) -> Brun(b, Ctrue, Calternative), 1:100)
-# writecsv("teststat$(Calternative)$(Ctrue).csv", teststat)

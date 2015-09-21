@@ -1,7 +1,7 @@
 
 
-exp!(x::Vector{Float64}) = exp!(x, x)
-log!(x::Vector{Float64}) = log!(x, x)
+exp!(x::Vector{Float64}) = Yeppp.exp!(x, x)
+log!(x::Vector{Float64}) = Yeppp.log!(x, x)
 
 function sumexp{T<:Real}(x::AbstractArray{T})
     isempty(x) && return -Inf
