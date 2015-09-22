@@ -25,7 +25,7 @@ import Yeppp
         wi_true = [1.0]
         sigmas_true = [1.2]
     elseif Ctrue == 2
-        mu_true = [log(1/0.779 - 1) - 1.0, log(1/0.779 - 1) + 1.0]
+        mu_true = [log(1/0.779 - 1)/2 - 1.0, log(1/0.779 - 1)/2 + 1.0]
         wi_true = [.5, .5]
         sigmas_true = [1.2, .8]
     elseif Ctrue == 3
@@ -49,7 +49,7 @@ import Yeppp
             Y[i] = false
         end
     end
-    an = 0.1
+    an = 0.0
     lr=loglikelihoodratio(X, Y, facility, Calternative, ntrials=25, an=an)
     println("Mission $b completed with lr=$lr")
     lr
