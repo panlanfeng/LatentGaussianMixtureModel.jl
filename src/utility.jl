@@ -120,7 +120,7 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
             colsum = sum(pwi[:, j])
             wi[j] = colsum / nF
             mu[j] = wsum(pwi[:,j] ./ colsum, x)
-            sigmas[j] = (wsum(pwi[:,j], (x .- mu[j]).^2) + 2 * an * sn[j]) / (sum(pwi[:,j]) + 2*an) |> sqrt
+            sigmas[j] = sqrt((wsum(pwi[:,j], (x .- mu[j]).^2) + 2 * an * sn[j]) / (sum(pwi[:,j]) + 2*an))
 
         end
         # sigmasmax = maximum(sigmas)
@@ -195,7 +195,7 @@ end
 function maxposterior(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64})
 
     N,J = size(X)
-    nF = unique(facility) |> length
+    nF = length(unique(facility))
 
     bag = [rand(Normal(), nF), ones(J+1);]
     p=1+J+nF
@@ -396,7 +396,7 @@ macro GibbsLgamma()
             xb  = X*β
 
             #update Lᵢ
-            tmp_p[:]=tmp_p0
+            #tmp_p[:]=tmp_p0
             wi_divide_sigmas = zeros(wi)
             inv_2sigmas_sq = ones(sigmas) .* 1e20
             for i in 1:length(wi)
@@ -413,37 +413,19 @@ macro GibbsLgamma()
             end
             for i in 1:nF
                 tmp_p[:] = ratiosumexp(-(mu .- sample_gamma[i]).^2 .* inv_2sigmas_sq, wi_divide_sigmas)
-                # for j in 1:ncomponent
-                #     tmp_p[j] = pdf(Normal(mu[j], sigmas[j]), sample_gamma[i]) * wi[j]
-                # end
-                # tmpsum = sum(tmp_p)
-                # # tmp_p[:] = tmp_p ./ sum(tmp_p)
-                # for j in 1:ncomponent
-                #     tmp_p[j] = tmp_p[j]/tmpsum
-                # end
-                # if(!isprobvec(tmp_p))
-                #     println(wi, mu, sigmas, tmp_p)
-                #     return(wi,mu,sigmas,β, -Inf,[0.0])
-                # end
-                #try                
                 L_new[i] = rand(Categorical(tmp_p))
-                # catch
-                #     println(wi, mu, sigmas, tmp_p)
-                #     return(wi, mu, sigmas, β, -Inf, [0.0])
-                # end
-            end
-
-            #update γᵢ;
-            for i in 1:nF
-                # sample_gamma_new[i] = rand(Normal(mu[L[i]], sigmas[L[i]]))
                 sample_gamma_new[i] = rand(Normal(sample_gamma[i], proposingsigma))
             end
 
+            #update γᵢ;
             #Calculate the accept probability, stored in ll_nF
             q_gamma(sample_gamma_new, sample_gamma, xb, Y,facility, mu, sigmas, L, L_new, llvec, llvecnew, ll_nF, nF, N)
-            accept_gamma = rand(nF) .< ll_nF
-            sample_gamma[accept_gamma] = sample_gamma_new[accept_gamma]
-            L[:] = L_new
+            for i in 1:nF
+                if rand() < ll_nF[i]
+                    sample_gamma[i] = sample_gamma_new[i]
+                end
+                L[i] = L_new[i]
+            end
 
             #only keep samples after M_discard
             jcol = iter_gibbs - M_discard
@@ -485,7 +467,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
     llvec = zeros(N)
     llvecnew = zeros(N)
     ll_nF = zeros(nF)
-    wipool = ones(ncomponent)
+    wipool = zeros(ncomponent)
     mupool = zeros(ncomponent)
     sigmaspool = zeros(ncomponent)
     tmp_p0=ones(ncomponent) / ncomponent
@@ -503,17 +485,19 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
             Q_maxiter = 10
         end
 
-        L[:] = rand(Categorical(wi), nF)
-        sample_gamma[:] = rand(Normal(), nF) .* sigmas[L] .+ mu[L]
-        wipool[:] = zeros(ncomponent)
-        mupool[:] = zeros(ncomponent)
-        sigmaspool[:] = zeros(ncomponent)
+        for i in 1:nF
+            L[i] = rand(Categorical(wi))
+            sample_gamma[i] = rand(Normal()) .* sigmas[L[i]] .+ mu[L[i]]
+        end
+        fill!(wipool, 0.0)
+        fill!(mupool, 0.0)
+        fill!(sigmaspool, 0.0)
 
         #Gibbs samping for M+M_discard times
         @GibbsLgamma
         for j in 1:ncomponent
             if wipool[j] == 0
-                wipool[j] == 1
+                wipool[j] = 1
             end
         end
         wi_old=copy(wi)
@@ -552,7 +536,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
 end
 
 #For fixed wi
-function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}, whichtosplit::Int64, tau::Float64, ghx::Vector{Float64}, ghw::Vector{Float64}; mu_lb::Vector{Float64}=-Inf.*ones(wi_init), mu_ub::Vector{Float64}=Inf.*ones(wi_init), Mmax::Int=500, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, sn::Vector{Float64}=maximum(sigmas_init.^2).*ones(ncomponent), an::Float64=0.25)
+function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}, whichtosplit::Int64, tau::Float64, ghx::Vector{Float64}, ghw::Vector{Float64}; mu_lb::Vector{Float64}=-Inf.*ones(wi_init), mu_ub::Vector{Float64}=Inf.*ones(wi_init), Mmax::Int=5000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, sn::Vector{Float64}=maximum(sigmas_init.^2).*ones(ncomponent), an::Float64=0.25)
 
     # initialize theta
     N,J=size(X)
@@ -585,7 +569,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
     llvec = zeros(N)
     llvecnew = zeros(N)
     ll_nF = zeros(nF)
-    wipool = ones(ncomponent)
+    wipool = zeros(ncomponent)
     mupool = zeros(ncomponent)
     sigmaspool = zeros(ncomponent)
     tmp_p0=ones(ncomponent) / ncomponent
@@ -605,12 +589,13 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
             Q_maxiter = 10
         end
 
-        L[:] = rand(Categorical(wi), nF)
-        sample_gamma[:] = rand(Normal(), nF) .* sigmas[L] .+ mu[L]
-        wipool[:] = zeros(ncomponent)
-        mupool[:] = zeros(ncomponent)
-        sigmaspool[:] = zeros(ncomponent)
-
+        for i in 1:nF
+            L[i] = rand(Categorical(wi))
+            sample_gamma[i] = rand(Normal()) .* sigmas[L[i]] .+ mu[L[i]]
+        end        
+        fill!(wipool, 0.0)
+        fill!(mupool, 0.0)
+        fill!(sigmaspool, 0.0)
         @GibbsLgamma
         wi_old=copy(wi)
         mu_old=copy(mu)
@@ -618,7 +603,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         #update wi, mu and sigmas
         for j in 1:ncomponent
             if wipool[j] == 0
-                wipool[j] == 1
+                wipool[j] = 1
             end
         end
         wi = wipool ./ sum(wipool)
@@ -652,7 +637,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         else
             lessthanmax += 1
         end
-        if lessthanmax > 2
+        if lessthanmax > 4
             #println("latentgmm_ctau stop at ", iter_em, "th iteration")
             break
         end
@@ -681,7 +666,7 @@ function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, 
         #     #fit gmm on gamma_hat with the starting points, to accelerate the latentgmm_ctau
         #     wi[:, i], mu[:, i], sigmas[:, i], tmp = gmm(gamma0, ncomponent1, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb,mu_ub=mu_ub, maxiter=1, wifixed=true, sn=sn)
         # end
-        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmm_ctau(X, Y, facility, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=10, Mmax=2000, M_discard=1000, sn=sn, an=an)
+        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmm_ctau(X, Y, facility, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=0, Mmax=2000, M_discard=1000, sn=sn, an=an)
     end
     
     mlperm = sortperm(ml)
@@ -706,7 +691,7 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facil
     gamma_init, beta_init, sigmas_tmp = maxposterior(X, Y, facility)
     wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0))
 
-    wi_init, mu_init, sigmas_init, betas_init, ml_C0, gamma_mat = latentgmm(X, Y, facility, C0, beta_init, wi_init, mu_init, sigmas_init, Mmax=10000, initial_iteration=0, maxiteration=150, an=an, sn=var(gamma_init).*ones(C0))
+    wi_init, mu_init, sigmas_init, betas_init, ml_C0, gamma_mat = latentgmm(X, Y, facility, C0, beta_init, wi_init, mu_init, sigmas_init, Mmax=10000, initial_iteration=10, maxiteration=150, an=an, sn=var(gamma_init).*ones(C0))
     gamma0 = vec(mean(gamma_mat, 2))    
     mingamma = minimum(gamma0)
     maxgamma = maximum(gamma0)
