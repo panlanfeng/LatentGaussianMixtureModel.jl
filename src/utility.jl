@@ -487,7 +487,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
 
         for i in 1:nF
             L[i] = rand(Categorical(wi))
-            sample_gamma[i] = rand(Normal()) .* sigmas[L[i]] .+ mu[L[i]]
+            sample_gamma[i] = mean(sample_gamma_mat[i, :]) # rand(Normal(mu[L[i]], sigmas[L[i]]))  
         end
         fill!(wipool, 0.0)
         fill!(mupool, 0.0)
@@ -591,7 +591,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
 
         for i in 1:nF
             L[i] = rand(Categorical(wi))
-            sample_gamma[i] = rand(Normal()) .* sigmas[L[i]] .+ mu[L[i]]
+            sample_gamma[i] = mean(sample_gamma_mat[i, :]) #rand(Normal(mu[L[i]], sigmas[L[i]])) 
         end        
         fill!(wipool, 0.0)
         fill!(mupool, 0.0)
@@ -662,17 +662,17 @@ function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, 
     for i in 1:4*ntrials
         mu[:, i] = rand(ncomponent1) .* (mu_ub .- mu_lb) .+ mu_lb
         sigmas[:, i] = rand(ncomponent1) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
-        # if ncomponent1 != 2
-        #     #fit gmm on gamma_hat with the starting points, to accelerate the latentgmm_ctau
-        #     wi[:, i], mu[:, i], sigmas[:, i], tmp = gmm(gamma0, ncomponent1, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb,mu_ub=mu_ub, maxiter=1, wifixed=true, sn=sn)
-        # end
-        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmm_ctau(X, Y, facility, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=0, Mmax=2000, M_discard=1000, sn=sn, an=an)
+        if ncomponent1 != 2
+            #fit gmm on gamma_hat with the starting points, to accelerate the latentgmm_ctau
+            wi[:, i], mu[:, i], sigmas[:, i], tmp = gmm(gamma0, ncomponent1, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb,mu_ub=mu_ub, maxiter=1, wifixed=true, sn=sn)
+        end
+        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmm_ctau(X, Y, facility, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=8, Mmax=1000, M_discard=1000, sn=sn, an=an)
     end
     
     mlperm = sortperm(ml)
     for j in 1:ntrials
         i = mlperm[4*ntrials+1 - j] # start from largest ml 
-        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmm_ctau(X, Y, facility, ncomponent1, betas[:, i], wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=100, initial_iteration=10, Mmax=5000, M_discard=1000, sn=sn, an=an)
+        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmm_ctau(X, Y, facility, ncomponent1, betas[:, i], wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=100, initial_iteration=0, Mmax=2000, M_discard=1000, sn=sn, an=an)
     end
     
     mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
