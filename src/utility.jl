@@ -377,12 +377,16 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
     #iterattion begins here
 
     no_iter=1
-    M = 2000
+    M = min(2000, Mmax)
     Q_maxiter = 2
     for iter_em in 1:maxiteration
         for i in 1:nF
             L[i] = rand(Categorical(wi))
-            sample_gamma[i] = sample_gamma_mat[i, M] # rand(Normal(mu[L[i]], sigmas[L[i]]))  
+            if iter_em == 1
+                sample_gamma[i] = rand(Normal(mu[L[i]], sigmas[L[i]])) 
+            else
+                sample_gamma[i] = sample_gamma_mat[i, M] 
+            end
         end
         if iter_em == (initial_iteration + 1)
             M = Mmax
@@ -478,13 +482,17 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
     #iterattion begins here
 
     no_iter=1
-    M = 2000
+    M = min(2000, Mmax)
     Q_maxiter = 2
     lessthanmax = 0
     for iter_em in 1:maxiteration
         for i in 1:nF
             L[i] = rand(Categorical(wi))
-            sample_gamma[i] = sample_gamma_mat[i, M] #rand(Normal(mu[L[i]], sigmas[L[i]])) 
+            if iter_em == 1
+                sample_gamma[i] = rand(Normal(mu[L[i]], sigmas[L[i]])) 
+            else
+                sample_gamma[i] = sample_gamma_mat[i, M] 
+            end
         end
         if iter_em == (initial_iteration + 1)
             M = Mmax
