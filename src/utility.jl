@@ -209,39 +209,6 @@ function maxposterior(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::V
 end
 
 
-#doing the integration using given prior; For testing
-
-#doing the integration using given prior; For testing
-# function marginallikelihood(beta_new::Array{Float64,1}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, nF::Int64, m::Distribution, M::Integer)
-# 
-#     N,J = size(X)
-#     xb = X*beta_new
-#     ll_nF=zeros(nF)
-#     # sumlog_nF = zeros(nF)
-#     llvec = zeros(N)
-#     sumlogmat = zeros(nF, M)
-#     for jcol in 1:M
-#         relocate!(llvec, rand(m, nF), facility, N)
-#         add!(llvec, llvec, xb)
-#         negateiftrue!(llvec, Y)
-#         exp!(llvec, llvec)
-#         log1p!(llvec)
-#         # add!(llvec, llvec, 1.0, N)
-#         # fill!(sumlog_nF, 0.0)
-#         for i in 1:N
-#             @inbounds sumlogmat[facility[i], jcol] -= llvec[i]
-#         end
-# 
-#     end
-#     for i in 1:nF
-#         ll_nF[i] = logsumexp(sumlogmat[i,:])
-#     end
-#     # divide!(ll_nF, M, nF)
-#     # log!(ll_nF, ll_nF)
-# 
-#     sum(ll_nF) - nF * log(M)
-# end
-
 function marginallikelihood(beta_new::Array{Float64,1}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, nF::Int64, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, ghx::Vector{Float64}, ghw::Vector{Float64})
 
     N,J = size(X)
@@ -322,72 +289,6 @@ function Q1(beta_new::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
     end
     -ll/M
 end
-
-# function Q1(beta_new::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64},  beta_old::Vector{Float64}, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, ghx::Vector{Float64}, ghw::Vector{Float64}, llvec::Vector{Float64}, llvecnew::Vector{Float64}, llold::Vector{Float64},ll_nF::Vector{Float64}, )
-
-#     N,J = size(X)
-#     M = length(ghx)
-#     C = length(wi)
-#     xb = X*beta_new
-#     xb_old = X*beta_old
-#     ll=0.0
-#     sumlogmat = zeros(nF, M*C)
-#     if length(storage)>0
-#         fill!(storage, 0.0)
-#     end
-
-#     for jcol in 1:M, c in 1:C
-
-
-#         fill!(llvec, ghx[jcol]*sigmas[c]*sqrt(2)+mu[c])
-#         Yeppp.add!(llold, llvec, xb_old)
-#         Yeppp.add!(llvec, llvec, xb)
-
-#         negateiftrue!(llvec, Y)
-#         negateiftrue(llold, Y)
-#         exp!(llvec, llvec)
-#         exp!(llold, llold)
-#         log1p!(llold)
-#         for i in 1:N
-#             @inbounds ll_nF[facility[i]] -= llold[i]
-#         end
-
-#         if length(storage) > 0
-#             llvecnew[:] = llvec
-
-#             x1x!(llvecnew)
-#             negateiffalse!(llvecnew, Y)
-#             ll_nF
-
-#             for j in 1:J
-#                 @inbounds storage[j] += dot(llvecnew, X[:, j])*wi[c]*ghw[jcol]
-#             end
-#         end
-
-#         log1p!(llvec)
-#         ixM = ix+M*(jcom-1)
-#         for i in 1:N
-#             @inbounds sumlogmat[facility[i], ixM] += llvec[i]
-#         end
-#         # w_m*π_c*log(1/Π_k(1+exp(gamma_ik+xb))) * (1/Π_k(1+exp(gamma_ik+xb_old))) =
-#         #  -w_m*π_c*∑_k log(1+exp()) * (1/Π_k(1+exp())) =
-#         #  -exp{ log(∑_k log1p(exp()))-∑_k log1p(exp())+log(w_m)+log(π_c) }
-
-#         #∑_i { -sumexp_mc( log(∑_k log1p(exp()))-∑_k log1p(exp())+log(w_m)+log(π_c) ) } =
-#         # - sumexp_imc ( log(∑_k log1p(exp()))-∑_k log1p(exp())+log(w_m)+log(π_c) ) =
-#         # -exp{ logsumexp_imc ( log(∑_k log1p(exp()))-∑_k log1p(exp())+log(w_m)+log(π_c) ) }
-
-#         log!(sumlogmat)
-
-#         for i in 1:nF
-#             sumlogmat[i, ixM] += -ll_nF[i] + log(wi[jcom]) + log(ghw[ix])
-#         end
-#         # negate!(sumlogmat)
-#     end
-#     -exp(logsumexp(sumlogmat))
-#     # sum(ll_nF) - nF*log(pi)/2
-#     # ll
-# end
 
 macro GibbsLgamma()
     quote
@@ -470,7 +371,6 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
     wipool = zeros(ncomponent)
     mupool = zeros(ncomponent)
     sigmaspool = zeros(ncomponent)
-    tmp_p0=ones(ncomponent) / ncomponent
     tmp_p=ones(ncomponent) / ncomponent
 
     ################################################################################################################
@@ -572,7 +472,6 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
     wipool = zeros(ncomponent)
     mupool = zeros(ncomponent)
     sigmaspool = zeros(ncomponent)
-    tmp_p0=ones(ncomponent) / ncomponent
     tmp_p=ones(ncomponent) / ncomponent
     ml0=-Inf
 
@@ -580,7 +479,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
     #iterattion begins here
 
     no_iter=1
-    M = 1000
+    M = 2000
     Q_maxiter = 2
     lessthanmax = 0
     for iter_em in 1:maxiteration
@@ -627,7 +526,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         if iter_em == maxiteration & maxiteration > 20
             warn("latentgmm_ctau not yet converge!")
         end
-        ml1 = marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw)# + sum(pn(sigmas.^2, sn, an=an))
+        ml1 = marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw) + log(2*tau) # + sum(pn(sigmas.^2, sn, an=an))
         if ml1 > ml0
             ml0 = ml1
             mu0=copy(mu)
@@ -666,13 +565,13 @@ function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, 
             #fit gmm on gamma_hat with the starting points, to accelerate the latentgmm_ctau
             wi[:, i], mu[:, i], sigmas[:, i], tmp = gmm(gamma0, ncomponent1, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb,mu_ub=mu_ub, maxiter=1, wifixed=true, sn=sn)
         end
-        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmm_ctau(X, Y, facility, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=8, Mmax=1000, M_discard=1000, sn=sn, an=an)
+        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmm_ctau(X, Y, facility, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=8, Mmax=500, M_discard=500, sn=sn, an=an)
     end
     
     mlperm = sortperm(ml)
     for j in 1:ntrials
         i = mlperm[4*ntrials+1 - j] # start from largest ml 
-        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmm_ctau(X, Y, facility, ncomponent1, betas[:, i], wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=100, initial_iteration=0, Mmax=2000, M_discard=1000, sn=sn, an=an)
+        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmm_ctau(X, Y, facility, ncomponent1, betas[:, i], wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=100, initial_iteration=0, Mmax=500, M_discard=500, sn=sn, an=an)
     end
     
     mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
