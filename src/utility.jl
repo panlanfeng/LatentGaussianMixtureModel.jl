@@ -8,7 +8,83 @@ end
 pn(sigma1::Vector{Float64},  sigmahat::Float64; an::Float64 = .25)=Float64[pn(sigma1[i], sigmahat, an=an) for i in 1:length(sigma1)]
 pn(sigma1::Vector{Float64},  sigmahat::Vector{Float64}; an::Float64 = .25)=Float64[pn(sigma1[i], sigmahat[i], an=an) for i in 1:length(sigma1)]
 
+function decidepenalty(wi::Vector, mu::Vector, sigmas::Vector, nobs::Int)
+    C = length(wi)
+    if C==1
+        return 0.25
+    elseif C == 2
+        omega = omega12(wi, mu, sigmas)
+        omega = min(max(omega, 1e-16), 1 - 1e-16)
+        x = exp(-1.642 -0.434*log(omega/(1-omega)) -101.80/nobs)
+        return 1.8*x/(1+x)
+    elseif C == 3
+        omega = omega123(wi, mu, sigmas)
+        omega = min(max(omega, 1e-16), 1 - 1e-16)
+        t_omega = (omega[1]*omega[2])/(1-omega[1])/(1-omega[2])
+        x =  exp(-1.678 -0.232*log(t_omega) -175.50/nobs)
+        return 1.5*x/(1+x)
+    else
+        return 1.0
+    end
+end
+function omegaji(alpi,mui,sigi,alpj,muj,sigj)
+# Computes omega_{j|i} defined in (2.1) of Maitra and Melnykov
+    if sigi==sigj
+        delta = abs(mui-muj)/sigi
+        out = pdf(Normal(), -delta/2 + log(alpj/alpi)/delta)
+    else
+        ncp = (mui-muj)*sigi/(sigi^2-sigj^2)
+        value=sigj^2*(mui-muj)^2/(sigj^2-sigi^2)^2-sigj^2/(sigi^2-sigj^2)*log(alpi^2*sigj^2/alpj^2/sigi^2 )
+        sqrtvalue = sqrt(max(value,0.0))
 
+        ind = float(sigi<sigj)
+        out = ind + (-1)^ind*(pdf(Normal(), sqrtvalue-ncp)-pdf(Normal(), -sqrtvalue-ncp))
+    end
+    return(out)
+end	# end function omega.ji
+
+function omega12(wi, mu, sigmas)
+# Computes omega_{12} for testing H_0:m=2 against H_1:m=3
+    alp1 = wi[1]
+    alp2 = wi[2]
+
+    mu1 = mu[1]
+    mu2 = mu[2]
+
+    sig1 = sigmas[1]
+    sig2 = sigmas[2]
+
+    part1 = omegaji(alp1,mu1,sig1,alp2,mu2,sig2)
+    part2 = omegaji(alp2,mu2,sig2,alp1,mu1,sig1)
+
+    return((part1+part2)/2)
+end	# end function omega.12
+
+function omega123(wi, mu, sigmas)
+
+    alp1 = wi[1]
+    alp2 = wi[2]
+    alp3 = wi[3]
+
+    mu1 = mu[1]
+    mu2 = mu[2]
+    mu3 = mu[3]
+
+    sig1 = sigmas[1]
+    sig2 = sigmas[2]
+    sig3 = sigmas[3]
+
+    part1 = omegaji(alp1,mu1,sig1,alp2,mu2,sig2)
+    part2 = omegaji(alp2,mu2,sig2,alp1,mu1,sig1)
+    w12 = (part1+part2)/2
+
+    part3 = omegaji(alp2,mu2,sig2,alp3,mu3,sig3)
+    part4 = omegaji(alp3,mu3,sig3,alp2,mu2,sig2)
+    w23 = (part3+part4)/2
+
+    return([w12,w23])
+
+end	# end function omega.123
 
 #copy from NumericExtensions, to avoid the annoyed warnings
 function eachrepeat{T}(x::AbstractVector{T}, rt::Integer)
@@ -599,13 +675,13 @@ function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, 
     return(re[1], re[2], re[3], re[4], re[5])
 end
 
-function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, ncomponent1::Int; vtau::Vector{Float64}=[.5,.3,.1;], ntrials::Int=25, ngh::Int=1000, an::Real=.25)
+function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, ncomponent1::Int; vtau::Vector{Float64}=[.5,.3,.1;], ntrials::Int=25, ngh::Int=1000)
     C0 = ncomponent1 - 1
     C1 = ncomponent1 
     nF = maximum(facility)
 
     gamma_init, beta_init, sigmas_tmp = maxposterior(X, Y, facility)
-    wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=an)
+    wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=1/nF)
 
     wi_init, mu_init, sigmas_init, betas_init, ml_C0, gamma_mat = latentgmm(X, Y, facility, C0, beta_init, wi_init, mu_init, sigmas_init, Mmax=5000, initial_iteration=10, maxiteration=150, an=1/nF, sn=std(gamma_init).*ones(C0))
     gamma0 = vec(mean(gamma_mat, 2))    
@@ -618,7 +694,7 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facil
     mu0 = mu_init[or]
     sigmas0 = sigmas_init[or]
     betas0 = betas_init
-    
+    an = decidepenalty(wi0, mu0, sigmas0, nF)
     for whichtosplit in 1:C0
         ind = [1:whichtosplit, whichtosplit:C0;]
         if C1==2
