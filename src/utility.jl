@@ -9,7 +9,7 @@ pn(sigma1::Vector{Float64},  sigmahat::Float64; an::Float64 = .25)=Float64[pn(si
 pn(sigma1::Vector{Float64},  sigmahat::Vector{Float64}; an::Float64 = .25)=Float64[pn(sigma1[i], sigmahat[i], an=an) for i in 1:length(sigma1)]
 
 function decidepenalty(wi0::Vector, mu0::Vector, sigmas0::Vector, nobs::Int)
-    C = length(wi)
+    C = length(wi0)
     or = sortperm(mu0)
     wi = wi0[or]
     mu = mu0[or]
