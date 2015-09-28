@@ -376,62 +376,12 @@ function Q1(beta_new::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
     -ll/M
 end
 
-macro GibbsLgamma()
-    quote
-        #Gibbs samping for M+M_discard times
-        for iter_gibbs in 1:(M+M_discard)
-            xb  = X*β
-
-            #update Lᵢ
-            #tmp_p[:]=tmp_p0
-            wi_divide_sigmas = zeros(wi)
-            inv_2sigmas_sq = ones(sigmas) .* 1e20
-            for i in 1:length(wi)
-                if sigmas[i] == 0.0
-                    wi_divide_sigmas[i] = 0.0
-                    inv_2sigmas_sq[i] = 1e20
-                elseif isnan(sigmas[i])
-                    warn("sigmas = $sigmas")
-                    return(wi, mu, sigmas, β, -Inf, [0.0])
-                else
-                    wi_divide_sigmas[i] = wi[i]/sigmas[i]
-                    inv_2sigmas_sq[i] = 0.5 / sigmas[i]^2
-                end
-            end
-            for i in 1:nF
-                tmp_p[:] = ratiosumexp(-(mu .- sample_gamma[i]).^2 .* inv_2sigmas_sq, wi_divide_sigmas)
-                L_new[i] = rand(Categorical(tmp_p))
-                sample_gamma_new[i] = rand(Normal(sample_gamma[i], proposingsigma))
-            end
-
-            #update γᵢ;
-            #Calculate the accept probability, stored in ll_nF
-            q_gamma(sample_gamma_new, sample_gamma, xb, Y,facility, mu, sigmas, L, L_new, llvec, llvecnew, ll_nF, nF, N)
-            for i in 1:nF
-                if rand() < ll_nF[i]
-                    sample_gamma[i] = sample_gamma_new[i]
-                end
-                L[i] = L_new[i]
-            end
-
-            #only keep samples after M_discard
-            jcol = iter_gibbs - M_discard
-            if jcol > 0
-                sample_gamma_mat[:, jcol] = sample_gamma
-                wipool[:] = wipool .+ counts(L, 1:ncomponent)
-                mupool[:] = mupool .+ tapply(sample_gamma, L, sum, [1:ncomponent;])
-                sigmaspool[:] = sigmaspool .+ tapply(sample_gamma.^2, L, sum, [1:ncomponent;])
-            end
-        end
-    end
-end
-
 #The main function
 #X, Y, facility
 #nF is the number of facilities
 #intial values of β, ω, μ and σ must be supplied
 
-function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; Mmax::Int=10000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, ngh::Int=1000, sn::Vector{Float64}=sigmas_init, an::Float64=0.25)
+function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; Mmax::Int=10000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, ngh::Int=1000, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo=false)
 
     # initialize theta
     N,J=size(X)
@@ -440,7 +390,6 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
     wi = copy(wi_init)
     mu = copy(mu_init)
     sigmas = copy(sigmas_init)
-
     β = copy(β_init)
     beta_old = randn(J)
     ghx, ghw = gausshermite(ngh)
@@ -485,7 +434,52 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
         fill!(mupool, 0.0)
         fill!(sigmaspool, 0.0)
         #Gibbs samping for M+M_discard times
-        @GibbsLgamma
+        
+        for iter_gibbs in 1:(M+M_discard)
+            xb  = X*β
+
+            #update Lᵢ
+            #tmp_p[:]=tmp_p0
+            wi_divide_sigmas = zeros(wi)
+            inv_2sigmas_sq = ones(sigmas) .* 1e20
+            for i in 1:length(wi)
+                if sigmas[i] == 0.0
+                    wi_divide_sigmas[i] = 0.0
+                    inv_2sigmas_sq[i] = 1e20
+                elseif isnan(sigmas[i])
+                    warn("sigmas = $sigmas")
+                    return(wi, mu, sigmas, β, -Inf, [0.0])
+                else
+                    wi_divide_sigmas[i] = wi[i]/sigmas[i]
+                    inv_2sigmas_sq[i] = 0.5 / sigmas[i]^2
+                end
+            end
+            for i in 1:nF
+                tmp_p[:] = ratiosumexp(-(mu .- sample_gamma[i]).^2 .* inv_2sigmas_sq, wi_divide_sigmas)
+                L_new[i] = rand(Categorical(tmp_p))
+                sample_gamma_new[i] = rand(Normal(sample_gamma[i], proposingsigma))
+            end
+
+            #update γᵢ;
+            #Calculate the accept probability, stored in ll_nF
+            q_gamma(sample_gamma_new, sample_gamma, xb, Y,facility, mu, sigmas, L, L_new, llvec, llvecnew, ll_nF, nF, N)
+            for i in 1:nF
+                if rand() < ll_nF[i]
+                    sample_gamma[i] = sample_gamma_new[i]
+                end
+                L[i] = L_new[i]
+            end
+
+            #only keep samples after M_discard
+            jcol = iter_gibbs - M_discard
+            if jcol > 0
+                sample_gamma_mat[:, jcol] = sample_gamma
+                wipool[:] = wipool .+ counts(L, 1:ncomponent)
+                mupool[:] = mupool .+ tapply(sample_gamma, L, sum, [1:ncomponent;])
+                sigmaspool[:] = sigmaspool .+ tapply(sample_gamma.^2, L, sum, [1:ncomponent;])
+            end
+        end
+        
         for j in 1:ncomponent
             if wipool[j] == 0
                 wipool[j] = 1
@@ -508,14 +502,18 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
             (minf,β,ret) = optimize(opt, β)
         end
 
+        if debuginfo
+            println(wi, "\t", mu, "\t", sigmas, "\t", marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw)+sum(pn(sigmas, sn, an=an)))
+        end
         if iter_em == maxiteration & maxiteration > 3
             warn("latentgmm not converge!")
         end
         if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) & (iter_em > initial_iteration)
-            #println("latentgmm converged at ", iter_em, "th iteration")
+            if debuginfo
+                println("latentgmm converged at $(iter_em)th iteration")
+            end
             break
         end
-
     end
 
      # xb=X*β
@@ -592,7 +590,52 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         fill!(wipool, 0.0)
         fill!(mupool, 0.0)
         fill!(sigmaspool, 0.0)
-        @GibbsLgamma
+        
+        for iter_gibbs in 1:(M+M_discard)
+            xb  = X*β
+
+            #update Lᵢ
+            #tmp_p[:]=tmp_p0
+            wi_divide_sigmas = zeros(wi)
+            inv_2sigmas_sq = ones(sigmas) .* 1e20
+            for i in 1:length(wi)
+                if sigmas[i] == 0.0
+                    wi_divide_sigmas[i] = 0.0
+                    inv_2sigmas_sq[i] = 1e20
+                elseif isnan(sigmas[i])
+                    warn("sigmas = $sigmas")
+                    return(wi, mu, sigmas, β, -Inf)
+                else
+                    wi_divide_sigmas[i] = wi[i]/sigmas[i]
+                    inv_2sigmas_sq[i] = 0.5 / sigmas[i]^2
+                end
+            end
+            for i in 1:nF
+                tmp_p[:] = ratiosumexp(-(mu .- sample_gamma[i]).^2 .* inv_2sigmas_sq, wi_divide_sigmas)
+                L_new[i] = rand(Categorical(tmp_p))
+                sample_gamma_new[i] = rand(Normal(sample_gamma[i], proposingsigma))
+            end
+
+            #update γᵢ;
+            #Calculate the accept probability, stored in ll_nF
+            q_gamma(sample_gamma_new, sample_gamma, xb, Y,facility, mu, sigmas, L, L_new, llvec, llvecnew, ll_nF, nF, N)
+            for i in 1:nF
+                if rand() < ll_nF[i]
+                    sample_gamma[i] = sample_gamma_new[i]
+                end
+                L[i] = L_new[i]
+            end
+
+            #only keep samples after M_discard
+            jcol = iter_gibbs - M_discard
+            if jcol > 0
+                sample_gamma_mat[:, jcol] = sample_gamma
+                wipool[:] = wipool .+ counts(L, 1:ncomponent)
+                mupool[:] = mupool .+ tapply(sample_gamma, L, sum, [1:ncomponent;])
+                sigmaspool[:] = sigmaspool .+ tapply(sample_gamma.^2, L, sum, [1:ncomponent;])
+            end
+        end
+        
         wi_old=copy(wi)
         mu_old=copy(mu)
         sigmas_old = copy(sigmas)
