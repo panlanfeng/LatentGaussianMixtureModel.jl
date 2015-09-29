@@ -148,24 +148,27 @@ function q_gamma(sample_gamma_new::Array{Float64,1}, sample_gamma::Array{Float64
 
     # map!(RcpLogistic(), llvec, llvec, Y)
     # map!(RcpLogistic(), llvecnew, llvecnew, Y)
-    rcplogistic!(llvec, Y)
-    rcplogistic!(llvecnew, Y)
-
-    divide!(llvec, llvecnew, N)
+    # rcplogistic!(llvec, Y)
+    # rcplogistic!(llvecnew, Y)
+    # divide!(llvec, llvecnew, N)
+    loglogistic!(llvec, Y, N)
+    loglogistic!(llvecnew, Y, N)
+    negate!(llvec, llvec, N)
+    Yeppp.add!(llvec, llvec, llvecnew)
 
     # for i in 1:nF
     #     ll_nF[i] = prod(llvec[coll_nF[i]]) * pdf(Normal(mu[L_new[i]], sigmas[L_new[i]]), sample_gamma_new[i])/ pdf(Normal(mu[L[i]], sigmas[L[i]]), sample_gamma[i])
     # end
     for i in 1:nF
-        @inbounds ll_nF[i] = pdf(Normal(mu[L_new[i]], sigmas[L_new[i]]), sample_gamma_new[i])/ pdf(Normal(mu[L[i]], sigmas[L[i]]), sample_gamma[i])
+        # @inbounds ll_nF[i] = pdf(Normal(mu[L_new[i]], sigmas[L_new[i]]), sample_gamma_new[i])/ pdf(Normal(mu[L[i]], sigmas[L[i]]), sample_gamma[i])
+        @inbounds ll_nF[i] = -(sample_gamma_new[i] - mu[L_new[i]])^2/sigmas[L_new[i]]^2*0.5 - log(sigmas[L_new[i]]) + (sample_gamma[i] - mu[L[i]])^2/sigmas[L[i]]^2*0.5 + log(sigmas[L[i]])
     end
 
     for i in 1:N
-        @inbounds ll_nF[facility[i]] *= llvec[i]
+        @inbounds ll_nF[facility[i]] += llvec[i]
     end
-
+    Yeppp.exp!(ll_nF, ll_nF)
     nothing
-
 end
 
 #Estimate gaussian mixture parameters given the initial value of γ
@@ -184,7 +187,7 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
     wi = copy(wi_init)
     mu = copy(mu_init)
     sigmas = copy(sigmas_init)
-    
+    tmp_p = ones(ncomponent)
     if wifixed
         wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
         wi[whichtosplit] = wi_tmp*tau
@@ -195,7 +198,10 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
     pwi = ones(nF, ncomponent) ./ ncomponent
     for iter_em in 1:maxiter
         for i in 1:nF
-            pwi[i, :] = ratiosumexp(-(mu .- x[i]).^2 ./ (2 .* sigmas .^ 2), wi ./ sigmas)
+            # pwi[i, :] = ratiosumexp(-(mu .- x[i]).^2 ./ (2 .* sigmas .^ 2), wi ./ sigmas)
+            
+            ratiosumexp!(-(mu .- x[i]).^2 ./ (2 .* sigmas .^ 2), wi ./ sigmas, tmp_p, ncomponent)
+            pwi[i, :] = tmp_p
         end
 
         wi_old=copy(wi)
@@ -295,16 +301,16 @@ function maxposterior(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::V
 end
 
 
-function marginallikelihood(beta_new::Array{Float64,1}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, nF::Int64, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, ghx::Vector{Float64}, ghw::Vector{Float64})
+function marginallikelihood(beta_new::Array{Float64,1}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, nF::Int64, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, ghx::Vector{Float64}, ghw::Vector{Float64}, llvec::Vector, ll_nF::Vector, sumlogmat::Matrix)
 
     N,J = size(X)
     M = length(ghx)
     C = length(wi)
     xb = X*beta_new
-    ll_nF=zeros(nF)
+    #ll_nF=zeros(nF)
     # sumlog_nF = zeros(nF)
-    llvec = zeros(N)
-    sumlogmat = zeros(nF, M*C)
+    #llvec = zeros(N)
+    # sumlogmat = zeros(nF, M*C)
     for jcom in 1:C
         for ix in 1:M
             fill!(llvec, ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom])
@@ -400,6 +406,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
     sample_gamma = zeros(nF)
     sample_gamma_new = zeros(nF)
     sample_gamma_mat = zeros(nF, M)
+    sumlogmat = zeros(nF, ngh*ncomponent)
     llvec = zeros(N)
     llvecnew = zeros(N)
     ll_nF = zeros(nF)
@@ -407,6 +414,9 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
     mupool = zeros(ncomponent)
     sigmaspool = zeros(ncomponent)
     tmp_p=ones(ncomponent) / ncomponent
+    tmp_mu=zeros(ncomponent)
+    wi_divide_sigmas = zeros(wi)
+    inv_2sigmas_sq = ones(sigmas) .* 1e20
 
     ################################################################################################################
     #iterattion begins here
@@ -440,8 +450,10 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
 
             #update Lᵢ
             #tmp_p[:]=tmp_p0
-            wi_divide_sigmas = zeros(wi)
-            inv_2sigmas_sq = ones(sigmas) .* 1e20
+            # wi_divide_sigmas = zeros(wi)
+            # inv_2sigmas_sq = ones(sigmas) .* 1e20
+            fill!(wi_divide_sigmas, 0.0)
+            fill!(inv_2sigmas_sq, 1e20)
             for i in 1:length(wi)
                 if sigmas[i] == 0.0
                     wi_divide_sigmas[i] = 0.0
@@ -455,7 +467,11 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
                 end
             end
             for i in 1:nF
-                tmp_p[:] = ratiosumexp(-(mu .- sample_gamma[i]).^2 .* inv_2sigmas_sq, wi_divide_sigmas)
+                # tmp_p[:] = ratiosumexp(-(mu .- sample_gamma[i]).^2 .* inv_2sigmas_sq, wi_divide_sigmas)
+                for j in 1:ncomponent
+                    tmp_mu[j] = -(mu[j] - sample_gamma[i])^2 * inv_2sigmas_sq[j]
+                end
+                ratiosumexp!(tmp_mu, wi_divide_sigmas, tmp_p, ncomponent)
                 L_new[i] = rand(Categorical(tmp_p))
                 sample_gamma_new[i] = rand(Normal(sample_gamma[i], proposingsigma))
             end
@@ -503,7 +519,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
         end
 
         if debuginfo
-            println(wi, "\t", mu, "\t", sigmas, "\t", marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw)+sum(pn(sigmas, sn, an=an)))
+            println(wi, "\t", mu, "\t", sigmas, "\t", marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw, llvec, ll_nF, sumlogmat)+sum(pn(sigmas, sn, an=an)))
         end
         if iter_em == maxiteration & maxiteration > 3
             warn("latentgmm not converge!")
@@ -520,11 +536,11 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
      # llmc = Float64[conditionallikelihood(xb, sample_gamma_mat[:,i], Y, facility) for i in 1:M]
     #m = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
 
-    return(wi, mu, sigmas, β, marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw)+sum(pn(sigmas, sn, an=an)), sample_gamma_mat[:,1:M]) 
+    return(wi, mu, sigmas, β, marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw, llvec, ll_nF, sumlogmat)+sum(pn(sigmas, sn, an=an)), sample_gamma_mat[:,1:M]) 
 end
 
 #For fixed wi
-function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}, whichtosplit::Int64, tau::Float64, ghx::Vector{Float64}, ghw::Vector{Float64}; mu_lb::Vector{Float64}=-Inf.*ones(wi_init), mu_ub::Vector{Float64}=Inf.*ones(wi_init), Mmax::Int=5000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, sn::Vector{Float64}=sigmas_init, an::Float64=0.25)
+function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}, whichtosplit::Int64, tau::Float64, ghx::Vector{Float64}, ghw::Vector{Float64}; mu_lb::Vector{Float64}=-Inf.*ones(wi_init), mu_ub::Vector{Float64}=Inf.*ones(wi_init), Mmax::Int=5000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo=false)
 
     # initialize theta
     N,J=size(X)
@@ -554,6 +570,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
     sample_gamma = zeros(nF)
     sample_gamma_new = zeros(nF)
     sample_gamma_mat = zeros(nF, M)
+    sumlogmat = zeros(nF, length(ghx)*ncomponent)
     llvec = zeros(N)
     llvecnew = zeros(N)
     ll_nF = zeros(nF)
@@ -561,6 +578,9 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
     mupool = zeros(ncomponent)
     sigmaspool = zeros(ncomponent)
     tmp_p=ones(ncomponent) / ncomponent
+    tmp_mu = zeros(ncomponent)
+    wi_divide_sigmas = zeros(wi)
+    inv_2sigmas_sq = ones(sigmas) .* 1e20
     ml0=-Inf
 
     ################################################################################################################
@@ -596,8 +616,8 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
 
             #update Lᵢ
             #tmp_p[:]=tmp_p0
-            wi_divide_sigmas = zeros(wi)
-            inv_2sigmas_sq = ones(sigmas) .* 1e20
+            fill!(wi_divide_sigmas, 0.0)
+            fill!(inv_2sigmas_sq, 1e20)
             for i in 1:length(wi)
                 if sigmas[i] == 0.0
                     wi_divide_sigmas[i] = 0.0
@@ -611,7 +631,11 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
                 end
             end
             for i in 1:nF
-                tmp_p[:] = ratiosumexp(-(mu .- sample_gamma[i]).^2 .* inv_2sigmas_sq, wi_divide_sigmas)
+                # tmp_p[:] = ratiosumexp(-(mu .- sample_gamma[i]).^2 .* inv_2sigmas_sq, wi_divide_sigmas)
+                for j in 1:ncomponent
+                    tmp_mu[j] = -(mu[j] - sample_gamma[i])^2 * inv_2sigmas_sq[j]
+                end
+                ratiosumexp!(tmp_mu, wi_divide_sigmas, tmp_p, ncomponent)
                 L_new[i] = rand(Categorical(tmp_p))
                 sample_gamma_new[i] = rand(Normal(sample_gamma[i], proposingsigma))
             end
@@ -666,7 +690,10 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         if iter_em == maxiteration & maxiteration > 20
             warn("latentgmm_ctau not yet converge!")
         end
-        ml1 = marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw) + sum(pn(sigmas, sn, an=an))
+        ml1 = marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw, llvec, ll_nF, sumlogmat) + sum(pn(sigmas, sn, an=an))
+        if debuginfo
+            println(wi, "\t", mu, "\t", sigmas, "\t", ml1)
+        end
         if ml1 > ml0
             ml0 = ml1
             mu0=copy(mu)
@@ -677,7 +704,9 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
             lessthanmax += 1
         end
         if lessthanmax > 4
-            #println("latentgmm_ctau stop at ", iter_em, "th iteration")
+            if debuginfo
+                println("latentgmm_ctau stop at $(iter_em)th iteration")
+            end
             break
         end
         

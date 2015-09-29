@@ -7,20 +7,21 @@ function sumexp{T<:Real}(x::AbstractArray{T})
     isempty(x) && return -Inf
     u = maximum(x)
     s = 0.
-    for i = 1:length(x)
+    for i in 1:length(x)
         @inbounds s += exp(x[i] - u)
     end
     s * exp(u)
 end
-function ratiosumexp{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T})
-    length(x) != length(coef) && error("Length should be the same!")
+function ratiosumexp!{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T}, s::AbstractArray{T}, ncomponent::Int)
+    #length(x) != length(coef) && error("Length should be the same!")
     #isempty(x) && return -Inf
     u = maximum(x)
-    s = zeros(x)
-    for i = 1:length(x)
+    for i in 1:ncomponent
         @inbounds s[i] = coef[i]*exp(x[i] - u)
     end
-    s ./ sum(s) #* exp(u)
+    divide!(s, s, sum(s), ncomponent)
+    #s ./ sum(s) #* exp(u)
+    nothing
 end
 
 function add!(res::Vector{Float64}, x::Vector{Float64}, y::Float64, n::Int64=length(x))
@@ -95,7 +96,7 @@ function negate!(res::Vector{Float64}, x::Vector{Float64}, n::Int64=length(x))
    end
    nothing
 end
-negate!(x::Vector{Float64}, n::Int64=length(x)) = negate!(x, n)
+negate!(x::Vector{Float64}, n::Int64=length(x)) = negate!(x, x, n)
 
 function negateiffalse!(x::Vector{Float64}, y::AbstractArray{Bool, 1}, n::Int64=length(x))
     for i in 1:n
@@ -127,14 +128,12 @@ end
 
 
 # -log(1+exp(-xy))
-function loglogistic!(x::Vector{Float64}, y::AbstractArray{Bool, 1})
-    n = length(x)
-    assert(length(y) == n)
+function loglogistic!(x::Vector{Float64}, y::AbstractArray{Bool, 1}, n=length(x))
     negateiftrue!(x, y, n)
     exp!(x, x)
     add!(x, x, 1.0)
     log!(x, x)
-    negate!(x)
+    negate!(x, x, n)
     nothing
 end
 
