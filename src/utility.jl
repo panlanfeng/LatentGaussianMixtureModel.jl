@@ -525,7 +525,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
         if iter_em == maxiteration & maxiteration > 3
             warn("latentgmm not converge!")
         end
-        if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) & (iter_em > initial_iteration)
+        if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) & (iter_em > initial_iteration) & (iter_em > 3)
             if debuginfo
                 println("latentgmm converged at $(iter_em)th iteration")
             end
@@ -693,7 +693,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         end
         ml1 = marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw, llvec, ll_nF, sumlogmat) + sum(pn(sigmas, sn, an=an))
         if debuginfo
-            println(wi, "\t", mu, "\t", sigmas, "\t", ml1)
+            println(wi, "\t", mu, "\t", sigmas, "\t", sum(pn(sigmas, sn, an=an)), ml1)
         end
         if ml1 > ml0
             ml0 = ml1
@@ -761,7 +761,7 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facil
     gamma_init, beta_init, sigmas_tmp = maxposterior(X, Y, facility)
     wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=1/nF)
 
-    wi_init, mu_init, sigmas_init, betas_init, ml_C0, gamma_mat = latentgmm(X, Y, facility, C0, beta_init, wi_init, mu_init, sigmas_init, Mmax=5000, initial_iteration=10, maxiteration=150, an=1/nF, sn=std(gamma_init).*ones(C0))
+    wi_init, mu_init, sigmas_init, betas_init, ml_C0, gamma_mat = latentgmm(X, Y, facility, C0, beta_init, wi_init, mu_init, sigmas_init, Mmax=5000, initial_iteration=10, maxiteration=100, an=1/nF, sn=std(gamma_init).*ones(C0))
     gamma0 = vec(mean(gamma_mat, 2))    
     mingamma = minimum(gamma0)
     maxgamma = maximum(gamma0)
@@ -772,7 +772,7 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facil
     mu0 = mu_init[or]
     sigmas0 = sigmas_init[or]
     betas0 = betas_init
-    an = decidepenalty(wi0, mu0, sigmas0, nF)
+    an = 0.0 # decidepenalty(wi0, mu0, sigmas0, nF)
     for whichtosplit in 1:C0
         ind = [1:whichtosplit, whichtosplit:C0;]
         if C1==2
@@ -793,7 +793,7 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facil
 
             wi, mu, sigmas, beta, lr[i, whichtosplit] = loglikelihoodratio_ctau(X, Y, facility, ncomponent1, betas0, wi_C1, whichtosplit, vtau[i], mu_lb, mu_ub,sigmas_lb, sigmas_ub, gamma0, ntrials=ntrials, ngh=ngh, sn=sigmas0[ind], an=an, debuginfo=debuginfo)
             if debuginfo
-                println(i,"  ", whichtosplit, " ", lr[i, whichtosplit])
+                println(i,"  ", whichtosplit, " ", an, " ", lr[i, whichtosplit])
             end
             #lr[i, whichtosplit] = lr[i, whichtosplit] + log(1- abs(1 -2*tau))
         end
