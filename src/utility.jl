@@ -802,7 +802,7 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facil
             if debuginfo
                 println(i,"  ", whichtosplit, " ", an, " ", lr[i, whichtosplit])
             end
-            lr[i, whichtosplit] = lr[i, whichtosplit] + log(1- abs(1 -2*tau))
+            lr[i, whichtosplit] = lr[i, whichtosplit] + log(1- abs(1 -2*vtau[i]))
         end
 
     end
