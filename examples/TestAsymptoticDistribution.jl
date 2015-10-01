@@ -15,7 +15,7 @@ import Yeppp
     n_ij = round(Int64, rand(Poisson(5), 282).+rand(Exponential(45), 282))
     N = sum(n_ij)
 
-    facility = eachrepeat(1:nF, n_ij)
+    facility = inverse_rle(1:nF, n_ij)
     J=2  #42 #beta dimension
     srand(100)
     X = rand(Normal(), (N, J))

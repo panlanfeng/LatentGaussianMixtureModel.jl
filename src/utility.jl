@@ -90,51 +90,9 @@ function omega123(wi, mu, sigmas)
 
 end	# end function omega.123
 
-#copy from NumericExtensions, to avoid the annoyed warnings
-function eachrepeat{T}(x::AbstractVector{T}, rt::Integer)
-    # repeat each element in x for rt times
-
-    nx = length(x)
-    r = Array(T, nx * rt)
-    j = 0
-    for i = 1 : nx
-        @inbounds xi = x[i]
-        for i2 = 1 : rt
-            @inbounds r[j += 1] = xi
-        end
-    end
-    return r
-end
-
-function eachrepeat{T,I<:Integer}(x::AbstractVector{T}, rt::AbstractArray{I})
-    nx = length(x)
-    nx == length(rt) || throw(ArgumentError("Inconsistent array lengths."))
-
-    r = Array(T, sum(rt))
-    j = 0
-    for i = 1 : nx
-        @inbounds xi = x[i]
-        for i2 = 1 : rt[i]
-            @inbounds r[j += 1] = xi
-        end
-    end
-    return r
-end
-
-
-function tapply{T,I<:Integer}(x::AbstractVecOrMat{T}, index::AbstractVecOrMat{I}, f::Function, indexlabels::AbstractVector{I})
-
-    res = zeros(length(indexlabels))
-    for i in 1:length(indexlabels)
-        res[i] = f(x[findin(index, indexlabels[i])])
-    end
-    res
-end
-
 function stopRule(pa::Vector, pa_old::Vector; tol=.005)
     maximum(abs(pa .- pa_old)./(abs(pa).+.001)) < tol
 end
-
 
 #accept prob for γᵢ = ΠΠ(e(ηᵒy)+1)/(e(ηy)+1) #* exp(((γold - mu)²-(γnew-mu)²)/2σ²)exp((γᵒ-γⁿ)²/2gsd²)
 function q_gamma(sample_gamma_new::Array{Float64,1}, sample_gamma::Array{Float64,1}, xb::Array{Float64,1}, Y::AbstractArray{Bool, 1}, facility::Vector{Int64}, mu::Vector{Float64}, sigmas::Vector{Float64}, L::Vector{Int64}, L_new::Vector{Int64}, llvec::Vector{Float64}, llvecnew::Vector{Float64},ll_nF::Vector{Float64}, nF::Int, N::Int)
@@ -400,6 +358,9 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
     mu = copy(mu_init)
     sigmas = copy(sigmas_init)
     β = copy(β_init)
+    wi_old = ones(wi)./ncomponent
+    mu_old = zeros(mu)
+    sigmas_old = ones(sigmas)
     beta_old = randn(J)
     ghx, ghw = gausshermite(ngh)
     #Preallocate the storage space, reusable for each iteration
@@ -492,9 +453,9 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
             jcol = iter_gibbs - M_discard
             if jcol > 0
                 sample_gamma_mat[:, jcol] = sample_gamma
-                wipool[:] = wipool .+ counts(L, 1:ncomponent)
-                mupool[:] = mupool .+ tapply(sample_gamma, L, sum, [1:ncomponent;])
-                sigmaspool[:] = sigmaspool .+ tapply(sample_gamma.^2, L, sum, [1:ncomponent;])
+                addcounts!(wipool, L, 1:ncomponent)
+                sumby!(mupool, sample_gamma, L, 1:ncomponent)
+                sumfunby!(sigmaspool, sample_gamma, L, abs2, 1:ncomponent)
             end
         end
         
@@ -503,14 +464,19 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
                 wipool[j] = 1
             end
         end
-        wi_old=copy(wi)
-        mu_old=copy(mu)
-        sigmas_old = copy(sigmas)
+        copy!(wi_old, wi)
+        copy!(mu_old, mu)
+        copy!(sigmas_old, sigmas)
         #update wi, mu and sigmas
-        
-        wi = wipool ./ sum(wipool)
-        mu = mupool ./ wipool
-        sigmas = sqrt((sigmaspool .- wipool .* mu.^2 .+ 2 .* an .* sn) ./ (wipool .+ 2 * an))
+        wipoolsum = sum(wipool)
+        for ic in 1:ncomponent
+            wi[ic] = wipool[ic] / wipoolsum
+            mu[ic] = mupool[ic] / wipool[ic]
+            sigmas[ic] = sqrt((sigmaspool[ic] - wipool[ic] * mu[ic] ^2 + 2 * an * sn[ic]) / (wipool[ic] + 2 * an))
+        end    
+        # wi = wipool ./ sum(wipool)
+        # mu = mupool ./ wipool
+        # sigmas = sqrt((sigmaspool .- wipool .* mu.^2 .+ 2 .* an .* sn) ./ (wipool .+ 2 * an))
         #no longer update beta if it already converged
         if !stopRule(β, beta_old, tol=tol) #(mod(iter_em, 5) == 1 ) & (
             beta_old = copy(β)
@@ -553,7 +519,9 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
     wi = copy(wi_init)
     mu = copy(mu_init)
     sigmas = copy(sigmas_init)
-
+    wi_old = ones(wi)./ncomponent
+    mu_old = zeros(mu)
+    sigmas_old = ones(sigmas)
     wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
     wi[whichtosplit] = wi_tmp*tau
     wi[whichtosplit+1] = wi_tmp*(1-tau)
@@ -655,24 +623,27 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
             jcol = iter_gibbs - M_discard
             if jcol > 0
                 sample_gamma_mat[:, jcol] = sample_gamma
-                wipool[:] = wipool .+ counts(L, 1:ncomponent)
-                mupool[:] = mupool .+ tapply(sample_gamma, L, sum, [1:ncomponent;])
-                sigmaspool[:] = sigmaspool .+ tapply(sample_gamma.^2, L, sum, [1:ncomponent;])
+                addcounts!(wipool, L, 1:ncomponent)
+                sumby!(mupool, sample_gamma, L, 1:ncomponent)
+                sumby!(sigmaspool, sample_gamma, L, abs2, 1:ncomponent)
             end
         end
         
-        wi_old=copy(wi)
-        mu_old=copy(mu)
-        sigmas_old = copy(sigmas)
+        copy!(wi_old, wi)
+        copy!(mu_old, mu)
+        copy!(sigmas_old, sigmas)
         #update wi, mu and sigmas
         for j in 1:ncomponent
             if wipool[j] <= 1
                 return(wi, mu, sigmas, β, -Inf)
             end
         end
-        wi = wipool ./ sum(wipool)
-        mu = mupool ./ wipool
-        sigmas = sqrt((sigmaspool .- wipool .* mu.^2 .+ 2 .* an .* sn) ./ (wipool .+ 2 * an))
+        wipoolsum = sum(wipool)
+        for ic in 1:ncomponent
+            wi[ic] = wipool[ic] / wipoolsum
+            mu[ic] = mupool[ic] / wipool[ic]
+            sigmas[ic] = sqrt((sigmaspool[ic] - wipool[ic] * mu[ic] ^2 + 2 * an * sn[ic]) / (wipool[ic] + 2 * an))
+        end    
 
         wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
         wi[whichtosplit] = wi_tmp*tau
@@ -681,7 +652,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         
         #no longer update beta if it already converged
          if !stopRule(β, beta_old, tol=tol) #(mod(iter_em, 5) == 1 ) 
-             beta_old = copy(β)
+             copy!(beta_old, β)
              opt = Opt(:LD_LBFGS, J)
              maxeval!(opt, Q_maxiter)
              max_objective!(opt, (beta_new, storage)->Q1(beta_new, storage, X,Y, sample_gamma_mat[:, 1:M], facility, llvec, llvecnew, xb))
@@ -697,10 +668,10 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         end
         if ml1 > ml0
             ml0 = ml1
-            wi0 = copy(wi)
-            mu0=copy(mu)
-            sigmas0=copy(sigmas)
-            β0 = copy(β)
+            copy!(wi0, wi)
+            copy!(mu0, mu)
+            copy!(sigms0, sigmas)
+            copy!(β0, β)
             lessthanmax = 0
         else
             lessthanmax += 1

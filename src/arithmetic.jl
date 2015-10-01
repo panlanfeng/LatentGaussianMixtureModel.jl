@@ -163,3 +163,37 @@ function relocate!(res::Vector{Float64}, ga::Vector{Float64}, facility::Vector{I
     end
     nothing
 end
+
+
+function sumby!(r::AbstractArray, y::AbstractArray, x::IntegerArray, levels::IntUnitRange)
+	k = length(levels)
+	length(r) == k || raise_dimerror()
+
+	m0 = levels[1]
+	m1 = levels[end]
+	b = m0 - 1
+
+	@inbounds for i in 1 : length(x)
+		xi = x[i]
+		if m0 <= xi <= m1
+			r[xi - b] += y[i]
+		end
+	end
+	return r
+end
+function sumfunby!(r::AbstractArray, y::AbstractArray, x::IntegerArray, f::Function, levels::IntUnitRange)
+	k = length(levels)
+	length(r) == k || raise_dimerror()
+
+	m0 = levels[1]
+	m1 = levels[end]
+	b = m0 - 1
+
+	@inbounds for i in 1 : length(x)
+		xi = x[i]
+		if m0 <= xi <= m1
+			r[xi - b] += f(y[i])
+		end
+	end
+	return r
+end
