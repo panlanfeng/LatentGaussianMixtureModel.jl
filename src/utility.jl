@@ -455,7 +455,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
                 sample_gamma_mat[:, jcol] = sample_gamma
                 addcounts!(wipool, L, 1:ncomponent)
                 sumby!(mupool, sample_gamma, L, 1:ncomponent)
-                sumfunby!(sigmaspool, sample_gamma, L, abs2, 1:ncomponent)
+                sumsqby!(sigmaspool, sample_gamma, L, 1:ncomponent)
             end
         end
         
@@ -479,7 +479,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Vect
         # sigmas = sqrt((sigmaspool .- wipool .* mu.^2 .+ 2 .* an .* sn) ./ (wipool .+ 2 * an))
         #no longer update beta if it already converged
         if !stopRule(β, beta_old, tol=tol) #(mod(iter_em, 5) == 1 ) & (
-            beta_old = copy(β)
+            copy!(beta_old, β)
             opt = Opt(:LD_LBFGS, J)
             maxeval!(opt, Q_maxiter)
             max_objective!(opt, (beta_new, storage)->Q1(beta_new, storage, X,Y, sample_gamma_mat[:,1:M], facility, llvec, llvecnew, xb))
@@ -625,7 +625,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
                 sample_gamma_mat[:, jcol] = sample_gamma
                 addcounts!(wipool, L, 1:ncomponent)
                 sumby!(mupool, sample_gamma, L, 1:ncomponent)
-                sumby!(sigmaspool, sample_gamma, L, abs2, 1:ncomponent)
+                sumsqby!(sigmaspool, sample_gamma, L, 1:ncomponent)
             end
         end
         
@@ -670,7 +670,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
             ml0 = ml1
             copy!(wi0, wi)
             copy!(mu0, mu)
-            copy!(sigms0, sigmas)
+            copy!(sigmas0, sigmas)
             copy!(β0, β)
             lessthanmax = 0
         else

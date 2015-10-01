@@ -179,9 +179,9 @@ function sumby!(r::AbstractArray, y::AbstractArray, x::IntegerArray, levels::Int
 			r[xi - b] += y[i]
 		end
 	end
-	return r
+	#return r
 end
-function sumfunby!(r::AbstractArray, y::AbstractArray, x::IntegerArray, f::Function, levels::IntUnitRange)
+function sumsqby!(r::AbstractArray, y::AbstractArray, x::IntegerArray, levels::IntUnitRange)
 	k = length(levels)
 	length(r) == k || raise_dimerror()
 
@@ -192,8 +192,8 @@ function sumfunby!(r::AbstractArray, y::AbstractArray, x::IntegerArray, f::Funct
 	@inbounds for i in 1 : length(x)
 		xi = x[i]
 		if m0 <= xi <= m1
-			r[xi - b] += f(y[i])
+			r[xi - b] += abs2(y[i])
 		end
 	end
-	return r
+	#return r
 end

@@ -1,10 +1,10 @@
 #find out the test statistic when m0=1
 import LatentGaussianMixtureModel
-import Distributions
+import Distributions, StatsBase
 import Yeppp
 
 @everywhere using LatentGaussianMixtureModel
-@everywhere using Distributions, Yeppp
+@everywhere using Distributions, Yeppp, StatsBase
 
 
 #Brun calculate the statistic for one data set;
