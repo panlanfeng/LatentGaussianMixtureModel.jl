@@ -157,7 +157,7 @@ function rcplogistic!(x::Vector{Float64}, y::AbstractArray{Bool, 1})
     nothing
 end
 
-function relocate!(res::Vector{Float64}, ga::Vector{Float64}, facility::Vector{Int64}, N::Int)
+function relocate!(res::Vector{Float64}, ga::Vector{Float64}, facility::IntegerVector, N::Int)
     for i in 1:N
         @inbounds res[i] = ga[facility[i]]
     end
