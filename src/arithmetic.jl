@@ -128,7 +128,7 @@ end
 
 
 # -log(1+exp(-xy))
-function loglogistic!(x::Vector{Float64}, y::AbstractArray{Bool, 1}, n=length(x))
+function loglogistic!(x::Vector{Float64}, y::AbstractArray{Bool, 1}, n::Int=length(x))
     negateiftrue!(x, y, n)
     exp!(x, x)
     add!(x, x, 1.0)

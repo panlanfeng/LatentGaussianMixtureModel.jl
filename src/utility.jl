@@ -410,25 +410,26 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Inte
         #Gibbs samping for M+M_discard times
         # xb  = X*β
         A_mul_B!(xb, X, β)
+        fill!(wi_divide_sigmas, 0.0)
+        fill!(inv_2sigmas_sq, 1e20)
+        for i in 1:length(wi)
+            if sigmas[i] == 0.0
+                wi_divide_sigmas[i] = 0.0
+                inv_2sigmas_sq[i] = 1e20
+            elseif isnan(sigmas[i])
+                warn("sigmas = $sigmas")
+                return(wi, mu, sigmas, β, -Inf, [0.0])
+            else
+                wi_divide_sigmas[i] = wi[i]/sigmas[i]
+                inv_2sigmas_sq[i] = 0.5 / sigmas[i]^2
+            end
+        end
         for iter_gibbs in 1:(M+M_discard)
             #update Lᵢ
             #tmp_p[:]=tmp_p0
             # wi_divide_sigmas = zeros(wi)
             # inv_2sigmas_sq = ones(sigmas) .* 1e20
-            fill!(wi_divide_sigmas, 0.0)
-            fill!(inv_2sigmas_sq, 1e20)
-            for i in 1:length(wi)
-                if sigmas[i] == 0.0
-                    wi_divide_sigmas[i] = 0.0
-                    inv_2sigmas_sq[i] = 1e20
-                elseif isnan(sigmas[i])
-                    warn("sigmas = $sigmas")
-                    return(wi, mu, sigmas, β, -Inf, [0.0])
-                else
-                    wi_divide_sigmas[i] = wi[i]/sigmas[i]
-                    inv_2sigmas_sq[i] = 0.5 / sigmas[i]^2
-                end
-            end
+
             for i in 1:nF
                 # tmp_p[:] = ratiosumexp(-(mu .- sample_gamma[i]).^2 .* inv_2sigmas_sq, wi_divide_sigmas)
                 for j in 1:ncomponent
@@ -582,23 +583,24 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         fill!(sigmaspool, 0.0)
         # xb  = X*β
         A_mul_B!(xb, X, β)
+        fill!(wi_divide_sigmas, 0.0)
+        fill!(inv_2sigmas_sq, 1e20)
+        for i in 1:length(wi)
+            if sigmas[i] == 0.0
+                wi_divide_sigmas[i] = 0.0
+                inv_2sigmas_sq[i] = 1e20
+            elseif isnan(sigmas[i])
+                warn("sigmas = $sigmas")
+                return(wi, mu, sigmas, β, -Inf)
+            else
+                wi_divide_sigmas[i] = wi[i]/sigmas[i]
+                inv_2sigmas_sq[i] = 0.5 / sigmas[i]^2
+            end
+        end
         for iter_gibbs in 1:(M+M_discard)
             #update Lᵢ
             #tmp_p[:]=tmp_p0
-            fill!(wi_divide_sigmas, 0.0)
-            fill!(inv_2sigmas_sq, 1e20)
-            for i in 1:length(wi)
-                if sigmas[i] == 0.0
-                    wi_divide_sigmas[i] = 0.0
-                    inv_2sigmas_sq[i] = 1e20
-                elseif isnan(sigmas[i])
-                    warn("sigmas = $sigmas")
-                    return(wi, mu, sigmas, β, -Inf)
-                else
-                    wi_divide_sigmas[i] = wi[i]/sigmas[i]
-                    inv_2sigmas_sq[i] = 0.5 / sigmas[i]^2
-                end
-            end
+
             for i in 1:nF
                 # tmp_p[:] = ratiosumexp(-(mu .- sample_gamma[i]).^2 .* inv_2sigmas_sq, wi_divide_sigmas)
                 for j in 1:ncomponent
