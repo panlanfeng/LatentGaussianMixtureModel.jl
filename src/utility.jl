@@ -348,7 +348,7 @@ end
 #nF is the number of facilities
 #intial values of β, ω, μ and σ must be supplied
 
-@debug function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; Mmax::Int=10000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, ngh::Int=1000, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false)
+function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; Mmax::Int=10000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, ngh::Int=1000, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false)
 
     # initialize theta
     N,J=size(X)
@@ -506,7 +506,7 @@ end
 end
 
 #For fixed wi
-@debug function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}, whichtosplit::Int64, tau::Float64, ghx::Vector{Float64}, ghw::Vector{Float64}; mu_lb::Vector{Float64}=-Inf.*ones(wi_init), mu_ub::Vector{Float64}=Inf.*ones(wi_init), Mmax::Int=5000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false, sample_gamma_mat::Matrix = zeros(maximum(facility), Mmax), sumlogmat::Matrix = zeros(maximum(facility), length(ghx)*ncomponent), llvec::Vector=zeros(length(Y)), llvecnew::Vector = zeros(length(Y)), xb::Vector=zeros(length(Y)), Q_maxiter::Int = 5)
+function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}, whichtosplit::Int64, tau::Float64, ghx::Vector{Float64}, ghw::Vector{Float64}; mu_lb::Vector{Float64}=-Inf.*ones(wi_init), mu_ub::Vector{Float64}=Inf.*ones(wi_init), Mmax::Int=5000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false, sample_gamma_mat::Matrix = zeros(maximum(facility), Mmax), sumlogmat::Matrix = zeros(maximum(facility), length(ghx)*ncomponent), llvec::Vector=zeros(length(Y)), llvecnew::Vector = zeros(length(Y)), xb::Vector=zeros(length(Y)), Q_maxiter::Int = 5)
 
     # initialize theta
     N,J=size(X)
@@ -621,7 +621,6 @@ end
                 sumby!(mupool, sample_gamma, L, 1:ncomponent)
                 sumsqby!(sigmaspool, sample_gamma, L, 1:ncomponent)
             end
-            #@bp
         end
         
         copy!(wi_old, wi)
@@ -725,7 +724,7 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facil
     nF = maximum(facility)
     an1 = 0.0 # 1/nF
     gamma_init, beta_init, sigmas_tmp = maxposterior(X, Y, facility)
-    wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=an1)
+    wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=an1, maxiter=1)
 
     wi_init, mu_init, sigmas_init, betas_init, ml_C0, gamma_mat = latentgmm(X, Y, facility, C0, beta_init, wi_init, mu_init, sigmas_init, Mmax=5000, initial_iteration=10, maxiteration=100, an=an1, sn=std(gamma_init).*ones(C0))
     gamma0 = vec(mean(gamma_mat, 2))    
