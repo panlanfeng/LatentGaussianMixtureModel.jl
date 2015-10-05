@@ -348,7 +348,7 @@ end
 #nF is the number of facilities
 #intial values of β, ω, μ and σ must be supplied
 
-function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; Mmax::Int=10000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, ngh::Int=1000, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false)
+@debug function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; Mmax::Int=10000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, ngh::Int=1000, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false)
 
     # initialize theta
     N,J=size(X)
@@ -389,21 +389,14 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Inte
     M = min(2000, Mmax)
     Q_maxiter = 2
     for iter_em in 1:maxiteration
-        if iter_em == 1
-            for i in 1:nF
-                L[i] = rand(Categorical(wi))
-                sample_gamma[i] = rand(Normal(mu[L[i]], sigmas[L[i]])) 
-            end
-        else
-            for i in 1:nF
-                L[i] = rand(Categorical(wi))
-                sample_gamma[i] = sample_gamma_mat[i, M] 
-            end
-        end
         if iter_em == (initial_iteration + 1)
             M = Mmax
             Q_maxiter = 10
         end
+
+        L[:] = rand(Categorical(wi), nF)
+        sample_gamma[:] = rand(Normal(), nF) .* sigmas[L] .+ mu[L]
+
         fill!(wipool, 0.0)
         fill!(mupool, 0.0)
         fill!(sigmaspool, 0.0)
@@ -437,9 +430,12 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Inte
                 end
                 ratiosumexp!(tmp_mu, wi_divide_sigmas, tmp_p, ncomponent)
                 L_new[i] = rand(Categorical(tmp_p))
+                #sample_gamma_new[i] = rand(Normal(sample_gamma[i], proposingsigma))
+            end
+            for i in 1:nF
+                # sample_gamma_new[i] = rand(Normal(mu[L[i]], sigmas[L[i]]))
                 sample_gamma_new[i] = rand(Normal(sample_gamma[i], proposingsigma))
             end
-
             #update γᵢ;
             #Calculate the accept probability, stored in ll_nF
             q_gamma(sample_gamma_new, sample_gamma, xb, Y,facility, mu, sigmas, L, L_new, llvec, llvecnew, ll_nF, nF, N)
@@ -458,6 +454,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Inte
                 sumby!(mupool, sample_gamma, L, 1:ncomponent)
                 sumsqby!(sigmaspool, sample_gamma, L, 1:ncomponent)
             end
+            #@bp
         end
         
         for j in 1:ncomponent
@@ -509,7 +506,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Inte
 end
 
 #For fixed wi
-function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}, whichtosplit::Int64, tau::Float64, ghx::Vector{Float64}, ghw::Vector{Float64}; mu_lb::Vector{Float64}=-Inf.*ones(wi_init), mu_ub::Vector{Float64}=Inf.*ones(wi_init), Mmax::Int=5000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false, sample_gamma_mat::Matrix = zeros(maximum(facility), Mmax), sumlogmat::Matrix = zeros(maximum(facility), length(ghx)*ncomponent), llvec::Vector=zeros(length(Y)), llvecnew::Vector = zeros(length(Y)), xb::Vector=zeros(length(Y)), Q_maxiter::Int = 5)
+@debug function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}, whichtosplit::Int64, tau::Float64, ghx::Vector{Float64}, ghw::Vector{Float64}; mu_lb::Vector{Float64}=-Inf.*ones(wi_init), mu_ub::Vector{Float64}=Inf.*ones(wi_init), Mmax::Int=5000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false, sample_gamma_mat::Matrix = zeros(maximum(facility), Mmax), sumlogmat::Matrix = zeros(maximum(facility), length(ghx)*ncomponent), llvec::Vector=zeros(length(Y)), llvecnew::Vector = zeros(length(Y)), xb::Vector=zeros(length(Y)), Q_maxiter::Int = 5)
 
     # initialize theta
     N,J=size(X)
@@ -562,17 +559,8 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
     #Q_maxiter = 2
     lessthanmax = 0
     for iter_em in 1:maxiteration
-        if iter_em == 1
-            for i in 1:nF
-                L[i] = rand(Categorical(wi))
-                sample_gamma[i] = rand(Normal(mu[L[i]], sigmas[L[i]])) 
-            end
-        else
-            for i in 1:nF
-                L[i] = rand(Categorical(wi))
-                sample_gamma[i] = sample_gamma_mat[i, M] 
-            end
-        end
+        L[:] = rand(Categorical(wi), nF)
+        sample_gamma[:] = rand(Normal(), nF) .* sigmas[L] .+ mu[L]
         #if iter_em == (initial_iteration + 1)
             #M = Mmax
             #Q_maxiter = 5
@@ -608,6 +596,10 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
                 end
                 ratiosumexp!(tmp_mu, wi_divide_sigmas, tmp_p, ncomponent)
                 L_new[i] = rand(Categorical(tmp_p))
+                #sample_gamma_new[i] = rand(Normal(sample_gamma[i], proposingsigma))
+            end
+            for i in 1:nF
+                # sample_gamma_new[i] = rand(Normal(mu[L[i]], sigmas[L[i]]))
                 sample_gamma_new[i] = rand(Normal(sample_gamma[i], proposingsigma))
             end
 
@@ -629,6 +621,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
                 sumby!(mupool, sample_gamma, L, 1:ncomponent)
                 sumsqby!(sigmaspool, sample_gamma, L, 1:ncomponent)
             end
+            #@bp
         end
         
         copy!(wi_old, wi)
@@ -678,7 +671,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
         else
             lessthanmax += 1
         end
-        if (lessthanmax > 4) & (iter_em > 20)
+        if lessthanmax > 3
             if debuginfo
                 println("latentgmm_ctau stop at $(iter_em)th iteration")
             end
