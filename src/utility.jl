@@ -348,7 +348,7 @@ end
 #nF is the number of facilities
 #intial values of β, ω, μ and σ must be supplied
 
-function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; Mmax::Int=10000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, ngh::Int=1000, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false)
+function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; Mmax::Int=10000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, ngh::Int=1000, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false,restartMCMCsampling::Bool=true)
 
     # initialize theta
     N,J=size(X)
@@ -393,9 +393,14 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Inte
             M = Mmax
             Q_maxiter = 10
         end
-
-        L[:] = rand(Categorical(wi), nF)
-        sample_gamma[:] = rand(Normal(), nF) .* sigmas[L] .+ mu[L]
+        if restartMCMCsampling | (iter_em == 1)
+            #  for i in 1:nF
+            #      L[i] = rand(Categorical(wi))
+            #      sample_gamma[i] = rand(Normal(mu[L[i]], sigmas[L[i]])) 
+            #  end
+            L[:] = rand(Categorical(wi), nF)
+            sample_gamma[:] = rand(Normal(), nF) .* sigmas[L] .+ mu[L]
+         end
 
         fill!(wipool, 0.0)
         fill!(mupool, 0.0)
@@ -487,7 +492,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Inte
         if debuginfo
             println(wi, "\t", mu, "\t", sigmas, "\t", marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw, llvec, ll_nF, xb, sumlogmat)+sum(pn(sigmas, sn, an=an)))
         end
-        if iter_em == maxiteration & maxiteration > 3
+        if (iter_em == maxiteration) & (maxiteration > 3)
             warn("latentgmm not converge!")
         end
         if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) & (iter_em > initial_iteration) & (iter_em > 3)
@@ -506,7 +511,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Inte
 end
 
 #For fixed wi
-function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}, whichtosplit::Int64, tau::Float64, ghx::Vector{Float64}, ghw::Vector{Float64}; mu_lb::Vector{Float64}=-Inf.*ones(wi_init), mu_ub::Vector{Float64}=Inf.*ones(wi_init), Mmax::Int=5000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false, sample_gamma_mat::Matrix = zeros(maximum(facility), Mmax), sumlogmat::Matrix = zeros(maximum(facility), length(ghx)*ncomponent), llvec::Vector=zeros(length(Y)), llvecnew::Vector = zeros(length(Y)), xb::Vector=zeros(length(Y)), Q_maxiter::Int = 5)
+function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}, whichtosplit::Int64, tau::Float64, ghx::Vector{Float64}, ghw::Vector{Float64}; mu_lb::Vector{Float64}=-Inf.*ones(wi_init), mu_ub::Vector{Float64}=Inf.*ones(wi_init), Mmax::Int=5000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false, sample_gamma_mat::Matrix = zeros(maximum(facility), Mmax), sumlogmat::Matrix = zeros(maximum(facility), length(ghx)*ncomponent), llvec::Vector=zeros(length(Y)), llvecnew::Vector = zeros(length(Y)), xb::Vector=zeros(length(Y)), Q_maxiter::Int = 5, restartMCMCsampling::Bool=true)
 
     # initialize theta
     N,J=size(X)
@@ -559,12 +564,14 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
     #Q_maxiter = 2
     lessthanmax = 0
     for iter_em in 1:maxiteration
-        L[:] = rand(Categorical(wi), nF)
-        sample_gamma[:] = rand(Normal(), nF) .* sigmas[L] .+ mu[L]
-        #if iter_em == (initial_iteration + 1)
-            #M = Mmax
-            #Q_maxiter = 5
-        #end
+        if restartMCMCsampling | (iter_em == 1)
+            #  for i in 1:nF
+            #      L[i] = rand(Categorical(wi))
+            #      sample_gamma[i] = rand(Normal(mu[L[i]], sigmas[L[i]])) 
+            #  end
+            L[:] = rand(Categorical(wi), nF)
+            sample_gamma[:] = rand(Normal(), nF) .* sigmas[L] .+ mu[L]
+         end
         
         fill!(wipool, 0.0)
         fill!(mupool, 0.0)
@@ -653,7 +660,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
              (minf,β,ret) = optimize(opt, β)
          end
 
-        if iter_em == maxiteration & maxiteration > 20
+        if (iter_em == maxiteration) & (maxiteration > 20)
             warn("latentgmm_ctau not yet converge!")
         end
         ml1 = marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw, llvec, ll_nF, xb, sumlogmat) + sum(pn(sigmas, sn, an=an))
