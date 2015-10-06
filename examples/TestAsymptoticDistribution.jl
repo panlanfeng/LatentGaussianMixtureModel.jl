@@ -9,7 +9,7 @@ import Yeppp
 
 #Brun calculate the statistic for one data set;
 #b is the the random number seed, from 1 to 100
-@everywhere function Brun(b::Integer, Ctrue::Integer, Calternative::Integer; debuginfo::Bool=false)
+@everywhere function Brun(b::Integer, Ctrue::Integer, Calternative::Integer; debuginfo::Bool=false, restartMCMCsampling::Bool=true)
     nF = 282
     srand(100)
     n_ij = round(Int64, rand(Poisson(5), 282).+rand(Exponential(45), 282))
@@ -50,7 +50,7 @@ import Yeppp
         end
     end
 
-    lr=loglikelihoodratio(X, Y, facility, Calternative, ntrials=25, debuginfo=debuginfo)
+    lr=loglikelihoodratio(X, Y, facility, Calternative, ntrials=25, debuginfo=debuginfo, restartMCMCsampling=restartMCMCsampling)
     println("Mission $b completed with lr=$lr")
     lr
 end
