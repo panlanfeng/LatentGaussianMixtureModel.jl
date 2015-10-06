@@ -393,7 +393,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Inte
             M = Mmax
             Q_maxiter = 10
         end
-        if restartMCMCsampling | (iter_em == 1)
+        if restartMCMCsampling || (iter_em == 1)
             #  for i in 1:nF
             #      L[i] = rand(Categorical(wi))
             #      sample_gamma[i] = rand(Normal(mu[L[i]], sigmas[L[i]])) 
@@ -492,10 +492,10 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Inte
         if debuginfo
             println(wi, "\t", mu, "\t", sigmas, "\t", marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw, llvec, ll_nF, xb, sumlogmat)+sum(pn(sigmas, sn, an=an)))
         end
-        if (iter_em == maxiteration) & (maxiteration > 3)
+        if (iter_em == maxiteration) && (maxiteration > 3)
             warn("latentgmm not converge!")
         end
-        if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) & (iter_em > initial_iteration) & (iter_em > 3)
+        if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > initial_iteration) && (iter_em > 3)
             if debuginfo
                 println("latentgmm converged at $(iter_em)th iteration")
             end
@@ -564,7 +564,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
     #Q_maxiter = 2
     lessthanmax = 0
     for iter_em in 1:maxiteration
-        if restartMCMCsampling | (iter_em == 1)
+        if restartMCMCsampling || (iter_em == 1)
             #  for i in 1:nF
             #      L[i] = rand(Categorical(wi))
             #      sample_gamma[i] = rand(Normal(mu[L[i]], sigmas[L[i]])) 
@@ -660,7 +660,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
              (minf,β,ret) = optimize(opt, β)
          end
 
-        if (iter_em == maxiteration) & (maxiteration > 20)
+        if (iter_em == maxiteration) && (maxiteration > 20)
             warn("latentgmm_ctau not yet converge!")
         end
         ml1 = marginallikelihood(β, X, Y, facility, nF, wi, mu, sigmas, ghx, ghw, llvec, ll_nF, xb, sumlogmat) + sum(pn(sigmas, sn, an=an))
@@ -780,7 +780,7 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facil
 
     end
     if debuginfo
-        println(lr.-ml_C0, " ", ml_C0)
+        println(2.*(lr.-ml_C0), " ", ml_C0)
     end
     2*(maximum(lr) - ml_C0)  
 end
