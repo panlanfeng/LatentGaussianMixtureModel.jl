@@ -9,7 +9,7 @@ import Yeppp
 
 #Brun calculate the statistic for one data set;
 #b is the the random number seed, from 1 to 100
-@everywhere function Brun(b::Integer, Ctrue::Integer, Calternative::Integer; debuginfo::Bool=false, restartMCMCsampling::Bool=true)
+@everywhere function Brun(b::Integer, Ctrue::Integer, Calternative::Integer; debuginfo::Bool=false, restartMCMCsampling::Bool=false)
     nF = 282
     srand(100)
     n_ij = round(Int64, rand(Poisson(5), 282).+rand(Exponential(45), 282))
