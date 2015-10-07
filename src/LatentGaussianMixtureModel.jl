@@ -1,6 +1,6 @@
 module LatentGaussianMixtureModel
 
-using Debug
+
 using Distributions
 using StatsBase
 using NLopt
