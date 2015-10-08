@@ -430,6 +430,60 @@ function Q1(beta_new::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
     -ll/M
 end
 
+
+function gibbsMH!(X::Matrix, Y::Vector{Bool}, facility::IntegerVector, wi::Vector, mu::Vector, sigmas::Vector, β::Vector, ncomponent::Int, nF::Int, N::Int, M::Int, M_discard::Int, proposingsigma::Real, wipool::Vector, mupool::Vector, sigmaspool::Vector, L::Vector, L_new::Vector, sample_gamma::Vector, sample_gamma_new::Vector, sample_gamma_mat::Matrix, xb::Vector, llvec::Vector, llvecnew::Vector, ll_nF::Vector, tmp_mu::Vector, wi_divide_sigmas::Vector, inv_2sigmas_sq::Vector, tmp_p::Vector)
+    fill!(wipool, 0.0)
+    fill!(mupool, 0.0)
+    fill!(sigmaspool, 0.0)
+    #Gibbs samping for M+M_discard times
+    # xb  = X*β
+    A_mul_B!(xb, X, β)
+    fill!(wi_divide_sigmas, 0.0)
+    fill!(inv_2sigmas_sq, 1e20)
+    for i in 1:length(wi)
+        if sigmas[i] == 0.0
+            wi_divide_sigmas[i] = 0.0
+            inv_2sigmas_sq[i] = 1e20
+        elseif isnan(sigmas[i])
+            warn("sigmas = $sigmas")
+            #return(wi, mu, sigmas, β, -Inf, [0.0])
+        else
+            wi_divide_sigmas[i] = wi[i]/sigmas[i]
+            inv_2sigmas_sq[i] = 0.5 / sigmas[i]^2
+        end
+    end
+    for iter_gibbs in 1:(M+M_discard)
+        #update Lᵢ
+        for i in 1:nF
+            for j in 1:ncomponent
+                tmp_mu[j] = -(mu[j] - sample_gamma[i])^2 * inv_2sigmas_sq[j]
+            end
+            ratiosumexp!(tmp_mu, wi_divide_sigmas, tmp_p, ncomponent)
+            L_new[i] = rand(Categorical(tmp_p))
+            sample_gamma_new[i] = rand(Normal(sample_gamma[i], proposingsigma))
+        end
+
+        #update γᵢ;
+        #Calculate the accept probability, stored in ll_nF
+        q_gamma(sample_gamma_new, sample_gamma, xb, Y,facility, mu, sigmas, L, L_new, llvec, llvecnew, ll_nF, nF, N)
+        for i in 1:nF
+            if rand() < ll_nF[i]
+                sample_gamma[i] = sample_gamma_new[i]
+            end
+            L[i] = L_new[i]
+        end
+
+        #only keep samples after M_discard
+        jcol = iter_gibbs - M_discard
+        if jcol > 0
+            sample_gamma_mat[:, jcol] = sample_gamma
+            addcounts!(wipool, L, 1:ncomponent)
+            sumby!(mupool, sample_gamma, L, 1:ncomponent)
+            sumsqby!(sigmaspool, sample_gamma, L, 1:ncomponent)
+        end
+    end
+    
+end
 #The main function
 #X, Y, facility
 #nF is the number of facilities
@@ -491,57 +545,8 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Inte
             end
          end
 
-        fill!(wipool, 0.0)
-        fill!(mupool, 0.0)
-        fill!(sigmaspool, 0.0)
-        #Gibbs samping for M+M_discard times
-        # xb  = X*β
-        A_mul_B!(xb, X, β)
-        fill!(wi_divide_sigmas, 0.0)
-        fill!(inv_2sigmas_sq, 1e20)
-        for i in 1:length(wi)
-            if sigmas[i] == 0.0
-                wi_divide_sigmas[i] = 0.0
-                inv_2sigmas_sq[i] = 1e20
-            elseif isnan(sigmas[i])
-                warn("sigmas = $sigmas")
-                return(wi, mu, sigmas, β, -Inf, [0.0])
-            else
-                wi_divide_sigmas[i] = wi[i]/sigmas[i]
-                inv_2sigmas_sq[i] = 0.5 / sigmas[i]^2
-            end
-        end
-        for iter_gibbs in 1:(M+M_discard)
-            #update Lᵢ
-            for i in 1:nF
-                for j in 1:ncomponent
-                    tmp_mu[j] = -(mu[j] - sample_gamma[i])^2 * inv_2sigmas_sq[j]
-                end
-                ratiosumexp!(tmp_mu, wi_divide_sigmas, tmp_p, ncomponent)
-                L_new[i] = rand(Categorical(tmp_p))
-                sample_gamma_new[i] = rand(Normal(sample_gamma[i], proposingsigma))
-            end
-
-            #update γᵢ;
-            #Calculate the accept probability, stored in ll_nF
-            q_gamma(sample_gamma_new, sample_gamma, xb, Y,facility, mu, sigmas, L, L_new, llvec, llvecnew, ll_nF, nF, N)
-            for i in 1:nF
-                if rand() < ll_nF[i]
-                    sample_gamma[i] = sample_gamma_new[i]
-                end
-                L[i] = L_new[i]
-            end
-
-            #only keep samples after M_discard
-            jcol = iter_gibbs - M_discard
-            if jcol > 0
-                sample_gamma_mat[:, jcol] = sample_gamma
-                addcounts!(wipool, L, 1:ncomponent)
-                sumby!(mupool, sample_gamma, L, 1:ncomponent)
-                sumsqby!(sigmaspool, sample_gamma, L, 1:ncomponent)
-            end
-        end
-        
+         gibbsMH!(X, Y, facility, wi, mu, sigmas, β, ncomponent, nF, N, M, M_discard, proposingsigma, wipool, mupool, sigmaspool, L, L_new, sample_gamma, sample_gamma_new, sample_gamma_mat, xb, llvec, llvecnew, ll_nF, tmp_mu, wi_divide_sigmas, inv_2sigmas_sq, tmp_p)
+    
         for j in 1:ncomponent
             if wipool[j] == 0
                 wipool[j] = 1
@@ -654,72 +659,8 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
             end
          end
         
-        fill!(wipool, 0.0)
-        fill!(mupool, 0.0)
-        fill!(sigmaspool, 0.0)
-        # xb  = X*β
-        A_mul_B!(xb, X, β)
-        fill!(wi_divide_sigmas, 0.0)
-        fill!(inv_2sigmas_sq, 1e20)
-        for i in 1:length(wi)
-            if sigmas[i] == 0.0
-                wi_divide_sigmas[i] = 0.0
-                inv_2sigmas_sq[i] = 1e20
-            elseif isnan(sigmas[i])
-                warn("sigmas = $sigmas")
-                return(wi, mu, sigmas, β, -Inf)
-            else
-                wi_divide_sigmas[i] = wi[i]/sigmas[i]
-                inv_2sigmas_sq[i] = 0.5 / sigmas[i]^2
-            end
-        end
-        for iter_gibbs in 1:(M+M_discard)
-            #update Lᵢ
-
-            for i in 1:nF
-                for j in 1:ncomponent
-                    tmp_mu[j] = -(mu[j] - sample_gamma[i])^2 * inv_2sigmas_sq[j]
-                end
-                ratiosumexp!(tmp_mu, wi_divide_sigmas, tmp_p, ncomponent)
-                L_new[i] = rand(Categorical(tmp_p))
-                sample_gamma_new[i] = rand(Normal(sample_gamma[i], proposingsigma))
-            end
-
-            #update γᵢ;
-            #Calculate the accept probability, stored in ll_nF
-            q_gamma(sample_gamma_new, sample_gamma, xb, Y,facility, mu, sigmas, L, L_new, llvec, llvecnew, ll_nF, nF, N)
-            for i in 1:nF
-                if rand() < ll_nF[i]
-                    sample_gamma[i] = sample_gamma_new[i]
-                end
-                L[i] = L_new[i]
-            end
-
-            #only keep samples after M_discard
-            jcol = iter_gibbs - M_discard
-            if jcol > 0
-                sample_gamma_mat[:, jcol] = sample_gamma
-                addcounts!(wipool, L, 1:ncomponent)
-                sumby!(mupool, sample_gamma, L, 1:ncomponent)
-                sumsqby!(sigmaspool, sample_gamma, L, 1:ncomponent)
-            end
-        end
-        
-        copy!(wi_old, wi)
-        copy!(mu_old, mu)
-        copy!(sigmas_old, sigmas)
-        #update wi, mu and sigmas
-        for j in 1:ncomponent
-            if wipool[j] <= 1
-                return(wi, mu, sigmas, β, -Inf)
-            end
-        end
-        wipoolsum = sum(wipool)
-        for ic in 1:ncomponent
-            wi[ic] = wipool[ic] / wipoolsum
-            mu[ic] = mupool[ic] / wipool[ic]
-            sigmas[ic] = sqrt((sigmaspool[ic] - wipool[ic] * mu[ic] ^2 + 2 * an * sn[ic]) / (wipool[ic] + 2 * an))
-        end    
+         gibbsMH!(X, Y, facility, wi, mu, sigmas, β, ncomponent, nF, N, M, M_discard, proposingsigma, wipool, mupool, sigmaspool, L, L_new, sample_gamma, sample_gamma_new, sample_gamma_mat, xb, llvec, llvecnew, ll_nF, tmp_mu, wi_divide_sigmas, inv_2sigmas_sq, tmp_p)
+    
 
         wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
         wi[whichtosplit] = wi_tmp*tau
