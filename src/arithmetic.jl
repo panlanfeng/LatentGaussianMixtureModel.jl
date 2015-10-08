@@ -34,7 +34,18 @@ function ratiosumexp!{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T}, s::A
     #s ./ sum(s) #* exp(u)
     nothing
 end
-
+function ratiosumexp!{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T}, s::AbstractMatrix{T}, irow::Int, ncomponent::Int)
+    
+    u = maximum(x)
+    for i in 1:ncomponent
+        @inbounds s[irow, i] = coef[i]*exp(x[i] - u)
+    end
+    ssum = sum(s[irow, :])
+    for i in 1:ncomponent
+        @inbounds s[irow, i] = s[irow, i] / ssum
+    end
+    nothing
+end
 function add!(res::Vector{Float64}, x::Vector{Float64}, y::Float64, n::Int64=length(x))
    for i in 1:n
        @inbounds res[i] = x[i] + y

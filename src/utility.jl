@@ -145,7 +145,6 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
     wi = copy(wi_init)
     mu = copy(mu_init)
     sigmas = copy(sigmas_init)
-    tmp_p = ones(ncomponent)
     if wifixed
         wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
         wi[whichtosplit] = wi_tmp*tau
@@ -158,8 +157,7 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
         for i in 1:nF
             # pwi[i, :] = ratiosumexp(-(mu .- x[i]).^2 ./ (2 .* sigmas .^ 2), wi ./ sigmas)
             
-            ratiosumexp!(-(mu .- x[i]).^2 ./ (2 .* sigmas .^ 2), wi ./ sigmas, tmp_p, ncomponent)
-            pwi[i, :] = tmp_p
+            ratiosumexp!(-(mu .- x[i]).^2 ./ (2 .* sigmas .^ 2), wi ./ sigmas, pwi, i, ncomponent)
         end
 
         wi_old=copy(wi)
