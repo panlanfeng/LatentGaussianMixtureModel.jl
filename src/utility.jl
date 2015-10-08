@@ -431,7 +431,7 @@ function Q1(beta_new::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
 end
 
 
-function gibbsMH!(X::Matrix, Y::Vector{Bool}, facility::IntegerVector, wi::Vector, mu::Vector, sigmas::Vector, β::Vector, ncomponent::Int, nF::Int, N::Int, M::Int, M_discard::Int, proposingsigma::Real, wipool::Vector, mupool::Vector, sigmaspool::Vector, L::Vector, L_new::Vector, sample_gamma::Vector, sample_gamma_new::Vector, sample_gamma_mat::Matrix, xb::Vector, llvec::Vector, llvecnew::Vector, ll_nF::Vector, tmp_mu::Vector, wi_divide_sigmas::Vector, inv_2sigmas_sq::Vector, tmp_p::Vector)
+function gibbsMH!(X::Matrix, Y::Vector{Bool}, facility::IntegerVector, wi::Vector, mu::Vector, sigmas::Vector, β::Vector, ncomponent::Int, nF::Int, N::Int, M::Int, M_discard::Int, proposingsigma::RealVector, wipool::Vector, mupool::Vector, sigmaspool::Vector, L::Vector, L_new::Vector, sample_gamma::Vector, sample_gamma_new::Vector, sample_gamma_mat::Matrix, xb::Vector, llvec::Vector, llvecnew::Vector, ll_nF::Vector, tmp_mu::Vector, wi_divide_sigmas::Vector, inv_2sigmas_sq::Vector, tmp_p::Vector)
     fill!(wipool, 0.0)
     fill!(mupool, 0.0)
     fill!(sigmaspool, 0.0)
@@ -457,7 +457,7 @@ function gibbsMH!(X::Matrix, Y::Vector{Bool}, facility::IntegerVector, wi::Vecto
             end
             ratiosumexp!(tmp_mu, wi_divide_sigmas, tmp_p, ncomponent)
             L_new[i] = rand(Categorical(tmp_p))
-            sample_gamma_new[i] = rand(Normal(sample_gamma[i], proposingsigma))
+            sample_gamma_new[i] = rand(Normal(sample_gamma[i], proposingsigma[i]))
         end
 
         #update γᵢ;
@@ -486,7 +486,7 @@ end
 #nF is the number of facilities
 #intial values of β, ω, μ and σ must be supplied
 
-function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; Mmax::Int=10000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, ngh::Int=1000, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false,restartMCMCsampling::Bool=false)
+function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; Mmax::Int=10000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::RealVector=ones(maximum(facility)), ngh::Int=1000, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false,restartMCMCsampling::Bool=false)
 
     # initialize theta
     N,J=size(X)
@@ -548,6 +548,9 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Inte
          
          gibbsMH!(X, Y, facility, wi, mu, sigmas, β, ncomponent, nF, N, M, M_discard, proposingsigma, wipool, mupool, sigmaspool, L, L_new, sample_gamma, sample_gamma_new, sample_gamma_mat, xb, llvec, llvecnew, ll_nF, tmp_mu, wi_divide_sigmas, inv_2sigmas_sq, tmp_p)
     
+        for i in 1:nF
+            proposingsigma[i] = std(sample_gamma_mat[i,:])+.1
+        end
         for j in 1:ncomponent
             if wipool[j] == 0
                 wipool[j] = 1
@@ -594,7 +597,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Inte
 end
 
 #For fixed wi
-function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}, whichtosplit::Int64, tau::Float64, ghx::Vector{Float64}, ghw::Vector{Float64}; mu_lb::Vector{Float64}=-Inf.*ones(wi_init), mu_ub::Vector{Float64}=Inf.*ones(wi_init), Mmax::Int=5000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::Float64=1.0, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false, sample_gamma_mat::Matrix = zeros(maximum(facility), Mmax), sumlogmat::Matrix = zeros(maximum(facility), length(ghx)*ncomponent), llvec::Vector=zeros(length(Y)), llvecnew::Vector = zeros(length(Y)), ll_nF::Vector = zeros(maximum(facility)), xb::Vector=zeros(length(Y)), Q_maxiter::Int = 5, restartMCMCsampling::Bool=false)
+function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}, whichtosplit::Int64, tau::Float64, ghx::Vector{Float64}, ghw::Vector{Float64}; mu_lb::Vector{Float64}=-Inf.*ones(wi_init), mu_ub::Vector{Float64}=Inf.*ones(wi_init), Mmax::Int=5000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::RealVector=ones(maximum(facility)), sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false, sample_gamma_mat::Matrix = zeros(maximum(facility), Mmax), sumlogmat::Matrix = zeros(maximum(facility), length(ghx)*ncomponent), llvec::Vector=zeros(length(Y)), llvecnew::Vector = zeros(length(Y)), ll_nF::Vector = zeros(maximum(facility)), xb::Vector=zeros(length(Y)), Q_maxiter::Int = 5, restartMCMCsampling::Bool=false)
 
     # initialize theta
     N,J=size(X)
@@ -664,7 +667,9 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
              return(wi, mu, sigmas, β, -Inf)
          end
          gibbsMH!(X, Y, facility, wi, mu, sigmas, β, ncomponent, nF, N, M, M_discard, proposingsigma, wipool, mupool, sigmaspool, L, L_new, sample_gamma, sample_gamma_new, sample_gamma_mat, xb, llvec, llvecnew, ll_nF, tmp_mu, wi_divide_sigmas, inv_2sigmas_sq, tmp_p)
-    
+         for i in 1:nF
+             proposingsigma[i] = std(sample_gamma_mat[i,:]) + .1
+         end
          copy!(wi_old, wi)
          copy!(mu_old, mu)
          copy!(sigmas_old, sigmas)
