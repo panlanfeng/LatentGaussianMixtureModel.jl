@@ -12,6 +12,17 @@ function sumexp{T<:Real}(x::AbstractArray{T})
     end
     s * exp(u)
 end
+function sumexp{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T})
+    isempty(x) && return -Inf
+    u = maximum(x)
+    s = 0.
+    for i in 1:length(x)
+        @inbounds s += coef[i]*exp(x[i] - u)
+    end
+    s * exp(u)
+end
+
+
 function ratiosumexp!{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T}, s::AbstractArray{T}, ncomponent::Int)
     #length(x) != length(coef) && error("Length should be the same!")
     #isempty(x) && return -Inf
@@ -196,4 +207,22 @@ function sumsqby!(r::AbstractArray, y::AbstractArray, x::IntegerArray, levels::I
 		end
 	end
 	#return r
+end
+
+function H1(y, mu, sigmas)
+    (y .- mu)./sigmas./sigmas
+end
+function H2(y, mu, sigmas)
+    z = (y .- mu)./sigmas
+    (z.^2 .-1)./sigmas^2./2
+end
+
+function H3(y, mu, sigmas)
+    z = (y .- mu)./sigmas
+    (z.^3 .-3.*z) ./ sigmas^3./6 
+end
+
+function H4(y, mu, sigmas)
+    z = (y .- mu)./sigmas
+    (z.^4 .-6.*z.^2 .+ 3) ./ sigmas^4 ./ 24
 end

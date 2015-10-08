@@ -2,7 +2,7 @@ import LatentGaussianMixtureModel
 using Distributions, StatsBase
 using Yeppp
 b=1
-Ctrue=2
+Ctrue=3
 
 nF = 282
 srand(100)
@@ -49,7 +49,7 @@ end
 
 
 
-ncomponent1=3
+ncomponent1=4
 C0 = ncomponent1 - 1
 C1 = ncomponent1 
 nF = maximum(facility)
@@ -57,7 +57,9 @@ an1 = 0.0 # 1/nF
 gamma_init, beta_init, sigmas_tmp = LatentGaussianMixtureModel.maxposterior(X, Y, facility)
 wi_init, mu_init, sigmas_init, ml_tmp = LatentGaussianMixtureModel.gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=an1, maxiter=1)
 
- srand(100);@time LatentGaussianMixtureModel.latentgmm(X, Y, facility, C0, beta_init, wi_init, mu_init, sigmas_init, Mmax=5000, initial_iteration=10, maxiteration=3, an=an1, sn=std(gamma_init).*ones(C0));
+ srand(100);@time wi_init, mu_init, sigmas_init, betas_init, ml_tmp =LatentGaussianMixtureModel.latentgmm(X, Y, facility, C0, beta_init, wi_init, mu_init, sigmas_init, Mmax=5000, initial_iteration=10, maxiteration=3, an=an1, sn=std(gamma_init).*ones(C0));
+
+trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, facility, wi_init, mu_init, sigmas_init, betas_init)
 
 
 

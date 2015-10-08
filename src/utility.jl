@@ -265,9 +265,14 @@ function marginallikelihood(beta_new::Array{Float64,1}, X::Matrix{Float64}, Y::A
     fill!(sumlogmat, 0.0)
     for jcom in 1:C
         for ix in 1:M
-            fill!(llvec, ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom])
-            add!(llvec, llvec, xb)
-            negateiftrue!(llvec, Y)
+            # fill!(llvec, ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom])
+            # add!(llvec, llvec, xb)
+            # negateiftrue!(llvec, Y)
+            #partially devecterize, speed up by 5%; But exp and log from Yeppp are much faster than devecterized ones.
+            xtmp = ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom]
+            for i in 1:N
+                @inbounds llvec[i] = ifelse(Y[i], -xtmp - xb[i], xtmp + xb[i])  
+            end
             exp!(llvec, llvec)
             log1p!(llvec)
             ixM = ix+M*(jcom-1)
@@ -287,6 +292,92 @@ function marginallikelihood(beta_new::Array{Float64,1}, X::Matrix{Float64}, Y::A
     sum(ll_nF) - nF*log(pi)/2
 end
 
+function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, betas::Array{Float64,1}; ngh::Int=1000, nrep::Int=10000)
+
+    N,J = size(X)
+    nF = maximum(facility)
+    M = ngh
+    C = length(wi)
+    ghx, ghw = gausshermite(ngh)
+    xb = zeros(N)
+    A_mul_B!(xb, X, betas)
+    llvec = zeros(N)
+    ll_nF = zeros(nF, C)
+    sumlogmat = zeros(nF, ngh*C)
+    S_π = zeros(nF, C-1)
+    S_μσ = zeros(nF, 2*C)
+    S_λ = zeros(nF, 2*C)
+    w = zeros(nF, C)
+    ml = zeros(nF)
+    xtmp = zeros(C*M)
+    for jcom in 1:C
+        for ix in 1:M
+            ixM = ix+M*(jcom-1)
+            xtmp[ixM] = ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom]
+            for i in 1:N
+                @inbounds llvec[i] = ifelse(Y[i], -xtmp[ixM] - xb[i], xtmp[ixM] + xb[i])  
+            end
+            
+            exp!(llvec, llvec)
+            
+            log1p!(llvec)
+            
+            for i in 1:N
+                @inbounds sumlogmat[facility[i], ixM] -= llvec[i]
+            end
+            for i in 1:nF
+                sumlogmat[i, ixM] +=  log(ghw[ix]) # +log(wi[jcom]) + H1(xtmp, sigmas[jcom])
+            end
+        end
+    end
+    for i in 1:nF
+        ml[i]=sumexp(sumlogmat[i, :])
+    end
+    
+    for i in 1:nF
+        for kcom in 1:C
+            ll_nF[i, kcom] = sumexp(sumlogmat[i,(1+M*(kcom-1)):M*kcom])
+        end
+    end
+    for kcom in 1:(C-1)
+        S_π[:, kcom] = (ll_nF[:, kcom] .- ll_nF[:, C]) ./ ml
+    end
+    for i in 1:nF
+        for kcom in 1:C
+            w[i, kcom] = ll_nF[i, kcom] * wi[kcom] / ml[i]
+            
+            S_μσ[i, 2*kcom-1] = sumexp(sumlogmat[i, :], H1(xtmp, mu[kcom], sigmas[kcom]))/ml[i] * w[i, kcom]
+            S_μσ[i, 2*kcom] = sumexp(sumlogmat[i, :], H2(xtmp, mu[kcom], sigmas[kcom]))/ml[i] * w[i, kcom]
+            S_λ[i, 2*kcom-1] = sumexp(sumlogmat[i, :], H3(xtmp, mu[kcom], sigmas[kcom]))/ml[i] * w[i, kcom]
+            S_λ[i, 2*kcom] = sumexp(sumlogmat[i, :], H4(xtmp, mu[kcom], sigmas[kcom]))/ml[i] * w[i, kcom]
+            
+        end
+    end
+    S_η = hcat(S_π, S_μσ)
+    I_η = S_η'*S_η./nF 
+    I_λη = S_λ'*S_η./nF 
+    I_λ = S_λ'*S_λ./nF 
+    I_all = vcat(hcat(I_η, I_λη'), hcat(I_λη, I_λ))
+    D, V = eig(I_all)
+    tol2 = abs(D[1]) * 1e-14 
+    D[abs(D).<tol2] = tol2
+    I_all = V*diagm(D)*V'
+    
+    I_λ_η = I_all[(3*C):(5*C-1), (3*C):(5*C-1)] - I_all[(3*C):(5*C-1), 1:(3*C-1)] * inv(I_all[1:(3*C-1), 1:(3*C-1)]) * I_all[1:(3*C-1),(3*C):(5*C-1) ]
+    D, V = eig(I_λ_η)
+    I_λ_η2 = V * diagm(sqrt(D)) * V'
+    u = randn(nrep, 2*C) * I_λ_η2
+    EM = zeros(nrep, C)
+    T = zeros(nrep)
+    for kcom in 1:C
+        EM[:, kcom] = sum(u[:, (2*kcom-1):(2*kcom)] * inv(I_λ_η[(2*kcom-1):(2*kcom), (2*kcom-1):(2*kcom)]) .* u[:, (2*kcom-1):(2*kcom)], 2)
+    end 
+    for i in 1:nrep
+        T[i] = maximum(EM[i, :])
+    end
+    T
+    #sum(ll_nF) - nF*log(pi)/2
+end
 #The first part of Q function for beta, divided by -N
 #the goal and gradient function for estimation β
 #goal = 1/N ∑∑∑mean [log(1+exp(-η_{im}yᵢ)) for m in 1:M ]
@@ -705,7 +796,7 @@ function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, 
     return(re[1], re[2], re[3], re[4], re[5])
 end
 
-function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent1::Int; vtau::Vector{Float64}=[.5,.3,.1;], ntrials::Int=25, ngh::Int=1000, debuginfo::Bool=false, Mctau::Int=1000, restartMCMCsampling::Bool=false)
+function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::IntegerVector, ncomponent1::Int; vtau::Vector{Float64}=[.5,.3,.1;], ntrials::Int=25, ngh::Int=1000, debuginfo::Bool=false, Mctau::Int=1000, restartMCMCsampling::Bool=false, reportpvalue=false)
     C0 = ncomponent1 - 1
     C1 = ncomponent1 
     nF = maximum(facility)
@@ -714,6 +805,10 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facil
     wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=an1, maxiter=1)
 
     wi_init, mu_init, sigmas_init, betas_init, ml_C0, gamma_mat = latentgmm(X, Y, facility, C0, beta_init, wi_init, mu_init, sigmas_init, Mmax=5000, initial_iteration=10, maxiteration=100, an=an1, sn=std(gamma_init).*ones(C0), restartMCMCsampling=restartMCMCsampling)
+    if reportpvalue
+        trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, facility, wi_init, mu_init, sigmas_init, betas_init)
+    end
+    
     gamma0 = vec(mean(gamma_mat, 2))    
     mingamma = minimum(gamma0)
     maxgamma = maximum(gamma0)
@@ -761,6 +856,9 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facil
     end
     if debuginfo
         println(2.*(lr.-ml_C0), " ", ml_C0)
+    end
+    if reportpvalue
+        return 2*(maximum(lr) - ml_C0), mean(trand .> 2*(maximum(lr) - ml_C0))
     end
     2*(maximum(lr) - ml_C0)  
 end
