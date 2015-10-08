@@ -330,15 +330,21 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, f
             end
         end
     end
-    for i in 1:nF
-        ml[i]=sumexp(sumlogmat[i, :])
-    end
     
     for i in 1:nF
         for kcom in 1:C
             ll_nF[i, kcom] = sumexp(sumlogmat[i,(1+M*(kcom-1)):M*kcom])
         end
     end
+    for i in 1:nF
+        for jcom in 1:C
+            for ix in 1:M
+                sumlogmat[i, ix+M*(jcom-1)] += log(wi[jcom])
+            end
+        end
+        ml[i]=sumexp(sumlogmat[i, :])
+    end
+
     for kcom in 1:(C-1)
         S_π[:, kcom] = (ll_nF[:, kcom] .- ll_nF[:, C]) ./ ml
     end

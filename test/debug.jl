@@ -2,7 +2,7 @@ import LatentGaussianMixtureModel
 using Distributions, StatsBase
 using Yeppp
 b=1
-Ctrue=3
+Ctrue=2
 
 nF = 282
 srand(100)
@@ -49,7 +49,7 @@ end
 
 
 
-ncomponent1=4
+ncomponent1=Ctrue+1
 C0 = ncomponent1 - 1
 C1 = ncomponent1 
 nF = maximum(facility)
