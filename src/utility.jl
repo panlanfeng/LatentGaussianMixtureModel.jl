@@ -439,14 +439,11 @@ function gibbsMH!(X::Matrix, Y::Vector{Bool}, facility::IntegerVector, wi::Vecto
     # xb  = X*β
     A_mul_B!(xb, X, β)
     fill!(wi_divide_sigmas, 0.0)
-    fill!(inv_2sigmas_sq, 1e20)
+    fill!(inv_2sigmas_sq, 0.0)
     for i in 1:length(wi)
-        if sigmas[i] == 0.0
+        if sigmas[i] < realmin(Float64)
             wi_divide_sigmas[i] = 0.0
-            inv_2sigmas_sq[i] = 1e20
-        elseif isnan(sigmas[i])
-            warn("sigmas = $sigmas")
-            #return(wi, mu, sigmas, β, -Inf, [0.0])
+            inv_2sigmas_sq[i] = wi[i]*realmax(Float64)
         else
             wi_divide_sigmas[i] = wi[i]/sigmas[i]
             inv_2sigmas_sq[i] = 0.5 / sigmas[i]^2
@@ -544,7 +541,11 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility::Inte
                 sample_gamma[i] = rand(Normal(mu[L[i]], sigmas[L[i]])) 
             end
          end
-
+        if any(isnan(sigmas)) || any(isnan(wi)) 
+            warn("wi=$wi, sigmas = $sigmas")
+            return(wi, mu, sigmas, β, -Inf, [0.0])
+        end
+         
          gibbsMH!(X, Y, facility, wi, mu, sigmas, β, ncomponent, nF, N, M, M_discard, proposingsigma, wipool, mupool, sigmaspool, L, L_new, sample_gamma, sample_gamma_new, sample_gamma_mat, xb, llvec, llvecnew, ll_nF, tmp_mu, wi_divide_sigmas, inv_2sigmas_sq, tmp_p)
     
         for j in 1:ncomponent
@@ -658,10 +659,29 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, facility:
                 sample_gamma[i] = rand(Normal(mu[L[i]], sigmas[L[i]])) 
             end
          end
-        
+         if any(isnan(sigmas)) || any(isnan(wi)) 
+             warn("wi=$wi, sigmas = $sigmas")
+             return(wi, mu, sigmas, β, -Inf)
+         end
          gibbsMH!(X, Y, facility, wi, mu, sigmas, β, ncomponent, nF, N, M, M_discard, proposingsigma, wipool, mupool, sigmaspool, L, L_new, sample_gamma, sample_gamma_new, sample_gamma_mat, xb, llvec, llvecnew, ll_nF, tmp_mu, wi_divide_sigmas, inv_2sigmas_sq, tmp_p)
     
-
+         copy!(wi_old, wi)
+         copy!(mu_old, mu)
+         copy!(sigmas_old, sigmas)
+         #update wi, mu and sigmas
+         for j in 1:ncomponent
+             if wipool[j] <= 1
+                 warn("wi contains 0!")
+                 return(wi, mu, sigmas, β, -Inf)
+             end
+         end
+         wipoolsum = sum(wipool)
+         for ic in 1:ncomponent
+             wi[ic] = wipool[ic] / wipoolsum
+             mu[ic] = mupool[ic] / wipool[ic]
+             sigmas[ic] = sqrt((sigmaspool[ic] - wipool[ic] * mu[ic] ^2 + 2 * an * sn[ic]) / (wipool[ic] + 2 * an))
+         end  
+         
         wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
         wi[whichtosplit] = wi_tmp*tau
         wi[whichtosplit+1] = wi_tmp*(1-tau)
