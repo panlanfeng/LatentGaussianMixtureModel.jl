@@ -15,7 +15,7 @@ import Yeppp
     n_ij = round(Int64, rand(Poisson(5), 282).+rand(Exponential(45), 282))
     N = sum(n_ij)
 
-    facility = inverse_rle(1:nF, n_ij)
+    groupindex = inverse_rle(1:nF, n_ij)
     J=2  #42 #beta dimension
     srand(100)
     X = rand(Normal(), (N, J))
@@ -39,7 +39,7 @@ import Yeppp
     m = MixtureModel(map((u, v) -> Normal(u, v), mu_true, sigmas_true), wi_true)
     gamma_true = rand(m, nF)
     
-    prob = exp(gamma_true[facility] .+ X*beta_true)
+    prob = exp(gamma_true[groupindex] .+ X*beta_true)
     prob= prob ./ (1 .+ prob)
     Y = Array(Bool, N)
     for i in 1:N
@@ -50,7 +50,7 @@ import Yeppp
         end
     end
 
-    lr=loglikelihoodratio(X, Y, facility, Calternative, ntrials=25, debuginfo=debuginfo, restartMCMCsampling=restartMCMCsampling)
+    lr=loglikelihoodratio(X, Y, groupindex, Calternative, ntrials=25, debuginfo=debuginfo, restartMCMCsampling=restartMCMCsampling)
     println("Mission $b completed with lr=$lr")
     lr
 end

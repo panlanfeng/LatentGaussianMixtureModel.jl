@@ -9,7 +9,7 @@ srand(100)
 n_ij = round(Int64, rand(Poisson(5), 282).+rand(Exponential(45), 282))
 N = sum(n_ij)
 
-facility = inverse_rle(1:nF, n_ij)
+groupindex = inverse_rle(1:nF, n_ij)
 J=2  #42 #beta dimension
 srand(100)
 X = rand(Normal(), (N, J))
@@ -33,7 +33,7 @@ srand(b * 100)
 m = MixtureModel(map((u, v) -> Normal(u, v), mu_true, sigmas_true), wi_true)
 gamma_true = rand(m, nF)
 
-prob = exp(gamma_true[facility] .+ X*beta_true)
+prob = exp(gamma_true[groupindex] .+ X*beta_true)
 prob= prob ./ (1 .+ prob)
 Y = Array(Bool, N)
 srand(b * 100)
@@ -44,7 +44,7 @@ for i in 1:N
         Y[i] = false
     end
 end
-#lr=loglikelihoodratio(X, Y, facility, Calternative, ntrials=25, debuginfo=debuginfo)
+#lr=loglikelihoodratio(X, Y, groupindex, Calternative, ntrials=25, debuginfo=debuginfo)
 
 
 
@@ -52,14 +52,14 @@ end
 ncomponent1=Ctrue+1
 C0 = ncomponent1 - 1
 C1 = ncomponent1 
-nF = maximum(facility)
+nF = maximum(groupindex)
 an1 = 0.0 # 1/nF
-gamma_init, beta_init, sigmas_tmp = LatentGaussianMixtureModel.maxposterior(X, Y, facility)
+gamma_init, beta_init, sigmas_tmp = LatentGaussianMixtureModel.maxposterior(X, Y, groupindex)
 wi_init, mu_init, sigmas_init, ml_tmp = LatentGaussianMixtureModel.gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=an1, maxiter=1)
 
- srand(100);@time wi_init, mu_init, sigmas_init, betas_init, ml_tmp, gamma_mat =LatentGaussianMixtureModel.latentgmm(X, Y, facility, C0, beta_init, wi_init, mu_init, sigmas_init, Mmax=5000, initial_iteration=10, maxiteration=3, an=an1, sn=std(gamma_init).*ones(C0))
+ srand(100);@time wi_init, mu_init, sigmas_init, betas_init, ml_tmp, gamma_mat =LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, C0, beta_init, wi_init, mu_init, sigmas_init, Mmax=5000, initial_iteration=10, maxiteration=3, an=an1, sn=std(gamma_init).*ones(C0))
 
-trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, facility, wi_init, mu_init, sigmas_init, betas_init)
+trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
 
 
 
@@ -116,7 +116,7 @@ srand(i)
 mu[:, i] = rand(ncomponent1) .* (mu_ub .- mu_lb) .+ mu_lb
 sigmas[:, i] = rand(ncomponent1) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
 
-srand(100);LatentGaussianMixtureModel.latentgmm_ctau(X, Y, facility, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=30, Mmax=50, M_discard=500, an=0., Q_maxiter=2, debuginfo=true)
+srand(100);LatentGaussianMixtureModel.latentgmm_ctau(X, Y, groupindex, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=30, Mmax=50, M_discard=500, an=0., Q_maxiter=2, debuginfo=true)
 
 
 
@@ -128,17 +128,17 @@ for i in 1:4*ntrials
     #     #fit gmm on gamma_hat with the starting points, to accelerate the latentgmm_ctau
     #     wi[:, i], mu[:, i], sigmas[:, i], tmp = gmm(gamma0, ncomponent1, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb,mu_ub=mu_ub, maxiter=1, wifixed=true, sn=sn, an=an)
     # end
-    wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = LatentGaussianMixtureModel.latentgmm_ctau(X, Y, facility, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=8, Mmax=50, M_discard=500, an=0., Q_maxiter=2, debuginfo=false)
+    wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = LatentGaussianMixtureModel.latentgmm_ctau(X, Y, groupindex, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=8, Mmax=50, M_discard=500, an=0., Q_maxiter=2, debuginfo=false)
 end
 
 mlperm = sortperm(ml)
 for j in 1:ntrials
     i = mlperm[4*ntrials+1 - j] # start from largest ml 
-    wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = LatentGaussianMixtureModel.latentgmm_ctau(X, Y, facility, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=50, Mmax=50, M_discard=500, an=0., Q_maxiter=2, debuginfo=true)
+    wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = LatentGaussianMixtureModel.latentgmm_ctau(X, Y, groupindex, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=50, Mmax=50, M_discard=500, an=0., Q_maxiter=2, debuginfo=true)
 end
 
 mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
 imax = mlperm[3*ntrials+imax]
 
-re=LatentGaussianMixtureModel.latentgmm(X, Y, facility, ncomponent1, betas[:, imax], wi[:, imax], mu[:, imax], sigmas[:, imax], Mmax=5000, maxiteration=3, initial_iteration=0, an=an)
+re=LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, ncomponent1, betas[:, imax], wi[:, imax], mu[:, imax], sigmas[:, imax], Mmax=5000, maxiteration=3, initial_iteration=0, an=an)
 2(re[5] - ml_C0)
