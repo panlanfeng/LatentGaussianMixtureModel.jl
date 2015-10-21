@@ -1,7 +1,14 @@
 #Read in the file and run latentgmm
 #Lanfeng Pan, Oct 21, 2015
-Pkg.clone("where/you/put/thepackage/LatentGaussianMixtureModel")
-cd(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples"))
+
+#run the following after successfully installed Julia. You only need to do the following once.
+# Pkg.init()
+# Pkg.clone("where/you/put/thepackage/LatentGaussianMixtureModel")
+# Pkg.checkout("FastGaussQuadrature")
+
+# To run on the real data, change to the directory where the data is stored
+#cd("C:/latentgmmdata/")
+
 #LatentGaussianMixtureModel is our package
 import LatentGaussianMixtureModel
 import Distributions, StatsBase, Yeppp
@@ -47,15 +54,18 @@ wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantil
 #If there is error, set debuginfo=true to see more information
 wi, mu, sigmas, betas, ml_C0, gamma_mat = latentgmm(X, Y, groupindex, C0, beta_init, wi_init, mu_init, sigmas_init, Mmax=5000,  maxiteration=100, an=1/nF, sn=std(gamma_init).*ones(C0), debuginfo=true)
 #print the output
+println("The returned parameters are:")
 println(wi, mu, sigmas, betas, ml_C0)
 
 #set the number of components We want to test
-C0=2 # Null hypothesis
-C1=3 # Alternative hypothesis
+C0=1 # Null hypothesis
+C1=2 # Alternative hypothesis
 
 #adding all available cpu cores, utilizing the parallel computing
 addprocs(CPU_CORES-1)
 #Return  2*loglikelihoodratio and the p value
 #The recommended ntrials=25. Setting it to some smaller number can save much time if we just want to test if the code is working.
 #If there is error, set debuginfo=true to see more information
-lr=loglikelihoodratio(X, Y, groupindex, C1, ntrials=2, debuginfo=false, reportpvalue=true)
+lr=loglikelihoodratio(X, Y, groupindex, C1, ntrials=25, debuginfo=false, reportpvalue=true)
+println("The test statistica and p value are:")
+println(lr)
