@@ -1,7 +1,7 @@
 #Read in the file and run latentgmm
 #Lanfeng Pan, Oct 21, 2015
-
-
+Pkg.clone("where/you/put/thepackage/LatentGaussianMixtureModel")
+cd(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples"))
 #LatentGaussianMixtureModel is our package
 import LatentGaussianMixtureModel
 import Distributions, StatsBase, Yeppp
