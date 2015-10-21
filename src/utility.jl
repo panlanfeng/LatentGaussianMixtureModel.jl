@@ -762,7 +762,7 @@ function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, 
     
     re=latentgmm(X, Y, groupindex, ncomponent1, betas[:, imax], wi[:, imax], mu[:, imax], sigmas[:, imax], Mmax=5000, maxiteration=3, initial_iteration=0, an=an, sn=sn, debuginfo=debuginfo, restartMCMCsampling=restartMCMCsampling)
     
-    return(re[1], re[2], re[3], re[4], re[5])
+    return(re[5])
 end
 
 function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent1::Int; vtau::Vector{Float64}=[.5,.3,.1;], ntrials::Int=25, ngh::Int=1000, debuginfo::Bool=false, Mctau::Int=1000, restartMCMCsampling::Bool=false, reportpvalue=false)
@@ -782,7 +782,7 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, group
     mingamma = minimum(gamma0)
     maxgamma = maximum(gamma0)
     
-    lr = zeros(length(vtau), C0)
+    #lr = zeros(length(vtau), C0)
     or = sortperm(mu_init)
     wi0 = wi_init[or]
     mu0 = mu_init[or]
@@ -797,7 +797,10 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, group
     llvecnew = zeros(N)
     xb = zeros(N)
 
-    for whichtosplit in 1:C0
+    lr=@parallel (max) for irun in 1:(C0*length(vtau))
+    
+        whichtosplit = mod1(irun, C0)
+        i = cld(irun, C0)
         ind = [1:whichtosplit, whichtosplit:C0;]
         if C1==2
             mu_lb = mingamma .* ones(2)
@@ -810,26 +813,19 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, group
         end
         sigmas_lb = 0.25 .* sigmas0[ind]
         sigmas_ub = 2 .* sigmas0[ind]
-        for i in 1:length(vtau)
-            wi_C1 = wi0[ind]
-            wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
-            wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
+        
+        wi_C1 = wi0[ind]
+        wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
+        wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
 
-            wi, mu, sigmas, beta, lr[i, whichtosplit] = loglikelihoodratio_ctau(X, Y, groupindex, ncomponent1, betas0, wi_C1, whichtosplit, vtau[i], mu_lb, mu_ub,sigmas_lb, sigmas_ub, gamma0, ntrials=ntrials, ngh=ngh, sn=sigmas0[ind], an=an, debuginfo=debuginfo, sample_gamma_mat = sample_gamma_mat, sumlogmat=sumlogmat, llvec=llvec, llvecnew=llvecnew, Mctau=Mctau, xb=xb, restartMCMCsampling=restartMCMCsampling)
-            if debuginfo
-                println(i,"  ", whichtosplit, " ", an, " ", lr[i, whichtosplit])
-            end
-            #lr[i, whichtosplit] = lr[i, whichtosplit] + log(1- abs(1 -2*vtau[i]))
-        end
+        loglikelihoodratio_ctau(X, Y, groupindex, ncomponent1, betas0, wi_C1, whichtosplit, vtau[i], mu_lb, mu_ub,sigmas_lb, sigmas_ub, gamma0, ntrials=ntrials, ngh=ngh, sn=sigmas0[ind], an=an, debuginfo=debuginfo, sample_gamma_mat = sample_gamma_mat, sumlogmat=sumlogmat, llvec=llvec, llvecnew=llvecnew, Mctau=Mctau, xb=xb, restartMCMCsampling=restartMCMCsampling)
 
     end
-    if debuginfo
-        println(2.*(lr.-ml_C0), " ", ml_C0)
-    end
+
     if reportpvalue
-        return 2*(maximum(lr) - ml_C0), mean(trand .> 2*(maximum(lr) - ml_C0))
+        return 2*(lr - ml_C0), mean(trand .> 2*(maximum(lr) - ml_C0))
     end
-    2*(maximum(lr) - ml_C0)  
+    2*(lr - ml_C0)  
 end
 
 ####End of utility functions

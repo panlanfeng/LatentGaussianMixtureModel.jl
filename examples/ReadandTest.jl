@@ -53,6 +53,8 @@ println(wi, mu, sigmas, betas, ml_C0)
 C0=2 # Null hypothesis
 C1=3 # Alternative hypothesis
 
+#adding all available cpu cores, utilizing the parallel computing
+addprocs(CPU_CORES-1)
 #Return  2*loglikelihoodratio and the p value
 #The recommended ntrials=25. Setting it to some smaller number can save much time if we just want to test if the code is working.
 #If there is error, set debuginfo=true to see more information
