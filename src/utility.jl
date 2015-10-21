@@ -769,7 +769,7 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, group
     C0 = ncomponent1 - 1
     C1 = ncomponent1 
     nF = maximum(groupindex)
-    an1 = 0.0 # 1/nF
+    an1 = 1/nF
     gamma_init, beta_init, sigmas_tmp = maxposterior(X, Y, groupindex)
     wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=an1)
 
@@ -788,7 +788,7 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, group
     mu0 = mu_init[or]
     sigmas0 = sigmas_init[or]
     betas0 = betas_init
-    an = 0.0 # decidepenalty(wi0, mu0, sigmas0, nF)
+    an = decidepenalty(wi0, mu0, sigmas0, nF)
     
     N,J=size(X)
     sample_gamma_mat = zeros(nF, Mctau)
