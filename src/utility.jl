@@ -483,10 +483,10 @@ function gibbsMH!(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi::Vec
 end
 #The main function
 #X, Y, groupindex
-#nF is the number of facilities
+#nF is the number of groups
 #intial values of β, ω, μ and σ must be supplied
 
-function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; Mmax::Int=10000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::RealVector=ones(maximum(groupindex)), ngh::Int=1000, sn::Vector{Float64}=sigmas_init, an::Float64=0.25, debuginfo::Bool=false,restartMCMCsampling::Bool=false)
+function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; Mmax::Int=10000, M_discard::Int=1000, maxiteration::Int=100, initial_iteration::Int=0, tol::Real=.005, proposingsigma::RealVector=ones(maximum(groupindex)), ngh::Int=1000, sn::Vector{Float64}=sigmas_init, an::Float64=1.0/maximum(groupindex), debuginfo::Bool=false,restartMCMCsampling::Bool=false)
 
     # initialize theta
     length(wi_init) == length(mu_init) == length(sigmas_init) == ncomponent || error("The length of initial values should be $ncomponent")

@@ -5,11 +5,11 @@ The Julia package for Generalized Linear Mixed Model with Normal Mixture random 
 
 Most of the core functions are provided in utility.jl. The function `latentgmm` is the major function estimating the parameters. An example call of this function can be 
 
-    latentgmm(X, Y, facility, nF, 3, beta_init, wi_init, mu_init, sigmas_init, Mmax=10000, M_discard=1000, initial_iteration=3, maxiteration=150, tol=0.005, proposingsigma=1.0, ngh=1000)
+    latentgmm(X, Y, groupindex, nF, 3, beta_init, wi_init, mu_init, sigmas_init, Mmax=10000, M_discard=1000, initial_iteration=3, maxiteration=150, tol=0.005, proposingsigma=1.0, ngh=1000)
 
 where 
 - `X` and `Y` are the covariates and response. 
-- `facility` means denote which facility a patient belongs to, i.e. the random effect levels. 
+- `groupindex` means denote which transplant center a patient belongs to, i.e. the random effect levels. 
 - `nF` is the number of levels of random effects and 3 is the number of components. 
 - `beta_init`, `wi_init`, `mu_init`, `sigmas_init` are the starting values for the fixed effects and parameters of the random effects. 
 - `Mmax` means the number of Gibbs samples generated while `M_discard` means how many burn in samples to be dropped. 
