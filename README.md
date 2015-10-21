@@ -1,34 +1,39 @@
 # LatentGaussianMixtureModel
-
+#By Lanfeng Pan
 
 The Julia package for Generalized Linear Mixed Model with Normal Mixture random effects. 
 
 Most of the core functions are provided in utility.jl. The function `latentgmm` is the major function estimating the parameters. An example call of this function can be 
 
-    latentgmm(X, Y, groupindex, nF, 3, beta_init, wi_init, mu_init, sigmas_init, Mmax=10000, M_discard=1000, initial_iteration=3, maxiteration=150, tol=0.005, proposingsigma=1.0, ngh=1000)
+    latentgmm(X, Y, groupindex, 3, beta_init, wi_init, mu_init, sigmas_init, Mmax=10000, M_discard=1000, initial_iteration=3, maxiteration=150, tol=0.005, proposingsigma=1.0, ngh=1000)
 
-where 
+All available parameters are
+ 
 - `X` and `Y` are the covariates and response. 
 - `groupindex` means denote which transplant center a patient belongs to, i.e. the random effect levels. 
-- `nF` is the number of levels of random effects and 3 is the number of components. 
+- ncomponent is the number of components to try
 - `beta_init`, `wi_init`, `mu_init`, `sigmas_init` are the starting values for the fixed effects and parameters of the random effects. 
 - `Mmax` means the number of Gibbs samples generated while `M_discard` means how many burn in samples to be dropped. 
-- `maxiteration` is the maximum MCEM iterations allowed. `tol` means the stopping criteria.
+- `maxiteration` is the maximum MCEM iterations allowed. `tol` means the stopping criteria. `initial_iteration` is the number of initial iterations using smaller `Mmax`. Initial iterations are used to save time in the first few iterations when the parameters are still far from the truth.
 -  `proposingsigma` is the standard deviation of the proposing distribution in Metropolis Hasting algorithm. 
-- `ngh` means the number of points used in Gaussian-Hermite quadrature approximation in calculating the marginal log likelihood.   
+- `ngh` means the number of points used in Gaussian-Hermite quadrature approximation in calculating the marginal log likelihood.    
+- `sn` is the standard deviation to used in penalty function
+- `an` is the penalty factor
+- `debuginfo` is the switch to print more information to help debug.
+- `restartMCMCsampling` should MCMC sampling use fresh generated random values or use those from last EM iteration.
 
-There is also a function `loglikelihoodratio` to calculate the log likelihood ratio between m=m0+1 and m=m0.
+Another important function is `loglikelihoodratio` which calculates the 2*log likelihood ratio between m=m0+1 and m=m0.
 
-See the `examples` folder for more examples. In examples folder,
+A sample call is 
 
- - B100tests21.jl generates 100 data sets (with 1 component in the true mixture) and tests m=2 v.s. the null hypothesis m=1 on each of the data set. The 100 statistics are saved to show the distribution of the test statistic. This file needs to include datagen1comp.jl. 
- 
- - datagen1comp.jl generates the true random effect with 1 component. 
- - count2.csv stores the number of patients each transplant center has.
+    loglikelihoodratio(X, Y, groupindex, C1, ntrials=2, debuginfo=false, reportpvalue=true)
 
-To run the simulation,
-    
-    include("examples/B100tests21.jl")
-    pmap(Brun, 1:100)
-  
-This will generate a csv file contains all the 100 test statistics.
+All availabe parameters are 
+
+- `X`, `Y`, `groupindex`, `ncomponent1`, `ngh`, `debuginfo`, `restartMCMCsampling` are the same as in `latentgmm`
+- `vtau` is the weight proportions to try, default to be 0.5, 0.3 and 0.1.
+- `ntrials` is the number of random initial values to try in `latentgmm_ctau`. 25 is the recommended. If is is too small, the test power is smaller than it can be.
+- `Mctau` is the number of MCMC samples used in `latentgmm_ctau`
+- `reportpvalue` tell it to generate the asymptotic distribution and report the p values. 
+
+See the `examples` folder for examples. In examples folder, the file "ReadandTest.jl" reads the data, convert the data into the right format and run `latentgmm` and `loglikelihoodratio`
