@@ -1,5 +1,5 @@
-The LatentGaussianMixtureModel.jl package is private. All rights reserved. 
-All unauthorized use or modification is not allowed.
+The LatentGaussianMixtureModel.jl package is currently private. All rights reserved. 
+All unauthorized use or modification or distribution is not allowed.
 
 > Copyright (c) 2015: Lanfeng Pan, Yehua Li.
 >
