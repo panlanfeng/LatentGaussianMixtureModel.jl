@@ -2,7 +2,7 @@ import LatentGaussianMixtureModel
 using Distributions, StatsBase
 using Yeppp
 b=1
-Ctrue=2
+Ctrue=3
 
 nF = 282
 srand(100)
@@ -15,15 +15,15 @@ srand(100)
 X = rand(Normal(), (N, J))
 beta_true=ones(J) #rand(Normal(0,1), J)
 if Ctrue == 1
-    mu_true = [log(1/0.779 - 1)]
+    mu_true = [-log(1/0.1 - 1)]
     wi_true = [1.0]
     sigmas_true = [1.2]
 elseif Ctrue == 2
-    mu_true = [log(1/0.779 - 1)/2 - 2.0, log(1/0.779 - 1)/2 + 2.0]
+    mu_true = [-log(1/0.1 - 1) - 3.0, -log(1/0.1 - 1) + 1.0]
     wi_true = [.5, .5]
     sigmas_true = [1.2, .8]
 elseif Ctrue == 3
-    mu_true = [log(1/0.779 - 1)/3 - 4.0, log(1/0.779 - 1)/3 + 1.0, log(1/0.779 - 1)/3 + 4.0;]
+    mu_true = [-log(1/0.1 - 1) - 6, -log(1/0.1 - 1) - 2, -log(1/0.1 - 1) + 2;]
     wi_true = [.3, .4, .3]
     sigmas_true = [1.2, .8, .9]
 end
@@ -57,7 +57,7 @@ an1 = 0.0 # 1/nF
 gamma_init, beta_init, sigmas_tmp = LatentGaussianMixtureModel.maxposterior(X, Y, groupindex)
 wi_init, mu_init, sigmas_init, ml_tmp = LatentGaussianMixtureModel.gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=an1, maxiter=1)
 
- srand(100);@time wi_init, mu_init, sigmas_init, betas_init, ml_tmp, gamma_mat =LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, C0, beta_init, wi_init, mu_init, sigmas_init, Mmax=5000, initial_iteration=10, maxiteration=3, an=an1, sn=std(gamma_init).*ones(C0))
+ srand(100);@time wi_init, mu_init, sigmas_init, betas_init, ml_tmp, gamma_mat =LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, C0, beta_init, wi_init, mu_init, sigmas_init, Mmax=5000, initial_iteration=10, maxiteration=30, an=an1, sn=std(gamma_init).*ones(C0))
 
 trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
 
