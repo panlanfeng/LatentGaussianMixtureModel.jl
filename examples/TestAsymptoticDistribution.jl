@@ -50,7 +50,7 @@ import Yeppp
         end
     end
 
-    lr=loglikelihoodratio(X, Y, groupindex, Calternative, ntrials=25, debuginfo=debuginfo, restartMCMCsampling=restartMCMCsampling)
+    lr=loglikelihoodratio(X, Y, groupindex, Calternative, ntrials=25, debuginfo=debuginfo, restartMCMCsampling=restartMCMCsampling, ctauparallel=false)
     println("Mission $b completed with lr=$lr")
     lr
 end
