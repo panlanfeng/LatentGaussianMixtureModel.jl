@@ -302,6 +302,8 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
     llvec = zeros(N)
     ll_nF = zeros(nF, C)
     sumlogmat = zeros(nF, ngh*C)
+    summat_beta = zeros(nF, ngh*C)
+    S_β = zeros(nF, J)
     S_π = zeros(nF, C-1)
     S_μσ = zeros(nF, 2*C)
     S_λ = zeros(nF, 2*C)
@@ -322,9 +324,11 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
             
             for i in 1:N
                 @inbounds sumlogmat[groupindex[i], ixM] -= llvec[i]
+                summat_beta[groupindex[i], ixM] -= ifelse(Y[i], exp(-llvec[i]), -exp(-llvec[i]))
             end
             for i in 1:nF
                 sumlogmat[i, ixM] +=  log(ghw[ix]) # +log(wi[jcom]) + H1(xtmp, sigmas[jcom])
+                
             end
         end
     end
@@ -353,11 +357,13 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
             S_μσ[i, 2*kcom-1] = sumexp(sumlogmat[i, :], H1(xtmp, mu[kcom], sigmas[kcom]))/ml[i] * w[i, kcom]
             S_μσ[i, 2*kcom] = sumexp(sumlogmat[i, :], H2(xtmp, mu[kcom], sigmas[kcom]))/ml[i] * w[i, kcom]
             S_λ[i, 2*kcom-1] = sumexp(sumlogmat[i, :], H3(xtmp, mu[kcom], sigmas[kcom]))/ml[i] * w[i, kcom]
-            S_λ[i, 2*kcom] = sumexp(sumlogmat[i, :], H4(xtmp, mu[kcom], sigmas[kcom]))/ml[i] * w[i, kcom]
-            
+            S_λ[i, 2*kcom] = sumexp(sumlogmat[i, :], H4(xtmp, mu[kcom], sigmas[kcom]))/ml[i] * w[i, kcom]            
+        end
+        for j in 1:J
+            S_β[i, j] = sumexp(sumlogmat[i,:], summat_beta[i, :] .* X[i, j])/ml[i]
         end
     end
-    S_η = hcat(S_π, S_μσ)
+    S_η = hcat(S_β, S_π, S_μσ)
     I_η = S_η'*S_η./nF 
     I_λη = S_λ'*S_η./nF 
     I_λ = S_λ'*S_λ./nF 
@@ -367,7 +373,7 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
     D[abs(D).<tol2] = tol2
     I_all = V*diagm(D)*V'
     
-    I_λ_η = I_all[(3*C):(5*C-1), (3*C):(5*C-1)] - I_all[(3*C):(5*C-1), 1:(3*C-1)] * inv(I_all[1:(3*C-1), 1:(3*C-1)]) * I_all[1:(3*C-1),(3*C):(5*C-1) ]
+    I_λ_η = I_all[(J+3*C):(J+5*C-1), (J+3*C):(J+5*C-1)] - I_all[(J+3*C):(J+5*C-1), 1:(J+3*C-1)] * inv(I_all[1:(J+3*C-1), 1:(J+3*C-1)]) * I_all[1:(J+3*C-1),(J+3*C):(J+5*C-1) ]
     D, V = eig(I_λ_η)
     I_λ_η2 = V * diagm(sqrt(D)) * V'
     u = randn(nrep, 2*C) * I_λ_η2
