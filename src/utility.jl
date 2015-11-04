@@ -771,7 +771,7 @@ function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, 
     return(re[5])
 end
 
-function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent1::Int; vtau::Vector{Float64}=[.5,.3,.1;], ntrials::Int=25, ngh::Int=1000, debuginfo::Bool=false, Mctau::Int=5000, restartMCMCsampling::Bool=false, reportT=false, ctauparallel=true)
+function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent1::Int; vtau::Vector{Float64}=[.5,.3,.1;], ntrials::Int=25, ngh::Int=1000, debuginfo::Bool=false, Mctau::Int=2000, restartMCMCsampling::Bool=false, reportT=false, ctauparallel=true)
     C0 = ncomponent1 - 1
     C1 = ncomponent1 
     nF = maximum(groupindex)
@@ -861,7 +861,7 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, group
          if reportT
              return 2*(lr - ml_C0), mean(trand .> 2*(lr - ml_C0))
          else
-             return mean(trand .> 2*(lr - ml_C0))
+             return mean(trand .> 2*(maximum(lr) - ml_C0))
          end
     end
 end
