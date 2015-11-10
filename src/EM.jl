@@ -1,0 +1,174 @@
+function integralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,  gammaM::Vector{Float64}, wi::Vector{Float64}, ghw::Vector{Float64}, llN::Vector{Float64}, xb::Vector{Float64},  N::Int, J::Int, n::Int, C::Int, ngh::Int)
+    #A_mul_B!(xb, X, betas)
+
+    for jcom in 1:C
+        for ix in 1:ngh
+            wtmp = log(ghw[ix])+log(wi[jcom])
+            ixM = ix+ngh*(jcom-1)
+            fill!(llN, gammaM[ixM])
+            Yeppp.add!(llN, llN, xb)
+            negateiftrue!(llN, Y)   
+            exp!(llN, llN)
+            log1p!(llN)
+            
+            for i in 1:n 
+                Wim[i, ixM] = wtmp
+            end 
+            for i in 1:N
+                @inbounds Wim[groupindex[i], ixM] -= llN[i]
+            end
+        end
+    end
+
+    for i in 1:n
+        u = maximum(Wim[i, :])
+        for jcol in 1:C*ngh
+            @inbounds Wim[i, jcol] = Wim[i, jcol] - u
+        end
+    end
+    Yeppp.exp!(Wim, Wim)
+    for i in 1:n
+        u = sum(Wim[i, :])
+        for jcol in 1:C*ngh
+            @inbounds Wim[i, jcol] = Wim[i, jcol] / u
+        end
+    end
+end
+
+function updateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, gammaM::Vector{Float64}, Wim::Matrix{Float64}, Wm::Matrix{Float64}, N::Int, J::Int, n::Int, C::Int, ngh::Int)
+
+    # A_mul_B!(xb, X, betas)
+    mean!(Wm, Wim)
+    for kcom in 1:C
+        ind = (1+ngh*(kcom-1)):ngh*kcom
+        wi[kcom] = sum(Wm[ind])
+        mu[kcom] = wsum(gammaM[ind], Wm[ind]) / wi[kcom]
+        sigmas[kcom] = sqrt(wsum((gammaM[ind] .- mu[kcom]).^2, Wm[ind]) / wi[kcom])
+    end
+    
+end
+
+function updateβ!(β::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,  gammaM::Vector{Float64}, Wim::Matrix{Float64}, lln::Vector{Float64}, llN::Vector{Float64}, llN2::Vector{Float64}, xb::Vector{Float64}, N::Int, J::Int, n::Int, C::Int, ngh::Int, Qmaxiteration::Int)
+    
+    opt = Opt(:LD_LBFGS, J)
+    maxeval!(opt, Qmaxiteration)
+    max_objective!(opt, (beta2, storage)->EM_Q1(beta2, storage, X, Y,  groupindex, gammaM, Wim, lln, llN, llN2, xb, N, J, n, C*ngh))
+    
+    #(minf,β,ret)=optimize(opt, β)
+    optimize!(opt, β)
+end
+
+function EM_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, gammaM::Vector{Float64}, Wim::Matrix{Float64}, lln::Vector{Float64}, llN::Vector{Float64}, llN2::Vector{Float64}, xb::Vector{Float64}, N::Int, J::Int, n::Int, M::Int)
+
+    if length(storage)>0
+        fill!(storage, 0.0)
+    end
+    A_mul_B!(xb, X, beta2)
+    res = 0.0
+    for jcol in 1:M
+        
+        fill!(llN, gammaM[jcol])
+        Yeppp.add!(llN, llN, xb)
+        negateiftrue!(llN, Y)
+        exp!(llN, llN)
+        if length(storage) > 0
+            copy!(llN2, llN)
+            x1x!(llN2)
+            negateiffalse!(llN2, Y)
+
+            # for j in 1:J
+            #     fill!(lln, 0.0)
+            #     for i in 1:N
+            #         lln[groupindex[i]] += llN2[i] * X[i,j] 
+            #     end
+            #     for i in 1:n
+            #         storage[j] += lln[i] * Wim[i, jcol]
+            #     end
+            # end
+
+            for i in 1:N
+                groupindexi = groupindex[i]
+                for j in 1:J
+                    @inbounds storage[j] += llN2[i] * X[i,j] * Wim[groupindexi, jcol] 
+                end
+            end
+        end
+        
+        log1p!(llN)
+        fill!(lln, 0.0)
+        for i in 1:N
+            @inbounds lln[groupindex[i]] += llN[i]
+        end
+        res += wsum(lln, Wim[:, jcol])
+    end
+    -res
+end
+    
+function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; maxiteration::Int=100, tol::Real=.005,  ngh::Int=1000, sn::Vector{Float64}=sigmas_init, an::Float64=1.0/maximum(groupindex), debuginfo::Bool=false, Qmaxiteration::Int=2)
+    
+    # initialize theta
+    length(wi_init) == length(mu_init) == length(sigmas_init) == ncomponent || error("The length of initial values should be $ncomponent")
+    N,J=size(X)
+    length(β_init) == J || error("Initial values of fixed efffect coefficients should have same dimension as X")
+    n = maximum(groupindex)
+    M = ncomponent*ngh
+    
+    wi = copy(wi_init)
+    mu = copy(mu_init)
+    sigmas = copy(sigmas_init)
+    β = copy(β_init)
+    
+    wi_old = ones(wi)./ncomponent
+    mu_old = zeros(mu)
+    sigmas_old = ones(sigmas)
+    beta_old = randn(J)
+    
+    ghx, ghw = gausshermite(ngh)
+
+    Wim = zeros(n, M)
+    Wm = zeros(1, M)
+    lln = zeros(n)
+    llN = zeros(N)
+    llN2 = zeros(N)
+    xb = X * β
+    gammaM = zeros(M)
+
+    for iter_em in 1:maxiteration
+        for ix in 1:ngh, jcom in 1:ncomponent
+            ixM = ix+ngh*(jcom-1)
+            gammaM[ixM] = ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom]
+        end
+        
+        copy!(wi_old, wi)
+        copy!(mu_old, mu)
+        copy!(sigmas_old, sigmas)
+        copy!(beta_old, β)
+        
+        A_mul_B!(xb, X, β)
+        integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, xb, N, J, n, ncomponent, ngh)
+        if debuginfo
+            println("At $(iter_em)th iteration:")
+        end
+        #if !stopRule(β, beta_old, tol=tol/10)
+        updateβ!(β, X, Y, groupindex, gammaM, Wim, lln, llN, llN2, xb, N, J, n, ncomponent, ngh, Qmaxiteration)
+        if debuginfo
+            println("beta=", β)
+        end
+        #end
+        updateθ!(wi, mu, sigmas, X, Y, groupindex, gammaM, Wim, Wm, N, J, n, ncomponent, ngh)
+        if debuginfo
+            println("wi=$wi")
+            println("mu=$mu")
+            println("sigma=$sigmas")
+            println("ll=",marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim))
+        end
+        
+        if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3)
+            if debuginfo
+                println("latentgmm converged at $(iter_em)th iteration")
+            end
+            break
+        end
+    end
+    return(wi, mu, sigmas, β, marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim)+sum(pn(sigmas, sn, an=an))) 
+end

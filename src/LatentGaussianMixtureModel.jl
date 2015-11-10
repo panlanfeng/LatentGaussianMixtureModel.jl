@@ -11,6 +11,7 @@ import StatsBase: RealArray, RealVector, RealArray, IntegerArray, IntegerVector,
 export gmm, latentgmm, latentgmm_ctau, marginallikelihood, loglikelihoodratio, loglikelihoodratio_ctau, maxposterior, decidepenalty
 include("arithmetic.jl")
 include("utility.jl")
+include("EM.jl")
 # package code goes here
 
 end # module

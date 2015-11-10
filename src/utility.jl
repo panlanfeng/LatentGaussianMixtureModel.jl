@@ -575,7 +575,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::In
             sigmas[ic] = sqrt((sigmaspool[ic] - wipool[ic] * mu[ic] ^2 + 2 * an * sn[ic]) / (wipool[ic] + 2 * an))
         end
         #no longer update beta if it already converged
-        if !stopRule(β, beta_old, tol=tol) #(mod(iter_em, 5) == 1 ) & (
+        if true #!stopRule(β, beta_old, tol=tol)
             copy!(beta_old, β)
             opt = Opt(:LD_LBFGS, J)
             maxeval!(opt, Q_maxiter)
@@ -584,7 +584,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::In
         end
 
         if debuginfo
-            println(wi, "\t", mu, "\t", sigmas, "\t", marginallikelihood(β, X, Y, groupindex, nF, wi, mu, sigmas, ghx, ghw, llvec, ll_nF, xb, sumlogmat)+sum(pn(sigmas, sn, an=an)))
+            println(β, "\t", wi, "\t", mu, "\t", sigmas, "\t", marginallikelihood(β, X, Y, groupindex, nF, wi, mu, sigmas, ghx, ghw, llvec, ll_nF, xb, sumlogmat)+sum(pn(sigmas, sn, an=an)))
         end
         if (iter_em == maxiteration) && (maxiteration > 3)
             warn("latentgmm not converge!")
