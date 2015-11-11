@@ -81,7 +81,35 @@ function Q1(beta_new::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
     -ll/M
 end
 
+function predictgamma(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi::Vector, mu::Vector, sigmas::Vector, β::Vector; M::Int=5000, Mdiscard::Int=2000)
+    
+    ncomponent = length(wi)
+    nF = maximum(groupindex)
+    N, J = size(X)
+    proposingsigma = ones(nF)
+    xb = zeros(N)
+    llN = zeros(N)
+    llN2 = zeros(N)
+    lln = zeros(nF)
+    tmp_mu = zeros(ncomponent)
+    wi_divide_sigmas = zeros(wi)
+    inv_2sigmas_sq = ones(sigmas) .* 1e20
+    tmp_p=ones(ncomponent) / ncomponent
+    
+    L = rand(Categorical(wi), nF)
+    L_new = rand(Categorical(wi), nF)
+    sample_gamma = zeros(nF)
+    sample_gamma_new = zeros(nF)
+    sample_gamma_mat = zeros(nF, M)
+    
+    wipool = zeros(ncomponent)
+    mupool = zeros(ncomponent)
+    sigmaspool = zeros(ncomponent)
 
+    gibbsMH!(X, Y, groupindex, wi, mu, sigmas, β, ncomponent, nF, N, M, Mdiscard, proposingsigma, wipool, mupool, sigmaspool, L, L_new, sample_gamma, sample_gamma_new, sample_gamma_mat, xb, llN, llN2, lln, tmp_mu, wi_divide_sigmas, inv_2sigmas_sq, tmp_p)
+    
+    return vec(mean(sample_gamma_mat, 2))
+end
 function gibbsMH!(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi::Vector, mu::Vector, sigmas::Vector, β::Vector, ncomponent::Int, nF::Int, N::Int, M::Int, M_discard::Int, proposingsigma::RealVector, wipool::Vector, mupool::Vector, sigmaspool::Vector, L::Vector, L_new::Vector, sample_gamma::Vector, sample_gamma_new::Vector, sample_gamma_mat::Matrix, xb::Vector, llvec::Vector, llvecnew::Vector, ll_nF::Vector, tmp_mu::Vector, wi_divide_sigmas::Vector, inv_2sigmas_sq::Vector, tmp_p::Vector)
     fill!(wipool, 0.0)
     fill!(mupool, 0.0)
@@ -440,10 +468,10 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, group
     C1 = ncomponent1 
     nF = maximum(groupindex)
     an1 = 0.0#1/nF
-    gamma_init, beta_init, sigmas_tmp = maxposterior(X, Y, groupindex)
+    gamma_init, betas_init, sigmas_tmp = maxposterior(X, Y, groupindex)
     wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=an1)
 
-    wi_init, mu_init, sigmas_init, betas_init, ml_C0, gamma_mat = latentgmm(X, Y, groupindex, C0, beta_init, wi_init, mu_init, sigmas_init, Mmax=5000, initial_iteration=10, maxiteration=100, an=an1, sn=std(gamma_init).*ones(C0), restartMCMCsampling=restartMCMCsampling)
+    wi_init, mu_init, sigmas_init, betas_init, ml_C0, gamma_mat = latentgmm(X, Y, groupindex, C0, betas_init, wi_init, mu_init, sigmas_init, Mmax=5000, initial_iteration=10, maxiteration=100, an=an1, sn=std(gamma_init).*ones(C0), restartMCMCsampling=restartMCMCsampling)
     
     trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
     
@@ -523,7 +551,7 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, group
          end
 
          if reportT
-             return 2*(lr - ml_C0), mean(trand .> 2*(lr - ml_C0))
+             return 2*(maximum(lr) - ml_C0), mean(trand .> 2*(maximum(lr) - ml_C0))
          else
              return mean(trand .> 2*(maximum(lr) - ml_C0))
          end

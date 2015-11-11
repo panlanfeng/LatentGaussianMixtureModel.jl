@@ -9,7 +9,7 @@ import Yeppp
 
 #Brun calculate the statistic for one data set;
 #b is the the random number seed, from 1 to 100
-@everywhere function Brun(b::Integer, Ctrue::Integer, Calternative::Integer; debuginfo::Bool=false, restartMCMCsampling::Bool=false)
+@everywhere function Brun(b::Integer, Ctrue::Integer, Calternative::Integer; debuginfo::Bool=false)
     nF = 282
     srand(100)
     n_ij = round(Int64, rand(Poisson(5), 282).+rand(Exponential(45), 282))
@@ -25,11 +25,11 @@ import Yeppp
         wi_true = [1.0]
         sigmas_true = [1.2]
     elseif Ctrue == 2
-        mu_true = [-log(1/0.1 - 1) - 3.0, -log(1/0.1 - 1) + 1.0]
+        mu_true = [log(1/0.779 - 1)/2 - 2.0, log(1/0.779 - 1)/2 + 2.0] 
         wi_true = [.5, .5]
         sigmas_true = [1.2, .8]
     elseif Ctrue == 3
-        mu_true = [-log(1/0.1 - 1) - 6, -log(1/0.1 - 1) - 2, -log(1/0.1 - 1) + 2;]
+        mu_true = [log(1/0.779 - 1)/3 - 4.0, log(1/0.779 - 1)/3 + 1.0, log(1/0.779 - 1)/3 + 4.0;]
         wi_true = [.3, .4, .3]
         sigmas_true = [1.2, .8, .9]
     end
@@ -50,7 +50,7 @@ import Yeppp
         end
     end
 
-    lr=loglikelihoodratio(X, Y, groupindex, Calternative, ntrials=25, debuginfo=debuginfo, restartMCMCsampling=restartMCMCsampling, ctauparallel=false)
+    lr=LatentGaussianMixtureModel.loglikelihoodratioEM(X, Y, groupindex, Calternative, ntrials=25, debuginfo=debuginfo, ctauparallel=false)
     println("Mission $b completed with lr=$lr")
     lr
 end

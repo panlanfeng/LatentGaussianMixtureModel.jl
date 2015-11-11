@@ -222,10 +222,11 @@ function loglikelihoodratioEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
     nF = maximum(groupindex)
     M = ngh * ncomponent1
     an1 = 0.0#1/nF
-    gamma_init, beta_init, sigmas_tmp = maxposterior(X, Y, groupindex)
+    gamma_init, betas_init, sigmas_tmp = maxposterior(X, Y, groupindex)
+    wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmEM(X, Y, groupindex, 1, betas_init, [1.0], mean(gamma_init), std(gamma_init), maxiteration=100, an=an1, sn=std(gamma_init).*ones(C0))
+    gamma_init = predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
     wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=an1)
-
-    wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmEM(X, Y, groupindex, C0, beta_init, wi_init, mu_init, sigmas_init, maxiteration=1000, an=an1, sn=std(gamma_init).*ones(C0))
+    wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init, sigmas_init, maxiteration=1000, an=an1, sn=std(gamma_init).*ones(C0))
     
     trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
     
@@ -308,7 +309,7 @@ function loglikelihoodratioEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
              println(summarystats(trand))
          end
          if reportT
-             return 2*(lr - ml_C0), mean(trand .> 2*(lr - ml_C0))
+             return 2*(maximum(lr) - ml_C0), mean(trand .> 2*(maximum(lr) - ml_C0))
          else
              return mean(trand .> 2*(maximum(lr) - ml_C0))
          end
