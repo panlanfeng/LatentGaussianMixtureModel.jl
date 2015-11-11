@@ -2,4 +2,4 @@
 *.jl.mem
 *.pbs
 BATCH_*
-./*.csv
+teststat*.csv
