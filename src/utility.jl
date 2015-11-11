@@ -574,17 +574,27 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::In
             mu[ic] = mupool[ic] / wipool[ic]
             sigmas[ic] = sqrt((sigmaspool[ic] - wipool[ic] * mu[ic] ^2 + 2 * an * sn[ic]) / (wipool[ic] + 2 * an))
         end
+        if debuginfo
+            println("At $(iter_em)th iteration:")
+        end
         #no longer update beta if it already converged
-        if true #!stopRule(β, beta_old, tol=tol)
+        if !stopRule(β, beta_old, tol=tol/10)
             copy!(beta_old, β)
             opt = Opt(:LD_LBFGS, J)
             maxeval!(opt, Q_maxiter)
             max_objective!(opt, (beta_new, storage)->Q1(beta_new, storage, X,Y, sample_gamma_mat[:,1:M], groupindex, llvec, llvecnew, xb))
-            (minf,β,ret) = optimize(opt, β)
+            optimize!(opt, β)
+            if debuginfo
+                println("beta=", β)
+            end
         end
 
         if debuginfo
-            println(β, "\t", wi, "\t", mu, "\t", sigmas, "\t", marginallikelihood(β, X, Y, groupindex, nF, wi, mu, sigmas, ghx, ghw, llvec, ll_nF, xb, sumlogmat)+sum(pn(sigmas, sn, an=an)))
+            # println(β, "\t", wi, "\t", mu, "\t", sigmas, "\t", marginallikelihood(β, X, Y, groupindex, nF, wi, mu, sigmas, ghx, ghw, llvec, ll_nF, xb, sumlogmat)+sum(pn(sigmas, sn, an=an)))
+            println("wi=$wi")
+            println("mu=$mu")
+            println("sigma=$sigmas")
+            println("ll=",marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim))
         end
         if (iter_em == maxiteration) && (maxiteration > 3)
             warn("latentgmm not converge!")
@@ -699,14 +709,19 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupinde
         wi[whichtosplit] = wi_tmp*tau
         wi[whichtosplit+1] = wi_tmp*(1-tau)
         mu = min(max(mu, mu_lb), mu_ub)        
-        
+        if debuginfo
+            println("At $(iter_em)th iteration:")
+        end
         #no longer update beta if it already converged
-         if !stopRule(β, beta_old, tol=tol) #(mod(iter_em, 5) == 1 ) 
+         if !stopRule(β, beta_old, tol=tol/10) #(mod(iter_em, 5) == 1 ) 
              copy!(beta_old, β)
              opt = Opt(:LD_LBFGS, J)
              maxeval!(opt, Q_maxiter)
              max_objective!(opt, (beta_new, storage)->Q1(beta_new, storage, X,Y, sample_gamma_mat[:, 1:M], groupindex, llvec, llvecnew, xb))
-             (minf,β,ret) = optimize(opt, β)
+             optimize!(opt, β)
+             if debuginfo
+                 println("beta=", β)
+             end
          end
 
         if (iter_em == maxiteration) && (maxiteration > 20)
@@ -714,7 +729,11 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupinde
         end
         ml1 = marginallikelihood(β, X, Y, groupindex, nF, wi, mu, sigmas, ghx, ghw, llvec, ll_nF, xb, sumlogmat) + sum(pn(sigmas, sn, an=an))
         if debuginfo
-            println(wi, " ", mu, " ", sigmas, " ", sum(pn(sigmas, sn, an=an)), " ", ml1)
+            # println(wi, " ", mu, " ", sigmas, " ", sum(pn(sigmas, sn, an=an)), " ", ml1)
+            println("wi=$wi")
+            println("mu=$mu")
+            println("sigma=$sigmas")
+            println("ll=",marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim))
         end
         if ml1 > ml0
             ml0 = ml1
