@@ -1,0 +1,291 @@
+function FIintegralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,  gammaM::Matrix{Float64}, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, llN::Vector{Float64}, xb::Vector{Float64}, proposingdist::Distribution,  N::Int, J::Int, n::Int, M::Int)
+    #A_mul_B!(xb, X, betas)
+    m = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
+    for ixM in 1:M
+
+        relocate!(llN, gammaM[:, ixM], groupindex, N)
+        Yeppp.add!(llN, llN, xb)
+        negateiftrue!(llN, Y)   
+        exp!(llN, llN)
+        log1p!(llN)
+        
+        for i in 1:n 
+            Wim[i, ixM] = logpdf(m, gammaM[i,ixM]) -logpdf(proposingdist, gammaM[i,ixM])
+        end 
+        for i in 1:N
+            @inbounds Wim[groupindex[i], ixM] -= llN[i]
+        end
+    end
+
+    for i in 1:n
+        u = maximum(Wim[i, :])
+        for jcol in 1:M
+            @inbounds Wim[i, jcol] = Wim[i, jcol] - u
+        end
+    end
+    Yeppp.exp!(Wim, Wim)
+    for i in 1:n
+        u = sum(Wim[i, :])
+        for jcol in 1:M
+            @inbounds Wim[i, jcol] = Wim[i, jcol] / u
+        end
+    end
+end
+
+function FIupdateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, gammaM::Matrix{Float64}, Wim::Matrix{Float64}, wipool::Vector, mupool::Vector, sigmaspool::Vector, tmp_p::Vector, tmp_mu::Vector, wi_divide_sigmas::Vector, inv_2sigmas_sq::Vector, sn::Vector, an::Real, tau::Real, wifixed::Bool, tol::Real, N::Int, J::Int, n::Int, C::Int, M::Int, thetamaxiteration::Int)
+    
+    
+    # wipool = zeros(ncomponent)
+    # mupool = zeros(ncomponent)
+    # sigmaspool = zeros(ncomponent)
+    # tmp_p=ones(ncomponent) / ncomponent
+    # tmp_mu=zeros(ncomponent)
+    # wi_divide_sigmas = zeros(wi)
+    # inv_2sigmas_sq = ones(sigmas) .* 1e20
+    
+    for iter in 1:thetamaxiteration
+        wi_old=copy(wi)
+        mu_old=copy(mu)
+        sigmas_old=copy(sigmas)
+        fill!(wipool, 0.0)
+        fill!(mupool, 0.0)
+        fill!(sigmaspool, 0.0)
+        for kcom in 1:C
+            wi_divide_sigmas[kcom] = wi[kcom]/sigmas[kcom]
+            inv_2sigmas_sq[kcom] = 0.5 / sigmas[kcom]^2
+        end
+        for i in 1:n, jcol in 1:M
+            for j in 1:C
+                tmp_mu[j] = -(mu[j] - gammaM[i, jcol])^2 * inv_2sigmas_sq[j]
+            end
+            
+            ratiosumexp!(tmp_mu, wi_divide_sigmas, tmp_p, C)
+            wipool .+= Wim[i, jcol] * tmp_p
+            mupool .+= gammaM[i, jcol] * Wim[i, jcol] * tmp_p
+            sigmaspool .+= gammaM[i, jcol]^2 * Wim[i, jcol] * tmp_p 
+            
+        end
+        for kcom in 1:C
+            wi[kcom] = wipool[kcom] / sum(wipool)
+            mu[kcom] = mupool[kcom] / wipool[kcom]
+            sigmas[kcom] = sqrt((sigmaspool[kcom] - wipool[kcom] * mu[kcom] ^ 2 + 2 * an * sn[kcom]) / (wipool[kcom] + 2 * an))
+        end
+        
+        if wifixed
+            wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
+            wi[whichtosplit] = wi_tmp*tau
+            wi[whichtosplit+1] = wi_tmp*(1-tau)
+            for kcom in 1:C
+                mu[kcom] = min(max(mu[kcom], mu_lb[kcom]), mu_ub[kcom])
+            end
+        end
+
+        if stopRule(vcat(wi, mu, sigmas), vcat(wi_old, mu_old, sigmas_old), tol=tol)
+            break
+        end
+    end
+    
+    
+end
+
+function FIupdateβ!(β::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,  gammaM::Matrix{Float64}, Wim::Matrix{Float64}, lln::Vector{Float64}, llN::Vector{Float64}, llN2::Vector{Float64}, xb::Vector{Float64}, N::Int, J::Int, n::Int, M::Int, Qmaxiteration::Int)
+    
+    opt = Opt(:LD_LBFGS, J)
+    maxeval!(opt, Qmaxiteration)
+    max_objective!(opt, (beta2, storage)->FI_Q1(beta2, storage, X, Y,  groupindex, gammaM, Wim, lln, llN, llN2, xb, N, J, n, M))
+    
+    #(minf,β,ret)=optimize(opt, β)
+    optimize!(opt, β)
+end
+
+function FI_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, gammaM::Matrix{Float64}, Wim::Matrix{Float64}, lln::Vector{Float64}, llN::Vector{Float64}, llN2::Vector{Float64}, xb::Vector{Float64}, N::Int, J::Int, n::Int, M::Int)
+
+    if length(storage)>0
+        fill!(storage, 0.0)
+    end
+    A_mul_B!(xb, X, beta2)
+    res = 0.0
+    for jcol in 1:M
+        
+        relocate!(llN, gammaM[:, jcol], groupindex, N)
+        Yeppp.add!(llN, llN, xb)
+        negateiftrue!(llN, Y)
+        exp!(llN, llN)
+        if length(storage) > 0
+            copy!(llN2, llN)
+            x1x!(llN2)
+            negateiffalse!(llN2, Y)
+
+            for i in 1:N
+                groupindexi = groupindex[i]
+                for j in 1:J
+                    @inbounds storage[j] += llN2[i] * X[i,j] * Wim[groupindexi, jcol] 
+                end
+            end
+        end
+        
+        log1p!(llN)
+        fill!(lln, 0.0)
+        for i in 1:N
+            @inbounds lln[groupindex[i]] += llN[i]
+        end
+        res += wsum(lln, Wim[:, jcol])
+    end
+    -res
+end
+    
+function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; M::Int = 123, proposingdist::Distribution=TDist(3), 
+    maxiteration::Int=100, tol::Real=.005,  ngh::Int=100, ghx::Vector=zeros(ngh), ghw::Vector=zeros(ngh),
+     sn::Vector{Float64}=sigmas_init, an::Float64=1.0/maximum(groupindex), 
+    debuginfo::Bool=false, Qmaxiteration::Int=2, whichtosplit::Int=1, tau::Real=.5, wifixed::Bool=false, thetamaxiteration::Int=10, 
+     mu_lb::Vector=fill(-Inf, ncomponent), mu_ub::Vector=fill(Inf, ncomponent),  
+     Wim::Matrix{Float64}=zeros(maximum(groupindex), M), lln::Vector{Float64}=zeros(maximum(groupindex)), llN::Vector{Float64}=zeros(length(Y)),
+    llN2::Vector{Float64}=zeros(length(Y)), xb::Vector{Float64}=zeros(length(Y)), gammaM::Matrix{Float64}=zeros(maximum(groupindex), M), sumlogmat::Matrix{Float64}=zeros(maximum(groupindex), ncomponent*ngh))
+    
+    # initialize theta
+    length(wi_init) == length(mu_init) == length(sigmas_init) == ncomponent || error("The length of initial values should be $ncomponent")
+    N,J=size(X)
+    length(β_init) == J || error("Initial values of fixed efffect coefficients should have same dimension as X")
+    n = maximum(groupindex)
+    
+    wi = copy(wi_init)
+    mu = copy(mu_init)
+    sigmas = copy(sigmas_init)
+    β = copy(β_init)
+    
+    wi_old = ones(wi)./ncomponent
+    mu_old = zeros(mu)
+    sigmas_old = ones(sigmas)
+    beta_old = randn(J)
+    if !wifixed || (length(ghw)!=ngh)
+        ghx, ghw = gausshermite(ngh)
+    end
+
+    wipool = zeros(ncomponent)
+    mupool = zeros(ncomponent)
+    sigmaspool = zeros(ncomponent)
+    tmp_p=ones(ncomponent) / ncomponent
+    tmp_mu=zeros(ncomponent)
+    wi_divide_sigmas = zeros(wi)
+    inv_2sigmas_sq = ones(sigmas) .* 1e20
+    m = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
+    for i in 1:n, jcol in 1:M
+        gammaM[i, jcol] = rand(proposingdist) * std(m)/std(proposingdist) + mean(m)
+    end
+    for iter_em in 1:maxiteration
+        
+        copy!(wi_old, wi)
+        copy!(mu_old, mu)
+        copy!(sigmas_old, sigmas)
+        
+        A_mul_B!(xb, X, β)
+        # integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, xb, N, J, n, ncomponent, ngh)
+        FIintegralweight!(Wim, X, Y, groupindex, gammaM, wi, mu, sigmas, llN, xb, proposingdist, N, J, n, M)
+        
+        if debuginfo
+            println("At $(iter_em)th iteration:")
+            #println(maximum(Wim, 2))
+        end
+        if !stopRule(β, beta_old, tol=tol/10)
+            copy!(beta_old, β)
+            FIupdateβ!(β, X, Y, groupindex, gammaM, Wim, lln, llN, llN2, xb, N, J, n, M, Qmaxiteration)
+            if debuginfo
+                println("beta=", β)
+            end
+        end
+        FIupdateθ!(wi, mu, sigmas, X, Y, groupindex, gammaM, Wim, wipool, mupool, sigmaspool, tmp_p, tmp_mu, wi_divide_sigmas, inv_2sigmas_sq, sn, an, tau, wifixed, tol, N, J, n, ncomponent, M, thetamaxiteration)
+
+        if debuginfo
+            println("wi=$wi")
+            println("mu=$mu")
+            println("sigma=$sigmas")
+            println("ll=",marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, sumlogmat))
+        end
+        
+        if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3)
+            if debuginfo
+                println("latentgmmFI converged at $(iter_em)th iteration")
+            end
+            break
+        end
+        if (iter_em == maxiteration) && (maxiteration > 15)
+            warn("latentgmmFI not converge!")
+        end
+    end
+    return(wi, mu, sigmas, β, marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, sumlogmat)+sum(pn(sigmas, sn, an=an)))
+end
+# 
+# function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}, M::Int=1000; proposingdist::Distributions=Normal(), maxiteration::Int=100, tol::Real=.005,  ngh::Int=1000, sn::Vector{Float64}=sigmas_init, an::Float64=1.0/maximum(groupindex), debuginfo::Bool=false, Qmaxiteration::Int=2, whichtosplit::Int=1, au::Real=.5, wifixed::Bool=false, mu_lb::Vector=fill(-Inf, ncomponent), mu_ub::Vector=fill(Inf, ncomponent))
+#     
+#     # initialize theta
+#     length(wi_init) == length(mu_init) == length(sigmas_init) == ncomponent || error("The length of initial values should be $ncomponent")
+#     N,J=size(X)
+#     length(β_init) == J || error("Initial values of fixed efffect coefficients should have same dimension as X")
+#     n = maximum(groupindex)
+#     #M = ncomponent*ngh
+#     
+#     wi = copy(wi_init)
+#     mu = copy(mu_init)
+#     sigmas = copy(sigmas_init)
+#     β = copy(β_init)
+#     
+#     wi_old = ones(wi)./ncomponent
+#     mu_old = zeros(mu)
+#     sigmas_old = ones(sigmas)
+#     beta_old = randn(J)
+#     
+#     ghx, ghw = gausshermite(ngh)
+# 
+#     Wim = zeros(n, M)
+#     Wm = zeros(1, M)
+#     lln = zeros(n)
+#     llN = zeros(N)
+#     llN2 = zeros(N)
+#     xb = X * β
+#     gammaM = rand(proposingdist, n, M)
+#     
+#     for iter_em in 1:maxiteration
+#         
+#         copy!(wi_old, wi)
+#         copy!(mu_old, mu)
+#         copy!(sigmas_old, sigmas)
+#         copy!(beta_old, β)
+#         
+#         A_mul_B!(xb, X, β)
+#         integralweightFI!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, xb, N, J, n, ncomponent, ngh)
+#         if debuginfo
+#             println("At $(iter_em)th iteration:")
+#         end
+#         if !stopRule(β, beta_old, tol=tol/10)
+#             updateβ!(β, X, Y, groupindex, gammaM, Wim, lln, llN, llN2, xb, N, J, n, ncomponent, ngh, Qmaxiteration)
+#             if debuginfo
+#                 println("beta=", β)
+#             end
+#         end
+#         updateθ!(wi, mu, sigmas, X, Y, groupindex, gammaM, Wim, Wm, N, J, n, ncomponent, ngh)
+#         
+#         if wifixed
+#             wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
+#             wi[whichtosplit] = wi_tmp*tau
+#             wi[whichtosplit+1] = wi_tmp*(1-tau)
+#             mu = min(max(mu, mu_lb), mu_ub)    
+#         end
+#         if debuginfo
+#             println("wi=$wi")
+#             println("mu=$mu")
+#             println("sigma=$sigmas")
+#             println("ll=",marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim))
+#         end
+#         
+#         if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3)
+#             if debuginfo
+#                 println("latentgmmEM converged at $(iter_em)th iteration")
+#             end
+#             break
+#         end
+#         if (iter_em == maxiteration) && (maxiteration > 3)
+#             warn("latentgmmEM not converge!")
+#         end
+#     end
+#     return(wi, mu, sigmas, β, marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim)+sum(pn(sigmas, sn, an=an)))
+# end
