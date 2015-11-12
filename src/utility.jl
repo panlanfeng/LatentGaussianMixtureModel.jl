@@ -266,14 +266,14 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
     xb = zeros(N)
     A_mul_B!(xb, X, betas)
     llvec = zeros(N)
+    llN2 = zeros(N)
     ll_nF = zeros(nF, C)
     sumlogmat = zeros(nF, ngh*C)
-    summat_beta = zeros(nF, ngh*C)
+    summat_beta = zeros(nF, ngh*C, J)
     S_β = zeros(nF, J)
     S_π = zeros(nF, C-1)
     S_μσ = zeros(nF, 2*C)
     S_λ = zeros(nF, 2*C)
-    w = zeros(nF, C)
     ml = zeros(nF)
     xtmp = zeros(C*M)
     for jcom in 1:C
@@ -281,16 +281,23 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
             ixM = ix+M*(jcom-1)
             xtmp[ixM] = ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom]
             for i in 1:N
-                @inbounds llvec[i] = ifelse(Y[i], -xtmp[ixM] - xb[i], xtmp[ixM] + xb[i])  
+                @inbounds llvec[i] = ifelse(Y[i], -xtmp[ixM] - xb[i], xtmp[ixM] + xb[i])
             end
             
             exp!(llvec, llvec)
-            
+            copy!(llN2, llvec)
+            x1x!(llN2)
+            negateiffalse!(llN2, Y)
+            for i in 1:N
+                for j in 1:J
+                    summat_beta[groupindex[i], ixM, j] += llN2[i] * X[i,j] 
+                    # ifelse(Y[i], exp(-llvec[i])*X[i, j], -exp(-llvec[i])*X[i, j])
+                end
+            end
             log1p!(llvec)
             
             for i in 1:N
                 @inbounds sumlogmat[groupindex[i], ixM] -= llvec[i]
-                summat_beta[groupindex[i], ixM] -= ifelse(Y[i], exp(-llvec[i]), -exp(-llvec[i]))
             end
             for i in 1:nF
                 sumlogmat[i, ixM] +=  log(ghw[ix]) # +log(wi[jcom]) + H1(xtmp, sigmas[jcom])
@@ -318,15 +325,16 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
     end
     for i in 1:nF
         for kcom in 1:C
-            w[i, kcom] = ll_nF[i, kcom] * wi[kcom] / ml[i]
+            ind = (1+M*(kcom-1)):M*kcom
+            # w[i, kcom] = ll_nF[i, kcom] * wi[kcom] / ml[i]
             
-            S_μσ[i, 2*kcom-1] = sumexp(sumlogmat[i, :], H1(xtmp, mu[kcom], sigmas[kcom]))/ml[i] * w[i, kcom]
-            S_μσ[i, 2*kcom] = sumexp(sumlogmat[i, :], H2(xtmp, mu[kcom], sigmas[kcom]))/ml[i] * w[i, kcom]
-            S_λ[i, 2*kcom-1] = sumexp(sumlogmat[i, :], H3(xtmp, mu[kcom], sigmas[kcom]))/ml[i] * w[i, kcom]
-            S_λ[i, 2*kcom] = sumexp(sumlogmat[i, :], H4(xtmp, mu[kcom], sigmas[kcom]))/ml[i] * w[i, kcom]            
+            S_μσ[i, 2*kcom-1] = sumexp(sumlogmat[i, ind], H1(xtmp[ind], mu[kcom], sigmas[kcom])) / ml[i]
+            S_μσ[i, 2*kcom] = sumexp(sumlogmat[i, ind], H2(xtmp[ind], mu[kcom], sigmas[kcom]))/ml[i] 
+            S_λ[i, 2*kcom-1] = sumexp(sumlogmat[i, ind], H3(xtmp[ind], mu[kcom], sigmas[kcom]))/ml[i]
+            S_λ[i, 2*kcom] = sumexp(sumlogmat[i, ind], H4(xtmp[ind], mu[kcom], sigmas[kcom]))/ml[i]           
         end
         for j in 1:J
-            S_β[i, j] = sumexp(sumlogmat[i,:], summat_beta[i, :] .* X[i, j])/ml[i]
+            S_β[i, j] = sumexp(sumlogmat[i,:], summat_beta[i, :, j])/ml[i]
         end
     end
     S_η = hcat(S_β, S_π, S_μσ)
