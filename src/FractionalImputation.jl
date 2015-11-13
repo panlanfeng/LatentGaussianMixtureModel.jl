@@ -1,6 +1,7 @@
-function FIintegralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,  gammaM::Matrix{Float64}, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, llN::Vector{Float64}, xb::Vector{Float64}, proposingdist::Distribution,  N::Int, J::Int, n::Int, M::Int)
+function FIintegralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,  gammaM::Matrix{Float64}, gammah::Matrix{Float64}, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, llN::Vector{Float64}, xb::Vector{Float64}, proposingdist::Distribution,  N::Int, J::Int, n::Int, M::Int)
     #A_mul_B!(xb, X, betas)
     m = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
+    copy!(Wim, gammah) 
     for ixM in 1:M
 
         relocate!(llN, gammaM[:, ixM], groupindex, N)
@@ -10,7 +11,7 @@ function FIintegralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::Abstract
         log1p!(llN)
         
         for i in 1:n 
-            Wim[i, ixM] = logpdf(m, gammaM[i,ixM]) -logpdf(proposingdist, gammaM[i,ixM])
+            Wim[i, ixM] += logpdf(m, gammaM[i,ixM]) #- logpdf(proposingdist, gammaM[i,ixM] - mean(m))
         end 
         for i in 1:N
             @inbounds Wim[groupindex[i], ixM] -= llN[i]
@@ -34,15 +35,6 @@ end
 
 function FIupdateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, gammaM::Matrix{Float64}, Wim::Matrix{Float64}, wipool::Vector, mupool::Vector, sigmaspool::Vector, tmp_p::Vector, tmp_mu::Vector, wi_divide_sigmas::Vector, inv_2sigmas_sq::Vector, sn::Vector, an::Real, tau::Real, wifixed::Bool, tol::Real, N::Int, J::Int, n::Int, C::Int, M::Int, thetamaxiteration::Int)
     
-    
-    # wipool = zeros(ncomponent)
-    # mupool = zeros(ncomponent)
-    # sigmaspool = zeros(ncomponent)
-    # tmp_p=ones(ncomponent) / ncomponent
-    # tmp_mu=zeros(ncomponent)
-    # wi_divide_sigmas = zeros(wi)
-    # inv_2sigmas_sq = ones(sigmas) .* 1e20
-    
     for iter in 1:thetamaxiteration
         wi_old=copy(wi)
         mu_old=copy(mu)
@@ -56,14 +48,15 @@ function FIupdateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Fl
         end
         for i in 1:n, jcol in 1:M
             for j in 1:C
-                tmp_mu[j] = -(mu[j] - gammaM[i, jcol])^2 * inv_2sigmas_sq[j]
+                @inbounds tmp_mu[j] = -(mu[j] - gammaM[i, jcol])^2 * inv_2sigmas_sq[j]
             end
             
             ratiosumexp!(tmp_mu, wi_divide_sigmas, tmp_p, C)
-            wipool .+= Wim[i, jcol] * tmp_p
-            mupool .+= gammaM[i, jcol] * Wim[i, jcol] * tmp_p
-            sigmaspool .+= gammaM[i, jcol]^2 * Wim[i, jcol] * tmp_p 
-            
+            for k in 1:C
+                wipool[k] += Wim[i, jcol] * tmp_p[k]
+                mupool[k] += gammaM[i, jcol] * Wim[i, jcol] * tmp_p[k]
+                sigmaspool[k] += gammaM[i, jcol]^2 * Wim[i, jcol] * tmp_p[k]
+            end
         end
         for kcom in 1:C
             wi[kcom] = wipool[kcom] / sum(wipool)
@@ -134,13 +127,13 @@ function FI_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
     -res
 end
     
-function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; M::Int = 123, proposingdist::Distribution=TDist(3), 
-    maxiteration::Int=100, tol::Real=.005,  ngh::Int=100, ghx::Vector=zeros(ngh), ghw::Vector=zeros(ngh),
+function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; M::Int = 100, proposingdist::Distribution=TDist(3), 
+    maxiteration::Int=100, tol::Real=.005, 
      sn::Vector{Float64}=sigmas_init, an::Float64=1.0/maximum(groupindex), 
     debuginfo::Bool=false, Qmaxiteration::Int=2, whichtosplit::Int=1, tau::Real=.5, wifixed::Bool=false, thetamaxiteration::Int=10, 
      mu_lb::Vector=fill(-Inf, ncomponent), mu_ub::Vector=fill(Inf, ncomponent),  
      Wim::Matrix{Float64}=zeros(maximum(groupindex), M), lln::Vector{Float64}=zeros(maximum(groupindex)), llN::Vector{Float64}=zeros(length(Y)),
-    llN2::Vector{Float64}=zeros(length(Y)), xb::Vector{Float64}=zeros(length(Y)), gammaM::Matrix{Float64}=zeros(maximum(groupindex), M), sumlogmat::Matrix{Float64}=zeros(maximum(groupindex), ncomponent*ngh))
+    llN2::Vector{Float64}=zeros(length(Y)), xb::Vector{Float64}=zeros(length(Y)), gammaM::Matrix{Float64}=zeros(maximum(groupindex), M), gammah::Matrix{Float64}=zeros(maximum(groupindex), M))
     
     # initialize theta
     length(wi_init) == length(mu_init) == length(sigmas_init) == ncomponent || error("The length of initial values should be $ncomponent")
@@ -157,9 +150,6 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
     mu_old = zeros(mu)
     sigmas_old = ones(sigmas)
     beta_old = randn(J)
-    if !wifixed || (length(ghw)!=ngh)
-        ghx, ghw = gausshermite(ngh)
-    end
 
     wipool = zeros(ncomponent)
     mupool = zeros(ncomponent)
@@ -169,8 +159,12 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
     wi_divide_sigmas = zeros(wi)
     inv_2sigmas_sq = ones(sigmas) .* 1e20
     m = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
+    meaninit = mean(m)
+    ratioinit = std(m)/std(proposingdist) 
     for i in 1:n, jcol in 1:M
-        gammaM[i, jcol] = rand(proposingdist) * std(m)/std(proposingdist) + mean(m)
+        gammatmp = rand(proposingdist)
+        gammaM[i, jcol] = gammatmp * ratioinit + meaninit
+        gammah[i, jcol] = log(ratioinit)-logpdf(proposingdist, gammatmp)
     end
     for iter_em in 1:maxiteration
         
@@ -179,12 +173,10 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
         copy!(sigmas_old, sigmas)
         
         A_mul_B!(xb, X, β)
-        # integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, xb, N, J, n, ncomponent, ngh)
-        FIintegralweight!(Wim, X, Y, groupindex, gammaM, wi, mu, sigmas, llN, xb, proposingdist, N, J, n, M)
+        FIintegralweight!(Wim, X, Y, groupindex, gammaM, gammah, wi, mu, sigmas, llN, xb, proposingdist, N, J, n, M)
         
         if debuginfo
             println("At $(iter_em)th iteration:")
-            #println(maximum(Wim, 2))
         end
         if !stopRule(β, beta_old, tol=tol/10)
             copy!(beta_old, β)
@@ -199,7 +191,7 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
             println("wi=$wi")
             println("mu=$mu")
             println("sigma=$sigmas")
-            println("ll=",marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, sumlogmat))
+            #println("ll=",marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, sumlogmat))
         end
         
         if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3)
@@ -212,7 +204,7 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
             warn("latentgmmFI not converge!")
         end
     end
-    return(wi, mu, sigmas, β, marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, sumlogmat)+sum(pn(sigmas, sn, an=an)))
+    return(wi, mu, sigmas, β)
 end
 # 
 # function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}, M::Int=1000; proposingdist::Distributions=Normal(), maxiteration::Int=100, tol::Real=.005,  ngh::Int=1000, sn::Vector{Float64}=sigmas_init, an::Float64=1.0/maximum(groupindex), debuginfo::Bool=false, Qmaxiteration::Int=2, whichtosplit::Int=1, au::Real=.5, wifixed::Bool=false, mu_lb::Vector=fill(-Inf, ncomponent), mu_ub::Vector=fill(Inf, ncomponent))
