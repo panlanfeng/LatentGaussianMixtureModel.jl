@@ -267,7 +267,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::In
             println("wi=$wi")
             println("mu=$mu")
             println("sigma=$sigmas")
-            println("ll=",marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim))
+            println("ll=",marginallikelihood(β, X, Y, groupindex, nF, wi, mu, sigmas, ghx, ghw, llvec, ll_nF, xb, sumlogmat))
         end
         if (iter_em == maxiteration) && (maxiteration > 3)
             warn("latentgmm not converge!")
@@ -406,7 +406,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupinde
             println("wi=$wi")
             println("mu=$mu")
             println("sigma=$sigmas")
-            println("ll=",marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim))
+            println("ll=",marginallikelihood(β, X, Y, groupindex, nF, wi, mu, sigmas, ghx, ghw, llvec, ll_nF, xb, sumlogmat))
         end
         if ml1 > ml0
             ml0 = ml1

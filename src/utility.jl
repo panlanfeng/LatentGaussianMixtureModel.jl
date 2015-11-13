@@ -214,6 +214,13 @@ function maxposterior(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex:
     (bag[1:nF], bag[(1+nF):((nF+J))], bag[nF+J+1])
 end
 
+function marginallikelihood(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, β::Array{Float64,1}; ngh::Int=100)
+    ghx, ghw = gausshermite(ngh)
+    N, J = size(X)
+    M = ngh * length(wi)
+    n = maximum(groupindex)
+    marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, zeros(N), zeros(n), zeros(N), zeros(n, M))
+end
 
 function marginallikelihood(beta_new::Array{Float64,1}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, nF::Int64, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, ghx::Vector{Float64}, ghw::Vector{Float64}, llvec::Vector, ll_nF::Vector, xb::Vector, sumlogmat::Matrix)
 
