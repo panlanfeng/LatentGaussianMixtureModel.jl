@@ -55,7 +55,7 @@ function Q1(beta_new::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
 
         # map!(Exp_xy(), llvec, llvec, Y)
         negateiftrue!(llvec, Y)
-        exp!(llvec, llvec)
+        Yeppp.exp!(llvec, llvec)
         if length(storage) > 0
             llvecnew[:] = llvec
             # map!(Xy1x(), llvecnew, llvecnew, Y)
@@ -381,7 +381,8 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupinde
         wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
         wi[whichtosplit] = wi_tmp*tau
         wi[whichtosplit+1] = wi_tmp*(1-tau)
-        mu = min(max(mu, mu_lb), mu_ub)        
+        Yeppp.max!(mu, mu, mu_lb)
+        Yeppp.min!(mu, mu, mu_ub)          
         if debuginfo
             println("At $(iter_em)th iteration:")
         end

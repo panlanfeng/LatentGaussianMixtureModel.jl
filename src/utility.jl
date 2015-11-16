@@ -167,7 +167,7 @@ function mpe_goalfun(input::Vector{Float64}, storage::Vector, X::Matrix{Float64}
     Yeppp.add!(llvec, mygamma[groupindex], llvec)
     # map!(Exp_xy(), llvec, llvec, Y)
     negateiftrue!(llvec, Y)
-    exp!(llvec, llvec)
+    Yeppp.exp!(llvec, llvec)
 
     if length(storage)>0
         fill!(storage, 0.0)
@@ -244,7 +244,7 @@ function marginallikelihood(beta_new::Array{Float64,1}, X::Matrix{Float64}, Y::A
             for i in 1:N
                 @inbounds llvec[i] = ifelse(Y[i], -xtmp - xb[i], xtmp + xb[i])  
             end
-            exp!(llvec, llvec)
+            Yeppp.exp!(llvec, llvec)
             log1p!(llvec)
             ixM = ix+M*(jcom-1)
             for i in 1:N
@@ -291,7 +291,7 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
                 @inbounds llvec[i] = ifelse(Y[i], -xtmp[ixM] - xb[i], xtmp[ixM] + xb[i])
             end
             
-            exp!(llvec, llvec)
+            Yeppp.exp!(llvec, llvec)
             copy!(llN2, llvec)
             x1x!(llN2)
             negateiffalse!(llN2, Y)

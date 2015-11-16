@@ -7,7 +7,7 @@ function FIintegralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::Abstract
         relocate!(llN, gammaM[:, ixM], groupindex, N)
         Yeppp.add!(llN, llN, xb)
         negateiftrue!(llN, Y)   
-        exp!(llN, llN)
+        Yeppp.exp!(llN, llN)
         log1p!(llN)
         
         for i in 1:n 
@@ -42,7 +42,7 @@ function completescore!(stheta::Array{Float64, 3}, X::Matrix{Float64}, Y::Abstra
         relocate!(llN, gammaM[:, jcol], groupindex, N)
         Yeppp.add!(llN, llN, xb)
         negateiftrue!(llN, Y)
-        exp!(llN, llN)
+        Yeppp.exp!(llN, llN)
         
         #copy!(llN2, llN)
         x1x!(llN)
@@ -149,9 +149,8 @@ function FIupdateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Fl
             wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
             wi[whichtosplit] = wi_tmp*tau
             wi[whichtosplit+1] = wi_tmp*(1-tau)
-            for kcom in 1:C
-                mu[kcom] = min(max(mu[kcom], mu_lb[kcom]), mu_ub[kcom])
-            end
+            Yeppp.max!(mu, mu, mu_lb)
+            Yeppp.min!(mu, mu, mu_ub)   
         end
 
         if stopRule(vcat(wi, mu, sigmas), vcat(wi_old, mu_old, sigmas_old), tol=tol)
@@ -184,7 +183,7 @@ function FI_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
         relocate!(llN, gammaM[:, jcol], groupindex, N)
         Yeppp.add!(llN, llN, xb)
         negateiftrue!(llN, Y)
-        exp!(llN, llN)
+        Yeppp.exp!(llN, llN)
         if length(storage) > 0
             copy!(llN2, llN)
             x1x!(llN2)

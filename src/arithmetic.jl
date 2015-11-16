@@ -1,7 +1,7 @@
 
 
-exp!(x::Vector{Float64}) = Yeppp.exp!(x, x)
-log!(x::Vector{Float64}) = Yeppp.log!(x, x)
+#exp!(x::Vector{Float64}) = Yeppp.exp!(x, x)
+#log!(x::Vector{Float64}) = Yeppp.log!(x, x)
 
 function sumexp{T<:Real}(x::AbstractArray{T})
     isempty(x) && return -Inf
@@ -136,7 +136,7 @@ end
 
 function log1p!(x::Vector{Float64}, n::Int64=length(x))
     plusone!(x, n)
-    log!(x, x)
+    Yeppp.log!(x, x)
     nothing
 end
 
@@ -152,9 +152,9 @@ end
 # -log(1+exp(-xy))
 function loglogistic!(x::Vector{Float64}, y::AbstractArray{Bool, 1}, n::Int=length(x))
     negateiftrue!(x, y, n)
-    exp!(x, x)
+    Yeppp.exp!(x, x)
     add!(x, x, 1.0)
-    log!(x, x)
+    Yeppp.log!(x, x)
     negate!(x, x, n)
     nothing
 end
@@ -163,7 +163,7 @@ end
 function logistic!(x::Vector{Float64})
     n = length(x)
     negate!(x)
-    exp!(x, x)
+    Yeppp.exp!(x, x)
     add!(x, x, 1.0)
     rcp!(x, n)
     nothing
@@ -174,7 +174,7 @@ function rcplogistic!(x::Vector{Float64}, y::AbstractArray{Bool, 1})
     n = length(x)
     assert(length(y) == n)
     negateiftrue!(x, y, n)
-    exp!(x, x)
+    Yeppp.exp!(x, x)
     add!(x, x, 1.0)
     nothing
 end

@@ -8,7 +8,7 @@ function integralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractAr
             fill!(llN, gammaM[ixM])
             Yeppp.add!(llN, llN, xb)
             negateiftrue!(llN, Y)   
-            exp!(llN, llN)
+            Yeppp.exp!(llN, llN)
             log1p!(llN)
             
             for i in 1:n 
@@ -70,7 +70,7 @@ function EM_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
         fill!(llN, gammaM[jcol])
         Yeppp.add!(llN, llN, xb)
         negateiftrue!(llN, Y)
-        exp!(llN, llN)
+        Yeppp.exp!(llN, llN)
         if length(storage) > 0
             copy!(llN2, llN)
             x1x!(llN2)
@@ -158,7 +158,8 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
             wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
             wi[whichtosplit] = wi_tmp*tau
             wi[whichtosplit+1] = wi_tmp*(1-tau)
-            mu = min(max(mu, mu_lb), mu_ub)    
+            Yeppp.max!(mu, mu, mu_lb)
+            Yeppp.min!(mu, mu, mu_ub)    
         end
         if debuginfo
             println("wi=$wi")
