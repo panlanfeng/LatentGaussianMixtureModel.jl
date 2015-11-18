@@ -43,7 +43,7 @@ function updateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Floa
         ind = (1+ngh*(kcom-1)):ngh*kcom
         wi[kcom] = sum(Wm[ind])
         mu[kcom] = wsum(gammaM[ind], Wm[ind]) / wi[kcom]
-        sigmas[kcom] = sqrt(wsum((gammaM[ind] .- mu[kcom]).^2, Wm[ind]) / wi[kcom])
+        sigmas[kcom] = sqrt((wsum((gammaM[ind] .- mu[kcom]).^2, Wm[ind]) + 2 * an * sn[kcom])/ (wi[kcom]) + 2 * an)
     end
     
 end
@@ -239,7 +239,7 @@ function loglikelihoodratioEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
     mu0 = mu_init[or]
     sigmas0 = sigmas_init[or]
     betas0 = betas_init
-    an = 1.0#decidepenalty(wi0, mu0, sigmas0, nF)
+    an = decidepenalty(wi0, mu0, sigmas0, nF)
     
     N,J=size(X)
     gammaM = zeros(ngh*ncomponent1)
