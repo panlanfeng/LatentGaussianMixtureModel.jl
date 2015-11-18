@@ -35,7 +35,7 @@ function integralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractAr
     end
 end
 
-function updateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, gammaM::Vector{Float64}, Wim::Matrix{Float64}, Wm::Matrix{Float64}, N::Int, J::Int, n::Int, C::Int, ngh::Int)
+function updateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, gammaM::Vector{Float64}, Wim::Matrix{Float64}, Wm::Matrix{Float64}, sn::Vector{Float64}, an::Real, N::Int, J::Int, n::Int, C::Int, ngh::Int)
 
     # A_mul_B!(xb, X, betas)
     mean!(Wm, Wim)
@@ -153,7 +153,7 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
                 println("beta=", β)
             end
         end
-        updateθ!(wi, mu, sigmas, X, Y, groupindex, gammaM, Wim, Wm, N, J, n, ncomponent, ngh)
+        updateθ!(wi, mu, sigmas, X, Y, groupindex, gammaM, Wim, Wm, sn, an, N, J, n, ncomponent, ngh)
         if wifixed
             wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
             wi[whichtosplit] = wi_tmp*tau
