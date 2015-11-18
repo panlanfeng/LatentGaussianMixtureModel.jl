@@ -142,7 +142,7 @@ function FIupdateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Fl
         for kcom in 1:C
             wi[kcom] = wipool[kcom] / sum(wipool)
             mu[kcom] = mupool[kcom] / wipool[kcom]
-            sigmas[kcom] = sqrt((sigmaspool[kcom] - wipool[kcom] * mu[kcom] ^ 2 + 2 * an * sn[kcom]) / (wipool[kcom] + 2 * an))
+            sigmas[kcom] = sqrt((sigmaspool[kcom] - wipool[kcom] * mu[kcom] ^ 2 + 2 * an * sn[kcom]^2) / (wipool[kcom] + 2 * an))
         end
         
         if wifixed

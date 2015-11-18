@@ -134,7 +134,7 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
             colsum = sum(pwi[:, j])
             wi[j] = colsum / nF
             mu[j] = wsum(pwi[:,j] ./ colsum, x)
-            sigmas[j] = sqrt((wsum(pwi[:,j], (x .- mu[j]).^2) + 2 * an * sn[j]) / (sum(pwi[:,j]) + 2*an))
+            sigmas[j] = sqrt((wsum(pwi[:,j], (x .- mu[j]).^2) + 2 * an * sn[j]^2) / (sum(pwi[:,j]) + 2*an))
         end
 
         if wifixed

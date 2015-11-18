@@ -245,7 +245,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::In
         for ic in 1:ncomponent
             wi[ic] = wipool[ic] / wipoolsum
             mu[ic] = mupool[ic] / wipool[ic]
-            sigmas[ic] = sqrt((sigmaspool[ic] - wipool[ic] * mu[ic] ^2 + 2 * M * an * sn[ic]) / (wipool[ic] + 2 * M * an))
+            sigmas[ic] = sqrt((sigmaspool[ic] - wipool[ic] * mu[ic] ^2 + 2 * M * an * sn[ic]^2) / (wipool[ic] + 2 * M * an))
         end
         if debuginfo
             println("At $(iter_em)th iteration:")
