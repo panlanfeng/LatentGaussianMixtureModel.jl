@@ -464,7 +464,7 @@ function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, 
     return(re[5])
 end
 
-function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent1::Int; vtau::Vector{Float64}=[.5,.3,.1;], ntrials::Int=25, ngh::Int=1000, debuginfo::Bool=false, Mctau::Int=2000, restartMCMCsampling::Bool=false, reportT=false, ctauparallel=true)
+function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent1::Int; vtau::Vector{Float64}=[.5,.3,.1;], ntrials::Int=25, ngh::Int=1000, debuginfo::Bool=false, Mctau::Int=2000, restartMCMCsampling::Bool=false, ctauparallel=true)
     C0 = ncomponent1 - 1
     C1 = ncomponent1 
     nF = maximum(groupindex)
@@ -474,7 +474,9 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, group
 
     wi_init, mu_init, sigmas_init, betas_init, ml_C0, gamma_mat = latentgmm(X, Y, groupindex, C0, betas_init, wi_init, mu_init, sigmas_init, Mmax=5000, initial_iteration=10, maxiteration=100, an=an1, sn=std(gamma_init).*ones(C0), restartMCMCsampling=restartMCMCsampling)
     
-    trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
+    if C0 > 1
+        trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
+    end
     
     
     gamma0 = vec(mean(gamma_mat, 2))    
@@ -520,11 +522,13 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, group
 
         end
 
-        if reportT
-            return 2*(lr - ml_C0), mean(trand .> 2*(lr - ml_C0))
+        Tvalue = 2*(lr - ml_C0)
+        if C0 == 1
+            pvalue = 1 - cdf(Chisq(2), Tvalue)
         else
-            return mean(trand .> 2*(lr - ml_C0))
+            pvalue = mean(trand .> 2*(lr - ml_C0))
         end
+        return [Tvalue, pvalue;]
     else
         lr = zeros(length(vtau), C0)
         for whichtosplit in 1:C0, i in 1:length(vtau)
@@ -551,10 +555,12 @@ function loglikelihoodratio(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, group
              lr[i, whichtosplit]=loglikelihoodratio_ctau(X, Y, groupindex, ncomponent1, betas0, wi_C1, whichtosplit, vtau[i], mu_lb, mu_ub,sigmas_lb, sigmas_ub, gamma0, ntrials=ntrials, ngh=ngh, sn=sigmas0[ind], an=an, debuginfo=debuginfo, sample_gamma_mat = sample_gamma_mat, sumlogmat=sumlogmat, llvec=llvec, llvecnew=llvecnew, Mctau=Mctau, xb=xb, restartMCMCsampling=restartMCMCsampling)
          end
 
-         if reportT
-             return 2*(maximum(lr) - ml_C0), mean(trand .> 2*(maximum(lr) - ml_C0))
+         Tvalue = 2*(maximum(lr) - ml_C0)
+         if C0 == 1
+             pvalue = 1 - cdf(Chisq(2), Tvalue)
          else
-             return mean(trand .> 2*(maximum(lr) - ml_C0))
+             pvalue = mean(trand .> 2*(maximum(lr) - ml_C0))
          end
+         return [Tvalue, pvalue;]
     end
 end
