@@ -43,7 +43,7 @@ function updateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Floa
         ind = (1+ngh*(kcom-1)):ngh*kcom
         wi[kcom] = sum(Wm[ind])
         mu[kcom] = wsum(gammaM[ind], Wm[ind]) / wi[kcom]
-        sigmas[kcom] = sqrt((wsum((gammaM[ind] .- mu[kcom]).^2, Wm[ind]) + 2 * an * sn[kcom])/ (wi[kcom]) + 2 * an)
+        sigmas[kcom] = sqrt((wsum((gammaM[ind] .- mu[kcom]).^2, Wm[ind]) + 2 * an * sn[kcom]/n)/ (wi[kcom]) + 2 * an/n)
     end
     
 end
