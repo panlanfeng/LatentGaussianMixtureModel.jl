@@ -25,7 +25,7 @@ import Distributions, StatsBase, Yeppp
 X = readcsv("X.csv");
 N, J = size(X)
 
-#read in the groupindex for transplant center and convert to integer vector 
+#read in the groupindex for transplant center and convert to integer vector
 groupindex_raw = readcsv("groupindex.csv");
 levelsdictionary = levelsmap(groupindex_raw);
 groupindex  = ones(Int64, N);
@@ -56,7 +56,7 @@ C0=2 #number of components to try
 gamma_init, betas_init, sigmas_tmp = maxposterior(X, Y, groupindex)
 wi_init, mu_init, sigmas_init, betas_init, ml_tmp = LatentGaussianMixtureModel.latentgmmEM(X, Y, groupindex, 1, betas_init, [1.0], [mean(gamma_init)], [std(gamma_init)], maxiteration=100)
  gamma_init = LatentGaussianMixtureModel.predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init);
- 
+
 wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=1/nF)
 #Model fit
 #If there is error, set debuginfo=true to see more information

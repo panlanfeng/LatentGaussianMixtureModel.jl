@@ -25,7 +25,7 @@ import Yeppp
         wi_true = [1.0]
         sigmas_true = [1.2]
     elseif Ctrue == 2
-        mu_true = [log(1/0.779 - 1)/2 - 2.0, log(1/0.779 - 1)/2 + 2.0] 
+        mu_true = [log(1/0.779 - 1)/2 - 2.0, log(1/0.779 - 1)/2 + 2.0]
         wi_true = [.5, .5]
         sigmas_true = [1.2, .8]
     elseif Ctrue == 3
@@ -33,12 +33,12 @@ import Yeppp
         wi_true = [.3, .4, .3]
         sigmas_true = [1.2, .8, .9]
     end
-    
+
     #Randomly data generation based on the setting on datagen.jl
     srand(b * 100)
     m = MixtureModel(map((u, v) -> Normal(u, v), mu_true, sigmas_true), wi_true)
     gamma_true = rand(m, nF)
-    
+
     prob = exp(gamma_true[groupindex] .+ X*betas_true)
     prob= prob ./ (1 .+ prob)
     Y = Array(Bool, N)

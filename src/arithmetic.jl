@@ -35,7 +35,7 @@ function ratiosumexp!{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T}, s::A
     nothing
 end
 function ratiosumexp!{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T}, s::AbstractMatrix{T}, irow::Int, ncomponent::Int)
-    
+
     u = maximum(x)
     for i in 1:ncomponent
         @inbounds s[irow, i] = coef[i]*exp(x[i] - u)
@@ -230,7 +230,7 @@ end
 
 function H3(y, mu, sigmas)
     z = (y .- mu)./sigmas
-    (z.^3 .-3.*z) ./ sigmas^3./6 
+    (z.^3 .-3.*z) ./ sigmas^3./6
 end
 
 function H4(y, mu, sigmas)
