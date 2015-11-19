@@ -99,13 +99,14 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
      sn::Vector{Float64}=sigmas_init, an::Float64=1.0/maximum(groupindex),
     debuginfo::Bool=false, Qmaxiteration::Int=2, whichtosplit::Int=1, tau::Real=.5, wifixed::Bool=false,
      mu_lb::Vector=fill(-Inf, ncomponent), mu_ub::Vector=fill(Inf, ncomponent),
-     Wim::Matrix{Float64}=zeros(maximum(groupindex), ncomponent*ngh), Wm::Matrix{Float64}=zeros(1, ncomponent*ngh), lln::Vector{Float64}=zeros(maximum(groupindex)), llN::Vector{Float64}=zeros(length(Y)),
-    llN2::Vector{Float64}=zeros(length(Y)), xb::Vector{Float64}=zeros(length(Y)), gammaM::Vector{Float64}=zeros( ncomponent*ngh))
+     Wim::Matrix{Float64}=zeros(maximum(groupindex), ncomponent*length(ghx)), Wm::Matrix{Float64}=zeros(1, size(Wim, 2)), lln::Vector{Float64}=zeros(maximum(groupindex)), llN::Vector{Float64}=zeros(length(Y)),
+    llN2::Vector{Float64}=zeros(length(Y)), xb::Vector{Float64}=zeros(length(Y)), gammaM::Vector{Float64}=zeros( size(Wim, 2))
 
     # initialize theta
     length(wi_init) == length(mu_init) == length(sigmas_init) == ncomponent || error("The length of initial values should be $ncomponent")
     N,J=size(X)
     length(β_init) == J || error("Initial values of fixed efffect coefficients should have same dimension as X")
+    length(ghx) == length(ghw) == ngh || error("length of ghx and ghw should be the same as ngh") 
     n = maximum(groupindex)
     M = ncomponent*ngh
 
@@ -118,7 +119,7 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
     mu_old = zeros(mu)
     sigmas_old = ones(sigmas)
     beta_old = randn(J)
-    if !wifixed || (length(ghw)!=ngh)
+    if !wifixed || (ghx[1] == 0.0)
         ghx, ghw = hermite(ngh)
     end
 
@@ -192,13 +193,13 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}
         mu[:, i] = rand(ncomponent1) .* (mu_ub .- mu_lb) .+ mu_lb
         sigmas[:, i] = rand(ncomponent1) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
 
-        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmEM(X, Y, groupindex, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb, mu_ub=mu_ub, maxiteration=5, sn=sn, an=an, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=1, wifixed=true)
+        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmEM(X, Y, groupindex, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb, mu_ub=mu_ub, maxiteration=5, sn=sn, an=an, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=1, wifixed=true, ngh=ngh)
     end
 
     mlperm = sortperm(ml)
     for j in 1:ntrials
         i = mlperm[4*ntrials+1 - j] # start from largest ml
-        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmEM(X, Y, groupindex, ncomponent1, betas[:, i], wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=500, sn=sn, an=an, debuginfo=debuginfo, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=2, wifixed=true)
+        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmEM(X, Y, groupindex, ncomponent1, betas[:, i], wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=500, sn=sn, an=an, debuginfo=debuginfo, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=2, wifixed=true, ngh=ngh)
     end
 
     mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
@@ -236,7 +237,7 @@ function loglikelihoodratioEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
     N,J=size(X)
     gammaM = zeros(ngh*ncomponent1)
     Wim = zeros(nF, ngh*ncomponent1)
-    wm = zeros(ngh*ncomponent1)
+    #Wm = zeros(ngh*ncomponent1)
     llN = zeros(N)
     llN2 = zeros(N)
     xb = zeros(N)
