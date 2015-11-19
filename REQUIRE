@@ -3,4 +3,4 @@ Distributions
 StatsBase
 NLopt
 Yeppp
-FastGaussQuadrature
+GaussQuadrature

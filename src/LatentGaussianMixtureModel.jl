@@ -4,7 +4,7 @@ module LatentGaussianMixtureModel
 using Distributions
 using StatsBase
 using NLopt
-using FastGaussQuadrature
+using GaussQuadrature
 using Yeppp
 #import Yeppp: add!, exp!, log!
 import StatsBase: RealArray, RealVector, RealArray, IntegerArray, IntegerVector, IntegerMatrix, IntUnitRange

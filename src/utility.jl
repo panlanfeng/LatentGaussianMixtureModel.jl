@@ -215,7 +215,7 @@ function maxposterior(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex:
 end
 
 function marginallikelihood(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, β::Array{Float64,1}; ngh::Int=100)
-    ghx, ghw = gausshermite(ngh)
+    ghx, ghw = hermite(ngh)
     N, J = size(X)
     M = ngh * length(wi)
     n = maximum(groupindex)
@@ -269,7 +269,7 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
     nF = maximum(groupindex)
     M = ngh
     C = length(wi)
-    ghx, ghw = gausshermite(ngh)
+    ghx, ghw = hermite(ngh)
     xb = zeros(N)
     A_mul_B!(xb, X, betas)
     llvec = zeros(N)

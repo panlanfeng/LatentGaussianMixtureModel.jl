@@ -99,7 +99,7 @@ tau=.1
 ind = [1:whichtosplit, whichtosplit:C0;]
 using FastGaussQuadrature
 ngh=1000
-ghx, ghw = gausshermite(ngh)
+ghx, ghw = hermite(ngh)
 ntrials=3
 wi_C1 = wi0[ind]
 wi_C1[whichtosplit] = wi_C1[whichtosplit]*tau

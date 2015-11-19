@@ -119,7 +119,7 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
     sigmas_old = ones(sigmas)
     beta_old = randn(J)
     if !wifixed || (length(ghw)!=ngh)
-        ghx, ghw = gausshermite(ngh)
+        ghx, ghw = hermite(ngh)
     end
 
     #Wim = zeros(n, M)
@@ -189,7 +189,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}
 
     nF = maximum(groupindex)
     tau = min(tau, 1-tau)
-    ghx, ghw = gausshermite(ngh)
+    ghx, ghw = hermite(ngh)
 
     wi = repmat(wi_C1, 1, 4*ntrials)
     mu = zeros(ncomponent1, 4*ntrials)
