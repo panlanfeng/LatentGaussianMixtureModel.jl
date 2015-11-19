@@ -38,12 +38,12 @@ end
 function updateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, gammaM::Vector{Float64}, Wim::Matrix{Float64}, Wm::Matrix{Float64}, sn::Vector{Float64}, an::Real, N::Int, J::Int, n::Int, C::Int, ngh::Int)
 
     # A_mul_B!(xb, X, betas)
-    sum!(Wm, Wim)
+    mean!(Wm, Wim)
     for kcom in 1:C
         ind = (1+ngh*(kcom-1)):ngh*kcom
-        wi[kcom] = sum(Wm[ind])/n
+        wi[kcom] = sum(Wm[ind])
         mu[kcom] = wsum(gammaM[ind], Wm[ind]) / wi[kcom]
-        sigmas[kcom] = sqrt((wsum((gammaM[ind] .- mu[kcom]).^2, Wm[ind]) + 2 * an * sn[kcom]^2) / (wi[kcom]) + 2 * an)
+        sigmas[kcom] = sqrt((wsum((gammaM[ind] .- mu[kcom]).^2, Wm[ind]) + 2 * an * sn[kcom]^2/n) / (wi[kcom]) + 2 * an/n)
     end
 
 end
