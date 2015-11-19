@@ -21,7 +21,7 @@ import Yeppp
     X = rand(Normal(), (N, J))
     betas_true=ones(J) #rand(Normal(0,1), J)
     if Ctrue == 1
-        mu_true = [-log(1/0.1 - 1)]
+        mu_true = [log(1/0.779 - 1)]
         wi_true = [1.0]
         sigmas_true = [1.2]
     elseif Ctrue == 2
