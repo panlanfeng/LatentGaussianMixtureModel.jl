@@ -193,13 +193,13 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}
         mu[:, i] = rand(ncomponent1) .* (mu_ub .- mu_lb) .+ mu_lb
         sigmas[:, i] = rand(ncomponent1) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
 
-        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmEM(X, Y, groupindex, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb, mu_ub=mu_ub, maxiteration=5, sn=sn, an=an, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=1, wifixed=true, ngh=ngh)
+        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmEM(X, Y, groupindex, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb, mu_ub=mu_ub, maxiteration=10, sn=sn, an=an, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=2, wifixed=true, ngh=ngh)
     end
 
     mlperm = sortperm(ml)
     for j in 1:ntrials
         i = mlperm[4*ntrials+1 - j] # start from largest ml
-        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmEM(X, Y, groupindex, ncomponent1, betas[:, i], wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=500, sn=sn, an=an, debuginfo=debuginfo, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=2, wifixed=true, ngh=ngh)
+        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmEM(X, Y, groupindex, ncomponent1, betas[:, i], wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=500, sn=sn, an=an, debuginfo=debuginfo, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=5, wifixed=true, ngh=ngh)
     end
 
     mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
