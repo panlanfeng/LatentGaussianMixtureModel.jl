@@ -207,7 +207,7 @@ function FI_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
     -res
 end
 
-function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; M::Int = 2000, proposingdist::Distribution=TDist(3),
+function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; M::Int = 2000, proposingdist::Distribution=TDist(3), meaninit::Real = 0.0, sigmasinit::Real = 1.0, 
     maxiteration::Int=100, tol::Real=.005,
      sn::Vector{Float64}=sigmas_init, an::Float64=1.0/maximum(groupindex),
     debuginfo::Bool=false, Qmaxiteration::Int=2, whichtosplit::Int=1, tau::Real=.5, wifixed::Bool=false, needcalibration::Bool = (M<100),  thetamaxiteration::Int=10,
@@ -241,9 +241,10 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
     tmp_mu=zeros(ncomponent)
     wi_divide_sigmas = zeros(wi)
     inv_2sigmas_sq = ones(sigmas) .* 1e20
-    minit = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
-    meaninit = mean(minit)
-    ratioinit = std(minit)/std(proposingdist)
+    #minit = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
+    #meaninit = mean(minit)
+    #ratioinit = std(minit)/std(proposingdist)
+    ratioinit = sigmasinit / std(proposingdist)
     for i in 1:n, jcol in 1:M
         gammatmp = rand(proposingdist)
         gammaM[i, jcol] = gammatmp * ratioinit + meaninit
