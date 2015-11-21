@@ -169,7 +169,7 @@ function rcplogistic!(x::AbstractArray{Float64}, y::AbstractArray{Bool, 1})
     nothing
 end
 
-function relocate!(res::AbstractArray{Float64}, ga::Vector{Float64}, groupindex::IntegerAbstractArray, N::Int)
+function relocate!(res::AbstractArray{Float64}, ga::Vector{Float64}, groupindex::IntegerVector, N::Int)
     for i in 1:N
         @inbounds res[i] = ga[groupindex[i]]
     end
