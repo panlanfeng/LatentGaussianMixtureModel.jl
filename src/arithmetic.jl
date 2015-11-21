@@ -1,8 +1,5 @@
 
 
-#exp!(x::Vector{Float64}) = Yeppp.exp!(x, x)
-#log!(x::Vector{Float64}) = Yeppp.log!(x, x)
-
 function sumexp{T<:Real}(x::AbstractArray{T})
     isempty(x) && return -Inf
     u = maximum(x)
@@ -46,101 +43,94 @@ function ratiosumexp!{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T}, s::A
     end
     nothing
 end
-function add!(res::Vector{Float64}, x::Vector{Float64}, y::Float64, n::Int64=length(x))
+function add!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, y::Float64, n::Int64=length(x))
    for i in 1:n
        @inbounds res[i] = x[i] + y
    end
    nothing
 end
 
-add!(res::Vector{Float64}, x::Float64, y::Vector{Float64}, n::Int64=length(y)) = add!(res, y, x, n)
+add!(res::AbstractArray{Float64}, x::Float64, y::AbstractArray{Float64}, n::Int64=length(y)) = add!(res, y, x, n)
 
-add!(x::Vector{Float64}, y::Float64, n::Int64=length(x))=add!(x, x, y, n)
-add!(x::Float64, y::Vector{Float64}, n::Int64=length(y))=add!(y, y, x, n)
+add!(x::AbstractArray{Float64}, y::Float64, n::Int64=length(x))=add!(x, x, y, n)
+add!(x::Float64, y::AbstractArray{Float64}, n::Int64=length(y))=add!(y, y, x, n)
 
-plusone!(res::Vector{Float64}, x::Vector{Float64}, n::Int64=length(x)) = add!(res, x, 1.0, n)
-plusone!(x::Vector{Float64}, n=length(x)) = plusone!(x, x, n)
+plusone!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, n::Int64=length(x)) = add!(res, x, 1.0, n)
+plusone!(x::AbstractArray{Float64}, n=length(x)) = plusone!(x, x, n)
 
 
-function divide!(res::Vector{Float64}, x::Vector{Float64}, y::Vector{Float64}, n::Int64=length(x))
+function divide!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, y::AbstractArray{Float64}, n::Int64=length(x))
     for i in 1:n
         @inbounds res[i] = x[i] / y[i]
     end
     nothing
 end
 
-function divide!(res::Vector{Float64}, x::Vector{Float64}, y::Float64, n::Int64=length(x))
-    tmp = 1.0/y
-    for i in 1:n
-        @inbounds res[i] = x[i] * tmp
-    end
-    nothing
-end
-
-function divide!(res::Vector{Float64}, x::Float64, y::Vector{Float64}, n::Int64=length(y))
+divide!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, y::Float64, n::Int64=length(x)) = multiply!(res, x, 1/y, n)
+function divide!(res::AbstractArray{Float64}, x::Float64, y::AbstractArray{Float64}, n::Int64=length(y))
     for i in 1:n
         @inbounds res[i] = x / y[i]
     end
     nothing
 end
-divide!(x::Vector{Float64}, y::Vector{Float64}, n::Int64=length(x)) = divide!(x, x, y, n)
-divide!(x::Float64, y::Vector{Float64}, n::Int64=length(y)) = divide!(y, x, y, n)
-divide!(x::Vector{Float64}, y::Float64, n::Int64=length(x)) = divide!(x, x, y, n)
+divide!(x::AbstractArray{Float64}, y::AbstractArray{Float64}, n::Int64=length(x)) = divide!(x, x, y, n)
+# divide!(x::Float64, y::AbstractArray{Float64}, n::Int64=length(y)) = divide!(y, x, y, n)
+divide!(x::AbstractArray{Float64}, y::Float64, n::Int64=length(x)) = divide!(x, x, y, n)
 
 
 
-rcp!(res::Vector{Float64}, x::Vector{Float64}, n::Int64=length(x)) = divide!(res, 1.0, x, n)
-rcp!(x::Vector{Float64}, n::Int64=length(x))=rcp!(x, x, n)
+rcp!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, n::Int64=length(x)) = divide!(res, 1.0, x, n)
+rcp!(x::AbstractArray{Float64}, n::Int64=length(x))=rcp!(x, x, n)
 
 
 
-function multiply!(res::Vector{Float64}, x::Vector{Float64}, y::Float64, n::Int64=length(x))
+function multiply!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, y::Float64, n::Int64=length(x))
     for i in 1:n
         @inbounds res[i] = x[i] * y
     end
     nothing
 end
 
-function multiply!(res::Vector{Float64}, x::Float64, y::Vector{Float64}, n::Int64=length(y))
+function multiply!(res::AbstractArray{Float64}, x::Float64, y::AbstractArray{Float64}, n::Int64=length(y))
     for i in 1:n
         @inbounds res[i] = x * y[i]
     end
     nothing
 end
 
-multiply!(x::Float64, y::Vector{Float64}, n::Int64=length(y)) = multiply!(y, x, y, n)
-multiply!(x::Vector{Float64}, y::Float64, n::Int64=length(x)) = multiply!(x, x, y, n)
+# multiply!(x::Float64, y::AbstractArray{Float64}, n::Int64=length(y)) = multiply!(y, x, y, n)
+multiply!(x::AbstractArray{Float64}, y::Float64, n::Int64=length(x)) = multiply!(x, x, y, n)
 
 
-function negate!(res::Vector{Float64}, x::Vector{Float64}, n::Int64=length(x))
+function negate!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, n::Int64=length(x))
    for i in 1:n
        @inbounds res[i] = -x[i]
    end
    nothing
 end
-negate!(x::Vector{Float64}, n::Int64=length(x)) = negate!(x, x, n)
+negate!(x::AbstractArray{Float64}, n::Int64=length(x)) = negate!(x, x, n)
 
-function negateiffalse!(x::Vector{Float64}, y::AbstractArray{Bool, 1}, n::Int64=length(x))
+function negateiffalse!(x::AbstractArray{Float64}, y::AbstractArray{Bool, 1}, n::Int64=length(x))
     for i in 1:n
         @inbounds x[i] = ifelse(y[i], x[i], -x[i])
     end
     nothing
 end
 
-function negateiftrue!(x::Vector{Float64}, y::AbstractArray{Bool, 1}, n::Int64=length(x))
+function negateiftrue!(x::AbstractArray{Float64}, y::AbstractArray{Bool, 1}, n::Int64=length(x))
     for i in 1:n
         @inbounds x[i] = ifelse(y[i], -x[i], x[i])
     end
     nothing
 end
 
-function log1p!(x::Vector{Float64}, n::Int64=length(x))
+function log1p!(x::AbstractArray{Float64}, n::Int64=length(x))
     plusone!(x, n)
     Yeppp.log!(x, x)
     nothing
 end
 
-function x1x!(x::Vector{Float64}, n::Int64=length(x))
+function x1x!(x::AbstractArray{Float64}, n::Int64=length(x))
     # n = length(x)
     for i in 1:n
         @inbounds x[i] = x[i] / (1.0 + x[i])
@@ -150,7 +140,7 @@ end
 
 
 # -log(1+exp(-xy))
-function loglogistic!(x::Vector{Float64}, y::AbstractArray{Bool, 1}, n::Int=length(x))
+function loglogistic!(x::AbstractArray{Float64}, y::AbstractArray{Bool, 1}, n::Int=length(x))
     negateiftrue!(x, y, n)
     Yeppp.exp!(x, x)
     add!(x, x, 1.0)
@@ -160,7 +150,7 @@ function loglogistic!(x::Vector{Float64}, y::AbstractArray{Bool, 1}, n::Int=leng
 end
 
 # 1/(1+exp(-x))
-function logistic!(x::Vector{Float64})
+function logistic!(x::AbstractArray{Float64})
     n = length(x)
     negate!(x)
     Yeppp.exp!(x, x)
@@ -170,7 +160,7 @@ function logistic!(x::Vector{Float64})
 end
 
 # 1+exp(-x*y)
-function rcplogistic!(x::Vector{Float64}, y::AbstractArray{Bool, 1})
+function rcplogistic!(x::AbstractArray{Float64}, y::AbstractArray{Bool, 1})
     n = length(x)
     assert(length(y) == n)
     negateiftrue!(x, y, n)
@@ -179,7 +169,7 @@ function rcplogistic!(x::Vector{Float64}, y::AbstractArray{Bool, 1})
     nothing
 end
 
-function relocate!(res::Vector{Float64}, ga::Vector{Float64}, groupindex::IntegerVector, N::Int)
+function relocate!(res::AbstractArray{Float64}, ga::Vector{Float64}, groupindex::IntegerAbstractArray, N::Int)
     for i in 1:N
         @inbounds res[i] = ga[groupindex[i]]
     end
