@@ -39,6 +39,7 @@ function updateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Floa
 
     # A_mul_B!(xb, X, betas)
     mean!(Wm, Wim)
+    divide!(Wm, Wm, sum(Wm))
     for kcom in 1:C
         ind = (1+ngh*(kcom-1)):ngh*kcom
         wi[kcom] = sum(Wm[ind])
