@@ -207,13 +207,15 @@ function FI_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
     -res
 end
 
-function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; M::Int = 2000, proposingdist::Distribution=TDist(3), meaninit::Real = 0.0, sigmasinit::Real = 1.0, 
+function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; 
+    M::Int = 2000, proposingdist::Distribution=TDist(3), meaninit::Real = 0.0, sigmasinit::Real = 1.0, 
     maxiteration::Int=100, tol::Real=.005,
      sn::Vector{Float64}=sigmas_init, an::Float64=1.0/maximum(groupindex),
-    debuginfo::Bool=false, Qmaxiteration::Int=2, whichtosplit::Int=1, tau::Real=.5, wifixed::Bool=false, needcalibration::Bool = (M<100),  thetamaxiteration::Int=10,
+    debuginfo::Bool=false, Qmaxiteration::Int=2, whichtosplit::Int=1, tau::Real=.5, wifixed::Bool=false, dotest::Bool=true, thetamaxiteration::Int=10,
      mu_lb::Vector=fill(-Inf, ncomponent), mu_ub::Vector=fill(Inf, ncomponent),
      Wim::Matrix{Float64}=zeros(maximum(groupindex), M), lln::Vector{Float64}=zeros(maximum(groupindex)), llN::Vector{Float64}=zeros(length(Y)),
-    llN2::Vector{Float64}=zeros(length(Y)), xb::Vector{Float64}=zeros(length(Y)), gammaM::Matrix{Float64}=zeros(maximum(groupindex), M), gammah::Matrix{Float64}=zeros(maximum(groupindex), M))
+    llN2::Vector{Float64}=zeros(length(Y)), xb::Vector{Float64}=zeros(length(Y)),
+     gammaM::Matrix{Float64}=zeros(maximum(groupindex), M), gammah::Matrix{Float64}=zeros(maximum(groupindex), M))
 
     # initialize theta
     length(wi_init) == length(mu_init) == length(sigmas_init) == ncomponent || error("The length of initial values should be $ncomponent")
@@ -230,10 +232,7 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
     mu_old = zeros(mu)
     sigmas_old = ones(sigmas)
     beta_old = randn(J)
-    p = J #+3*ncomponent-1
-    if needcalibration
-        stheta::Array{Float64}= zeros(n, M, p)
-    end
+
     wipool = zeros(ncomponent)
     mupool = zeros(ncomponent)
     sigmaspool = zeros(ncomponent)
@@ -250,6 +249,7 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
         gammaM[i, jcol] = gammatmp * ratioinit + meaninit
         gammah[i, jcol] = log(ratioinit)-logpdf(proposingdist, gammatmp)
     end
+    ll0=-Inf
     for iter_em in 1:maxiteration
 
         copy!(wi_old, wi)
@@ -258,10 +258,6 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
 
         A_mul_B!(xb, X, β)
         FIintegralweight!(Wim, X, Y, groupindex, gammaM, gammah, wi, mu, sigmas, llN, xb, proposingdist, N, J, n, M)
-
-        if needcalibration
-            calibrate!(Wim, X, Y, groupindex, wi, mu, sigmas, β, gammaM, stheta, xb, llN, N, J, n, ncomponent, M, p)
-        end
 
         if debuginfo
             println("At $(iter_em)th iteration:")
@@ -281,7 +277,13 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
             println("sigma=$sigmas")
             #println("ll=",marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, sumlogmat))
         end
-
+        if dotest
+            ll = marginallikelihood(X, Y, groupindex, wi, mu, sigmas, β, ngh=200)
+            if abs(ll - ll0) < 1e-8
+                break
+            end 
+            ll0 = ll
+        end
         if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3)
             if debuginfo
                 println("latentgmmFI converged at $(iter_em)th iteration")
