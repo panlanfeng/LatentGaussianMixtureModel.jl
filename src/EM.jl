@@ -98,7 +98,7 @@ end
 function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64};
     maxiteration::Int=100, tol::Real=.005,  ngh::Int=100, ghx::Vector=zeros(ngh), ghw::Vector=zeros(ngh),
      sn::Vector{Float64}=sigmas_init, an::Float64=1.0/maximum(groupindex),
-    debuginfo::Bool=false, Qmaxiteration::Int=2, whichtosplit::Int=1, tau::Real=.5, wifixed::Bool=false,
+    debuginfo::Bool=false, Qmaxiteration::Int=2, whichtosplit::Int=1, tau::Real=.5, wifixed::Bool=false, dotest::Bool=true, 
      mu_lb::Vector=fill(-Inf, ncomponent), mu_ub::Vector=fill(Inf, ncomponent),
      Wim::Matrix{Float64}=zeros(maximum(groupindex), ncomponent*length(ghx)), Wm::Matrix{Float64}=zeros(1, size(Wim, 2)), lln::Vector{Float64}=zeros(maximum(groupindex)), llN::Vector{Float64}=zeros(length(Y)),
     llN2::Vector{Float64}=zeros(length(Y)), xb::Vector{Float64}=zeros(length(Y)), gammaM::Vector{Float64}=zeros( size(Wim, 2)))
@@ -123,7 +123,7 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
     if !wifixed || (ghx[1] == 0.0)
         ghx, ghw = hermite(ngh)
     end
-
+    ll0 = -Inf
     for iter_em in 1:maxiteration
         for ix in 1:ngh, jcom in 1:ncomponent
             ixM = ix+ngh*(jcom-1)
@@ -161,7 +161,13 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
             println("sigma=$sigmas")
             println("ll=",marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim))
         end
-
+        if dotest
+            ll = marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim)
+            if abs(ll - ll0) < 1e-8
+                break
+            end 
+            ll0 = ll
+        end
         if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3)
             if debuginfo
                 println("latentgmmEM converged at $(iter_em)th iteration")
