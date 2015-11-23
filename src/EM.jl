@@ -159,20 +159,21 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
             println("wi=$wi")
             println("mu=$mu")
             println("sigma=$sigmas")
-            println("ll=",marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim))
         end
         if dotest
             ll = marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim)
+            println("lldiff=", ll - ll0)
             if abs(ll - ll0) < 1e-8
                 break
             end 
             ll0 = ll
-        end
-        if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3)
-            if debuginfo
-                println("latentgmmEM converged at $(iter_em)th iteration")
+        else
+            if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3)
+                if debuginfo
+                    println("latentgmmEM converged at $(iter_em)th iteration")
+                end
+                break
             end
-            break
         end
         if (iter_em == maxiteration) && (maxiteration > 15)
             warn("latentgmmEM not converge! $(wifixed)")
@@ -185,7 +186,7 @@ end
 """
 The interior step for loglikelihoodratio
 """
-function loglikelihoodratioEM_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent1::Int,  betas0::Vector{Float64}, wi_C1::Vector{Float64},  whichtosplit::Int64, tau::Float64, mu_lb::Vector{Float64}, mu_ub::Vector{Float64}, sigmas_lb::Vector{Float64}, sigmas_ub::Vector{Float64}; ntrials::Int=25, ngh::Int=100, sn::Vector{Float64}=sigmas_ub ./ 2, an=.25, debuginfo::Bool=false, gammaM::Vector = zeros(maximum(groupindex), Mmax), Wim::Matrix = zeros(maximum(groupindex), ngh*ncomponent), llN::Vector=zeros(length(Y)), llN2::Vector = zeros(length(Y)), xb::Vector=zeros(length(Y)))
+function loglikelihoodratioEM_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent1::Int,  betas0::Vector{Float64}, wi_C1::Vector{Float64},  whichtosplit::Int64, tau::Float64, mu_lb::Vector{Float64}, mu_ub::Vector{Float64}, sigmas_lb::Vector{Float64}, sigmas_ub::Vector{Float64}; ntrials::Int=25, ngh::Int=100, sn::Vector{Float64}=sigmas_ub ./ 2, an=.25, debuginfo::Bool=false, gammaM::Vector = zeros(Mmax), Wim::Matrix = zeros(maximum(groupindex), ngh*ncomponent), llN::Vector=zeros(length(Y)), llN2::Vector = zeros(length(Y)), xb::Vector=zeros(length(Y)))
 
     nF = maximum(groupindex)
     tau = min(tau, 1-tau)
