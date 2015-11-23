@@ -7,5 +7,4 @@ include(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples/TestAsymptotic
 @everywhere Ctrue = parse(Int, args[1])
 @everywhere Calternative = parse(Int, args[2])
 teststat = pmap((b) -> Brun(b, Ctrue, Calternative), 1:parse(Int, args[3]))
-teststat = hcat(teststat...)'
 writecsv("teststat$(Calternative)$(Ctrue).csv", teststat)

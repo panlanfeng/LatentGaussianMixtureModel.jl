@@ -252,69 +252,35 @@ function loglikelihoodratioEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
     llN = zeros(N)
     llN2 = zeros(N)
     xb = zeros(N)
-    if ctauparallel
-        lr=@parallel (max) for irun in 1:(C0*length(vtau))
 
-            whichtosplit = mod1(irun, C0)
-            i = cld(irun, C0)
-            ind = [1:whichtosplit, whichtosplit:C0;]
-            if C1==2
-                mu_lb = mingamma .* ones(2)
-                mu_ub = maxgamma .* ones(2)
-            elseif C1>2
-                mu_lb = [mingamma, (mu0[1:(C0-1)] .+ mu0[2:C0])./2;]
-                mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2, maxgamma;]
-                mu_lb = mu_lb[ind]
-                mu_ub = mu_ub[ind]
-            end
-            sigmas_lb = 0.25 .* sigmas0[ind]
-            sigmas_ub = 2 .* sigmas0[ind]
-
-            wi_C1 = wi0[ind]
-            wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
-            wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
-
-            loglikelihoodratioEM_ctau(X, Y, groupindex, ncomponent1, betas0, wi_C1, whichtosplit, vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub, ntrials=ntrials, ngh=ngh, sn=sigmas0[ind], an=an, debuginfo=debuginfo, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb)
-
+    lr=@parallel (max) for irun in 1:(C0*length(vtau))
+        whichtosplit = mod1(irun, C0)
+        i = cld(irun, C0)
+        ind = [1:whichtosplit, whichtosplit:C0;]
+        if C1==2
+            mu_lb = mingamma .* ones(2)
+            mu_ub = maxgamma .* ones(2)
+        elseif C1>2
+            mu_lb = [mingamma, (mu0[1:(C0-1)] .+ mu0[2:C0])./2;]
+            mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2, maxgamma;]
+            mu_lb = mu_lb[ind]
+            mu_ub = mu_ub[ind]
         end
+        sigmas_lb = 0.25 .* sigmas0[ind]
+        sigmas_ub = 2 .* sigmas0[ind]
 
-        Tvalue = 2*(lr - ml_C0)
-        if C0 == 1
-            pvalue = 1 - cdf(Chisq(2), Tvalue)
-        else
-            pvalue = mean(trand .> 2*(lr - ml_C0))
-        end
-        return [Tvalue, pvalue;]
-    else
-        lr = zeros(length(vtau), C0)
-        for whichtosplit in 1:C0, i in 1:length(vtau)
+        wi_C1 = wi0[ind]
+        wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
+        wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
 
-             ind = [1:whichtosplit, whichtosplit:C0;]
-             if C1==2
-                 mu_lb = mingamma .* ones(2)
-                 mu_ub = maxgamma .* ones(2)
-             elseif C1>2
-                 mu_lb = [mingamma, (mu0[1:(C0-1)] .+ mu0[2:C0])./2;]
-                 mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2, maxgamma;]
-                 mu_lb = mu_lb[ind]
-                 mu_ub = mu_ub[ind]
-             end
-             sigmas_lb = 0.25 .* sigmas0[ind]
-             sigmas_ub = 2 .* sigmas0[ind]
-
-             wi_C1 = wi0[ind]
-             wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
-             wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
-
-             lr[i, whichtosplit]=loglikelihoodratioEM_ctau(X, Y, groupindex, ncomponent1, betas0, wi_C1, whichtosplit, vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub, ntrials=ntrials, ngh=ngh, sn=sigmas0[ind], an=an, debuginfo=debuginfo, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb)
-         end
-
-         Tvalue = 2*(maximum(lr) - ml_C0)
-         if C0 == 1
-             pvalue = 1 - cdf(Chisq(2), Tvalue)
-         else
-             pvalue = mean(trand .> 2*(maximum(lr) - ml_C0))
-         end
-         return [Tvalue, pvalue;]
+        loglikelihoodratioEM_ctau(X, Y, groupindex, ncomponent1, betas0, wi_C1, whichtosplit, vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub, ntrials=ntrials, ngh=ngh, sn=sigmas0[ind], an=an, debuginfo=debuginfo, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb)
     end
+
+    Tvalue = 2*(lr - ml_C0)
+    if C0 == 1
+        pvalue = 1 - cdf(Chisq(2), Tvalue)
+    else
+        pvalue = mean(trand .> 2*(lr - ml_C0))
+    end
+    return(Tvalue, pvalue)
 end

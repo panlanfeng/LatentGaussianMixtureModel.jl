@@ -18,7 +18,7 @@ import Yeppp
     groupindex = inverse_rle(1:nF, n_ij)
     J=2  #42 #beta dimension
     srand(100)
-    X = rand(Normal(), (N, J))
+    X = rand(Normal(0, 9), (N, J))
     betas_true=ones(J) #rand(Normal(0,1), J)
     if Ctrue == 1
         mu_true = [log(1/0.779 - 1)]
@@ -50,7 +50,7 @@ import Yeppp
         end
     end
 
-    lr=LatentGaussianMixtureModel.loglikelihoodratioEM(X, Y, groupindex, Calternative, ntrials=25, debuginfo=debuginfo, ctauparallel=false)
+    lr=LatentGaussianMixtureModel.loglikelihoodratioEM(X, Y, groupindex, Calternative, ntrials=25, debuginfo=debuginfo, ngh=200)
     println("Mission $b completed with lr=$lr")
     lr
 end
