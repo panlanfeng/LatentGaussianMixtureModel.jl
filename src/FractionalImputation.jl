@@ -114,7 +114,7 @@ function calibrate!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractArray{B
 
 end
 
-function FIupdateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, gammaM::Matrix{Float64}, Wim::Matrix{Float64}, wipool::Vector, mupool::Vector, sigmaspool::Vector, tmp_p::Vector, tmp_mu::Vector, wi_divide_sigmas::Vector, inv_2sigmas_sq::Vector, sn::Vector, an::Real, tau::Real, wifixed::Bool, tol::Real, N::Int, J::Int, n::Int, C::Int, M::Int, thetamaxiteration::Int)
+function FIupdateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, gammaM::Matrix{Float64}, Wim::Matrix{Float64}, wipool::Vector, mupool::Vector, sigmaspool::Vector, tmp_p::Vector, tmp_mu::Vector, wi_divide_sigmas::Vector, inv_2sigmas_sq::Vector, sn::Vector, an::Real, tau::Real, wifixed::Bool, tol::Real, mu_lb::Vector, mu_ub::Vector, whichtosplit::Int, N::Int, J::Int, n::Int, C::Int, M::Int, thetamaxiteration::Int)
 
     for iter in 1:thetamaxiteration
         wi_old=copy(wi)
@@ -208,7 +208,7 @@ function FI_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
 end
 
 function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent::Int, β_init::Vector{Float64}, wi_init::Vector{Float64}, mu_init::Vector{Float64}, sigmas_init::Vector{Float64}; 
-    M::Int = 2000, proposingdist::Distribution=TDist(3), meaninit::Real = 0.0, sigmasinit::Real = 1.0, 
+    M::Int = 2000, proposingdist::Distribution=TDist(3), meaninit::Real = 0.0, sigmasinit::Real = std(proposingdist), 
     maxiteration::Int=100, tol::Real=.005,
      sn::Vector{Float64}=sigmas_init, an::Float64=1.0/maximum(groupindex),
     debuginfo::Bool=false, Qmaxiteration::Int=2, whichtosplit::Int=1, tau::Real=.5, wifixed::Bool=false, dotest::Bool=true, thetamaxiteration::Int=10,
@@ -269,7 +269,7 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
                 println("beta=", β)
             end
         end
-        FIupdateθ!(wi, mu, sigmas, X, Y, groupindex, gammaM, Wim, wipool, mupool, sigmaspool, tmp_p, tmp_mu, wi_divide_sigmas, inv_2sigmas_sq, sn, an, tau, wifixed, tol, N, J, n, ncomponent, M, thetamaxiteration)
+        FIupdateθ!(wi, mu, sigmas, X, Y, groupindex, gammaM, Wim, wipool, mupool, sigmaspool, tmp_p, tmp_mu, wi_divide_sigmas, inv_2sigmas_sq, sn, an, tau, wifixed, tol, mu_lb, mu_ub, whichtosplit, N, J, n, ncomponent, M, thetamaxiteration)
 
         if debuginfo
             println("wi=$wi")
@@ -278,21 +278,161 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
             #println("ll=",marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, sumlogmat))
         end
         if dotest
-            ll = marginallikelihood(X, Y, groupindex, wi, mu, sigmas, β, ngh=200)
+            ll = marginallikelihood(X, Y, groupindex, wi, mu, sigmas, β, ngh=500)
+#            if debuginfo
+            println("lldiff=", ll - ll0)
+#            end
             if abs(ll - ll0) < 1e-8
                 break
             end 
             ll0 = ll
-        end
-        if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3)
-            if debuginfo
-                println("latentgmmFI converged at $(iter_em)th iteration")
+        else
+            if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3)
+                if debuginfo
+                    println("latentgmmFI converged at $(iter_em)th iteration")
+                end
+                break
             end
-            break
         end
         if (iter_em == maxiteration) && (maxiteration > 15)
             warn("latentgmmFI not converge!")
         end
     end
-    return(wi, mu, sigmas, β)
+    return(wi, mu, sigmas, β, marginallikelihood(X, Y, groupindex, wi, mu, sigmas, β, ngh=200))
+end
+
+function loglikelihoodratioFI_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent1::Int,  betas0::Vector{Float64}, wi_C1::Vector{Float64},  whichtosplit::Int64, tau::Float64, mu_lb::Vector{Float64}, mu_ub::Vector{Float64}, sigmas_lb::Vector{Float64}, sigmas_ub::Vector{Float64}; ntrials::Int=25, M::Int=100, sn::Vector{Float64}=sigmas_ub ./ 2, an=.25, debuginfo::Bool=false, gammaM::Matrix = zeros(maximum(groupindex), M), Wim::Matrix = zeros(maximum(groupindex), M), llN::Vector=zeros(length(Y)), llN2::Vector = zeros(length(Y)), xb::Vector=zeros(length(Y)), proposingdist=modelC0)
+
+    nF = maximum(groupindex)
+    tau = min(tau, 1-tau)
+    #ghx, ghw = hermite(ngh)
+
+    wi = repmat(wi_C1, 1, 4*ntrials)
+    mu = zeros(ncomponent1, 4*ntrials)
+    sigmas = ones(ncomponent1, 4*ntrials)
+    betas = repmat(betas0, 1, 4*ntrials)
+    ml = -Inf .* ones(4*ntrials)
+    for i in 1:4*ntrials
+        mu[:, i] = rand(ncomponent1) .* (mu_ub .- mu_lb) .+ mu_lb
+        sigmas[:, i] = rand(ncomponent1) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
+
+        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i]= latentgmmFI(X, Y, groupindex, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb, mu_ub=mu_ub, maxiteration=10, sn=sn, an=an, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=2, wifixed=true, M=M, proposingdist=proposingdist)
+    end
+
+    mlperm = sortperm(ml)
+    for j in 1:ntrials
+        i = mlperm[4*ntrials+1 - j] # start from largest ml
+        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmFI(X, Y, groupindex, ncomponent1, betas[:, i], wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=500, sn=sn, an=an, debuginfo=debuginfo, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=2, wifixed=true, M=M, proposingdist=proposingdist)
+    end
+
+    mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
+    imax = mlperm[3*ntrials+imax]
+    modelC1=MixtureModel(map((u, v) -> Normal(u, v), mu[:, imax], sigmas[:, imax]), wi[:, imax])
+    wi, mu, sigmas, betas, mlctau=latentgmmFI(X, Y, groupindex, ncomponent1, betas[:, imax], wi[:, imax], mu[:, imax], sigmas[:, imax], maxiteration=3, an=an, sn=sn, debuginfo=debuginfo, M = M, proposingdist=modelC1)
+    return mlctau
+end
+
+function loglikelihoodratioFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent1::Int; vtau::Vector{Float64}=[.5,.3,.1;], ntrials::Int=25, M::Int=100, debuginfo::Bool=false, ctauparallel=true)
+    C0 = ncomponent1 - 1
+    C1 = ncomponent1
+    nF = maximum(groupindex)
+    #M = ngh * ncomponent1
+    an1 = 1/nF
+    gamma_init, betas_init, sigmas_tmp = maxposterior(X, Y, groupindex)
+    if C0 ==1
+        wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmFI(X, Y, groupindex, 1, betas_init, [1.0], [mean(gamma_init)], [std(gamma_init)], maxiteration=1000, an=an1, sn=std(gamma_init).*ones(C0), M=M, meaninit=mean(gamma_init), sigmasinit=std(gamma_init))
+    else C0 > 1
+        wi_init, mu_init, sigmas_init, betas_init, ml_C0= latentgmmFI(X, Y, groupindex, 1, betas_init, [1.0], [mean(gamma_init)], [std(gamma_init)], maxiteration=100, an=an1, sn=std(gamma_init).*ones(C0), M=M, meaninit=mean(gamma_init), sigmasinit=std(gamma_init))
+        gamma_init = predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
+        wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=an1)
+        wi_init, mu_init, sigmas_init, betas_init, ml_C0= latentgmmFI(X, Y, groupindex, C0, betas_init, wi_init, mu_init, sigmas_init, maxiteration=500, an=an1, sn=std(gamma_init).*ones(C0), M=M, meaninit=mean(gamma_init), sigmasinit=std(gamma_init))
+        trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
+    end
+
+    modelC0 = MixtureModel(map((u, v) -> Normal(u, v), mu_init, sigmas_init), wi_init)
+    mingamma = minimum(gamma_init)
+    maxgamma = maximum(gamma_init)
+
+    or = sortperm(mu_init)
+    wi0 = wi_init[or]
+    mu0 = mu_init[or]
+    sigmas0 = sigmas_init[or]
+    betas0 = betas_init
+    an = decidepenalty(wi0, mu0, sigmas0, nF)
+
+    N,J=size(X)
+    gammaM = zeros(nF, M)
+    Wim = zeros(nF, M)
+    #Wm = zeros(ngh*ncomponent1)
+    llN = zeros(N)
+    llN2 = zeros(N)
+    xb = zeros(N)
+    if ctauparallel
+        lr=@parallel (max) for irun in 1:(C0*length(vtau))
+
+            whichtosplit = mod1(irun, C0)
+            i = cld(irun, C0)
+            ind = [1:whichtosplit, whichtosplit:C0;]
+            if C1==2
+                mu_lb = mingamma .* ones(2)
+                mu_ub = maxgamma .* ones(2)
+            elseif C1>2
+                mu_lb = [mingamma, (mu0[1:(C0-1)] .+ mu0[2:C0])./2;]
+                mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2, maxgamma;]
+                mu_lb = mu_lb[ind]
+                mu_ub = mu_ub[ind]
+            end
+            sigmas_lb = 0.25 .* sigmas0[ind]
+            sigmas_ub = 2 .* sigmas0[ind]
+
+            wi_C1 = wi0[ind]
+            wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
+            wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
+
+            loglikelihoodratioFI_ctau(X, Y, groupindex, ncomponent1, betas0, wi_C1, whichtosplit, vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub, ntrials=ntrials, sn=sigmas0[ind], an=an, debuginfo=debuginfo, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, proposingdist=modelC0, M=M)
+        end
+        if debuginfo
+            println(summarystats(trand))
+        end
+        Tvalue = 2*(lr - ml_C0)
+        if C0 == 1
+            pvalue = 1 - cdf(Chisq(2), Tvalue)
+        else
+            pvalue = mean(trand .> 2*(lr - ml_C0))
+        end
+        return [Tvalue, pvalue;]
+    else
+        lr = zeros(length(vtau), C0)
+        for whichtosplit in 1:C0, i in 1:length(vtau)
+
+             ind = [1:whichtosplit, whichtosplit:C0;]
+             if C1==2
+                 mu_lb = mingamma .* ones(2)
+                 mu_ub = maxgamma .* ones(2)
+             elseif C1>2
+                 mu_lb = [mingamma, (mu0[1:(C0-1)] .+ mu0[2:C0])./2;]
+                 mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2, maxgamma;]
+                 mu_lb = mu_lb[ind]
+                 mu_ub = mu_ub[ind]
+             end
+             sigmas_lb = 0.25 .* sigmas0[ind]
+             sigmas_ub = 2 .* sigmas0[ind]
+
+             wi_C1 = wi0[ind]
+             wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
+             wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
+
+             lr[i, whichtosplit]=loglikelihoodratioFI_ctau(X, Y, groupindex, ncomponent1, betas0, wi_C1, whichtosplit, vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub, ntrials=ntrials, sn=sigmas0[ind], an=an, debuginfo=debuginfo, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, proposingdist=modelC0, M=M)
+         end
+         if debuginfo
+             println(summarystats(trand))
+         end
+         Tvalue = 2*(maximum(lr) - ml_C0)
+         if C0 == 1
+             pvalue = 1 - cdf(Chisq(2), Tvalue)
+         else
+             pvalue = mean(trand .> 2*(maximum(lr) - ml_C0))
+         end
+         return [Tvalue, pvalue;]
+    end
 end
