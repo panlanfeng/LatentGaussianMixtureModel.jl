@@ -163,10 +163,11 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
         end
         if dotest
             ll = marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim)
+            lldiff = ll - ll0
             if debuginfo
-                println("lldiff=", ll - ll0)
+                println("lldiff=", lldiff)
             end
-            if (abs(ll - ll0) < epsilon) && (iter_em > 3)
+            if (abs(lldiff) < epsilon) && (iter_em > 3)
                 break
             end 
             ll0 = ll
@@ -178,8 +179,8 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
                 break
             end
         end
-        if (iter_em == maxiteration) && (maxiteration > 15)
-            warn("latentgmmEM not converge! $(wifixed)")
+        if (iter_em == maxiteration) && (maxiteration > 3)
+            warn("latentgmmEM not converge! $(wifixed), $(lldiff), $(wi), $(mu), $(sigmas), $(β)")
         end
     end
     return(wi, mu, sigmas, β, marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim)+sum(pn(sigmas, sn, an=an)))
