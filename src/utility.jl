@@ -161,23 +161,22 @@ function mpe_goalfun(input::Vector{Float64}, storage::Vector, X::Matrix{Float64}
     N,J=size(X)
     mygamma= input[1:nF]
     mybeta = input[(nF+1):(nF+J)]
-    mytheta = input[nF+J+1]
-    llvec[:] = X*mybeta
+    mymu = input[nF+J+1]
+    mytheta = input[nF+J+2]
+    A_mul_B!(llvec, X, mybeta)
 
-    Yeppp.add!(llvec, mygamma[groupindex], llvec)
-    # map!(Exp_xy(), llvec, llvec, Y)
+    Yeppp.add!(llvec, mygamma[groupindex]+mymu, llvec)
     negateiftrue!(llvec, Y)
     Yeppp.exp!(llvec, llvec)
 
     if length(storage)>0
         fill!(storage, 0.0)
         llvecnew[:] = llvec
-        # map!(Xy1x(), llvecnew, llvecnew, Y)
         x1x!(llvecnew)
         negateiffalse!(llvecnew, Y)
 
         for i in 1:nF
-            storage[i] =  - mygamma[i]/mytheta
+            storage[i] = -mygamma[i]/mytheta
         end
         for i in 1:N
             storage[groupindex[i]] += llvecnew[i]
@@ -186,32 +185,27 @@ function mpe_goalfun(input::Vector{Float64}, storage::Vector, X::Matrix{Float64}
             for j in 1:J
                 storage[j+nF] += llvecnew[irow] * X[irow,j]
             end
+            storage[J+nF+1] += llvecnew[irow]
         end
-        storage[nF+J+1] = sumabs2(mygamma) / (mytheta * mytheta) /2 - nF/mytheta/2
-
-        for i in 1:length(input)
-            storage[i] = storage[i] / N
-        end
+        storage[nF+J+2] = sumabs2(mygamma) / (mytheta * mytheta) /2 - nF/mytheta/2
     end
-    # map!(Log1p(), llvec, llvec)
     log1p!(llvec)
-
-    -mean(llvec) - sumabs2(mygamma)/N/mytheta/2 - log(mytheta) * nF / 2/N
+    -sum(llvec) - sumabs2(mygamma)/mytheta/2 - log(mytheta) * nF / 2
 end
 function maxposterior(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector)
 
     N,J = size(X)
     nF = length(unique(groupindex))
 
-    bag = [rand(Normal(), nF), ones(J+1);]
-    p=1+J+nF
+    bag = [rand(Normal(), nF), ones(J+2);]
+    p=2+J+nF
     opt_init = Opt(:LD_LBFGS, p)
-    lower_bounds!(opt_init, [-Inf .* ones(nF+J), 0.0;])
+    lower_bounds!(opt_init, [-Inf .* ones(nF+J+1), 0.001;])
     llvec = zeros(N)
     llvecnew = zeros(N)
     max_objective!(opt_init, (input, storage)->mpe_goalfun(input, storage, X, Y, groupindex, nF, llvec, llvecnew))
-    (minf,bag,ret) = optimize(opt_init, bag)
-    (bag[1:nF], bag[(1+nF):((nF+J))], bag[nF+J+1])
+    optimize!(opt_init, bag)
+    (bag[1:nF], bag[(1+nF):((nF+J))], bag[nF+J+1], bag[nF+J+2])
 end
 
 function marginallikelihood(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, β::Array{Float64,1}; ngh::Int=100)
