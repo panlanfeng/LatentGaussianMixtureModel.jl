@@ -229,11 +229,12 @@ function marginallikelihood(beta_new::Array{Float64,1}, X::Matrix{Float64}, Y::A
     C = length(wi)
     # xb = X*beta_new
     A_mul_B!(xb, X, beta_new)
+    ll = 0.0
     #ll_nF=zeros(nF)
     # sumlog_nF = zeros(nF)
     #llvec = zeros(N)
     # sumlogmat = zeros(nF, M*C)
-    fill!(sumlogmat, 0.0)
+    #fill!(sumlogmat, 0.0)
     for jcom in 1:C
         for ix in 1:M
             # fill!(llvec, ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom])
@@ -241,26 +242,26 @@ function marginallikelihood(beta_new::Array{Float64,1}, X::Matrix{Float64}, Y::A
             # negateiftrue!(llvec, Y)
             #partially devecterize, speed up by 5%; But exp and log from Yeppp are much faster than devecterized ones.
             xtmp = ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom]
+            wtmp = log(ghw[ix])+log(wi[jcom])
             for i in 1:N
                 @inbounds llvec[i] = ifelse(Y[i], -xtmp - xb[i], xtmp + xb[i])
             end
             Yeppp.exp!(llvec, llvec)
             log1p!(llvec)
             ixM = ix+M*(jcom-1)
+            for i in 1:nF
+                sumlogmat[i, ixM] = wtmp
+            end
             for i in 1:N
                 @inbounds sumlogmat[groupindex[i], ixM] -= llvec[i]
             end
-            for i in 1:nF
-                sumlogmat[i, ixM] += log(wi[jcom]) + log(ghw[ix])
-            end
         end
-
     end
     for i in 1:nF
-        ll_nF[i] = logsumexp(sumlogmat[i,:])
+        ll += logsumexp(sumlogmat[i,:])
     end
 
-    sum(ll_nF) - nF*log(pi)/2
+    ll - nF*log(pi)/2
 end
 
 function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, betas::Array{Float64,1}; ngh::Int=1000, nrep::Int=10000)

@@ -1,6 +1,6 @@
 function integralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,  gammaM::Vector{Float64}, wi::Vector{Float64}, ghw::Vector{Float64}, llN::Vector{Float64}, xb::Vector{Float64},  N::Int, J::Int, n::Int, C::Int, ngh::Int)
     #A_mul_B!(xb, X, betas)
-
+    ll = 0.0
     for jcom in 1:C
         for ix in 1:ngh
             wtmp = log(ghw[ix])+log(wi[jcom])
@@ -19,7 +19,9 @@ function integralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractAr
             end
         end
     end
-
+    for i in 1:n
+        ll += logsumexp(Wim[i,:])
+    end
     for i in 1:n
         u = maximum(Wim[i, :])
         for jcol in 1:C*ngh
@@ -33,6 +35,7 @@ function integralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractAr
             @inbounds Wim[i, jcol] = Wim[i, jcol] / u
         end
     end
+    return(ll - n*log(pi)/2)
 end
 
 function updateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, gammaM::Vector{Float64}, Wim::Matrix{Float64}, Wm::Matrix{Float64}, sn::Vector{Float64}, an::Real, N::Int, J::Int, n::Int, C::Int, ngh::Int)
@@ -136,7 +139,18 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
         copy!(sigmas_old, sigmas)
 
         A_mul_B!(xb, X, β)
-        integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, xb, N, J, n, ncomponent, ngh)
+        ll=integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, xb, N, J, n, ncomponent, ngh)
+        if dotest
+            #ll = marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim)
+            lldiff = ll - ll0
+            if debuginfo
+                println("lldiff=", lldiff)
+            end
+            if (lldiff < epsilon) && (iter_em > 3)
+                break
+            end 
+            ll0 = ll
+        end    
 
         if debuginfo
             println("At $(iter_em)th iteration:")
@@ -161,17 +175,7 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
             println("mu=$mu")
             println("sigma=$sigmas")
         end
-        if dotest
-            ll = marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim)
-            lldiff = ll - ll0
-            if debuginfo
-                println("lldiff=", lldiff)
-            end
-            if (abs(lldiff) < epsilon) && (iter_em > 3)
-                break
-            end 
-            ll0 = ll
-        else
+        if !dotest
             if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3)
                 if debuginfo
                     println("latentgmmEM converged at $(iter_em)th iteration")
