@@ -2,6 +2,7 @@ function FIintegralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::Abstract
     #A_mul_B!(xb, X, betas)
     m = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
     copy!(Wim, gammah)
+    ll =0.0
     for ixM in 1:M
 
         relocate!(llN, gammaM[:, ixM], groupindex, N)
@@ -17,7 +18,9 @@ function FIintegralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::Abstract
             @inbounds Wim[groupindex[i], ixM] -= llN[i]
         end
     end
-
+    for i in 1:n
+        ll += logsumexp(Wim[i,:])
+    end
     for i in 1:n
         u = maximum(Wim[i, :])
         for jcol in 1:M
@@ -31,6 +34,7 @@ function FIintegralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::Abstract
             @inbounds Wim[i, jcol] = Wim[i, jcol] / u
         end
     end
+    return(ll - n*log(M))
 end
 
 function completescore!(stheta::Array{Float64, 3}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, β::Vector{Float64}, gammaM::Matrix{Float64}, Wim::Matrix{Float64}, xb::Vector{Float64}, llN::Vector{Float64}, N::Int, J::Int, n::Int, C::Int, M::Int)
@@ -215,7 +219,7 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
      mu_lb::Vector=fill(-Inf, ncomponent), mu_ub::Vector=fill(Inf, ncomponent),
      Wim::Matrix{Float64}=zeros(maximum(groupindex), M), lln::Vector{Float64}=zeros(maximum(groupindex)), llN::Vector{Float64}=zeros(length(Y)),
     llN2::Vector{Float64}=zeros(length(Y)), xb::Vector{Float64}=zeros(length(Y)),
-     gammaM::Matrix{Float64}=zeros(maximum(groupindex), M), gammah::Matrix{Float64}=zeros(maximum(groupindex), M))
+     gammaM::Matrix{Float64}=zeros(maximum(groupindex), M), gammah::Matrix{Float64}=zeros(maximum(groupindex), M), epsilon::Float64=1e-5)
 
     # initialize theta
     length(wi_init) == length(mu_init) == length(sigmas_init) == ncomponent || error("The length of initial values should be $ncomponent")
@@ -249,6 +253,7 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
         gammaM[i, jcol] = gammatmp * ratioinit + meaninit
         gammah[i, jcol] = log(ratioinit)-logpdf(proposingdist, gammatmp)
     end
+    ll=0.0
     ll0=-Inf
     for iter_em in 1:maxiteration
 
@@ -257,8 +262,17 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
         copy!(sigmas_old, sigmas)
 
         A_mul_B!(xb, X, β)
-        FIintegralweight!(Wim, X, Y, groupindex, gammaM, gammah, wi, mu, sigmas, llN, xb, proposingdist, N, J, n, M)
-
+        ll=FIintegralweight!(Wim, X, Y, groupindex, gammaM, gammah, wi, mu, sigmas, llN, xb, proposingdist, N, J, n, M)
+        if dotest
+            lldiff = ll - ll0
+            if debuginfo
+                println("lldiff=", lldiff)
+            end
+            if (lldiff < epsilon) && (iter_em > 3)
+                break
+            end 
+            ll0 = ll
+        end  
         if debuginfo
             println("At $(iter_em)th iteration:")
         end
@@ -277,16 +291,7 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
             println("sigma=$sigmas")
             #println("ll=",marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, sumlogmat))
         end
-        if dotest
-            ll = marginallikelihood(X, Y, groupindex, wi, mu, sigmas, β, ngh=500)
-#            if debuginfo
-            println("lldiff=", ll - ll0)
-#            end
-            if abs(ll - ll0) < 1e-8
-                break
-            end 
-            ll0 = ll
-        else
+        if !dotest
             if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3)
                 if debuginfo
                     println("latentgmmFI converged at $(iter_em)th iteration")
@@ -298,7 +303,7 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
             warn("latentgmmFI not converge!")
         end
     end
-    return(wi, mu, sigmas, β, marginallikelihood(X, Y, groupindex, wi, mu, sigmas, β, ngh=200))
+    return(wi, mu, sigmas, β, ll)
 end
 
 function loglikelihoodratioFI_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, ncomponent1::Int,  betas0::Vector{Float64}, wi_C1::Vector{Float64},  whichtosplit::Int64, tau::Float64, mu_lb::Vector{Float64}, mu_ub::Vector{Float64}, sigmas_lb::Vector{Float64}, sigmas_ub::Vector{Float64}; ntrials::Int=25, M::Int=100, sn::Vector{Float64}=sigmas_ub ./ 2, an=.25, debuginfo::Bool=false, gammaM::Matrix = zeros(maximum(groupindex), M), Wim::Matrix = zeros(maximum(groupindex), M), llN::Vector=zeros(length(Y)), llN2::Vector = zeros(length(Y)), xb::Vector=zeros(length(Y)), proposingdist=modelC0)
@@ -316,7 +321,7 @@ function loglikelihoodratioFI_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}
         mu[:, i] = rand(ncomponent1) .* (mu_ub .- mu_lb) .+ mu_lb
         sigmas[:, i] = rand(ncomponent1) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
 
-        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i]= latentgmmFI(X, Y, groupindex, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb, mu_ub=mu_ub, maxiteration=10, sn=sn, an=an, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=2, wifixed=true, M=M, proposingdist=proposingdist)
+        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i]= latentgmmFI(X, Y, groupindex, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, mu_lb=mu_lb, mu_ub=mu_ub, maxiteration=100, sn=sn, an=an, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=2, wifixed=true, M=M, proposingdist=proposingdist, epsilon=0.01)
     end
 
     mlperm = sortperm(ml)
