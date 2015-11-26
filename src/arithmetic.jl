@@ -25,7 +25,6 @@ function sumexp{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T})
     s * exp(u)
 end
 
-
 function ratiosumexp!{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T}, s::AbstractArray{T}, ncomponent::Int)
     #length(x) != length(coef) && error("Length should be the same!")
     #isempty(x) && return -Inf
@@ -147,9 +146,10 @@ end
 # 1/(1+exp(-x))
 function logistic!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, n::Int=length(x))
     
-    for i in 1:n
-        @inbounds res[i] = StatsFuns.logistic(x[i])
-    end
+    negate!(res, x, n)
+    Yeppp.exp!(res, res)
+    add!(res, res, 1.0, n)
+    rcp!(res, res, n)
     res
 end
 logistic!(x::AbstractArray{Float64}, n::Int=length(x)) = logistic!(x, x, n)

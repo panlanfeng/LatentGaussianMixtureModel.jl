@@ -1,28 +1,18 @@
 #accept prob for γᵢ = ΠΠ(e(ηᵒy)+1)/(e(ηy)+1) #* exp(((γold - mu)²-(γnew-mu)²)/2σ²)exp((γᵒ-γⁿ)²/2gsd²)
 function q_gamma(sample_gamma_new::Array{Float64,1}, sample_gamma::Array{Float64,1}, xb::Array{Float64,1}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, mu::Vector{Float64}, sigmas::Vector{Float64}, L::IntegerVector, L_new::IntegerVector, llvec::Vector{Float64}, llvecnew::Vector{Float64},ll_nF::Vector{Float64}, nF::Int, N::Int)
 
-    # llvec[:] = xb .+ sample_gamma[groupindex]
+
     relocate!(llvec, sample_gamma, groupindex, N)
     Yeppp.add!(llvec, llvec, xb)
-    # llvecnew[:] = xb .+ sample_gamma_new[groupindex]
     relocate!(llvecnew, sample_gamma_new, groupindex, N)
     Yeppp.add!(llvecnew, llvecnew, xb)
 
-    # map!(RcpLogistic(), llvec, llvec, Y)
-    # map!(RcpLogistic(), llvecnew, llvecnew, Y)
-    # rcplogistic!(llvec, Y)
-    # rcplogistic!(llvecnew, Y)
-    # divide!(llvec, llvecnew, N)
     loglogistic!(llvec, Y, N)
     loglogistic!(llvecnew, Y, N)
     negate!(llvec, llvec, N)
     Yeppp.add!(llvec, llvec, llvecnew)
 
-    # for i in 1:nF
-    #     ll_nF[i] = prod(llvec[coll_nF[i]]) * pdf(Normal(mu[L_new[i]], sigmas[L_new[i]]), sample_gamma_new[i])/ pdf(Normal(mu[L[i]], sigmas[L[i]]), sample_gamma[i])
-    # end
     for i in 1:nF
-        # @inbounds ll_nF[i] = pdf(Normal(mu[L_new[i]], sigmas[L_new[i]]), sample_gamma_new[i])/ pdf(Normal(mu[L[i]], sigmas[L[i]]), sample_gamma[i])
         @inbounds ll_nF[i] = -(sample_gamma_new[i] - mu[L_new[i]])^2/sigmas[L_new[i]]^2*0.5 - log(sigmas[L_new[i]]) + (sample_gamma[i] - mu[L[i]])^2/sigmas[L[i]]^2*0.5 + log(sigmas[L[i]])
     end
 

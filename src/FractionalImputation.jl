@@ -8,8 +8,7 @@ function FIintegralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::Abstract
         relocate!(llN, gammaM[:, ixM], groupindex, N)
         Yeppp.add!(llN, llN, xb)
         negateiftrue!(llN, Y)
-        Yeppp.exp!(llN, llN)
-        log1p!(llN)
+        log1pexp!(llN, llN, N)
 
         for i in 1:n
             Wim[i, ixM] += logpdf(m, gammaM[i,ixM]) #- logpdf(proposingdist, gammaM[i,ixM] - mean(m))
@@ -161,8 +160,6 @@ function FIupdateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Fl
             break
         end
     end
-
-
 end
 
 function FIupdateβ!(β::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,  gammaM::Matrix{Float64}, Wim::Matrix{Float64}, lln::Vector{Float64}, llN::Vector{Float64}, llN2::Vector{Float64}, xb::Vector{Float64}, N::Int, J::Int, n::Int, M::Int, Qmaxiteration::Int)
@@ -171,7 +168,6 @@ function FIupdateβ!(β::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{B
     maxeval!(opt, Qmaxiteration)
     max_objective!(opt, (beta2, storage)->FI_Q1(beta2, storage, X, Y,  groupindex, gammaM, Wim, lln, llN, llN2, xb, N, J, n, M))
 
-    #(minf,β,ret)=optimize(opt, β)
     optimize!(opt, β)
 end
 
@@ -187,10 +183,9 @@ function FI_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
         relocate!(llN, gammaM[:, jcol], groupindex, N)
         Yeppp.add!(llN, llN, xb)
         negateiftrue!(llN, Y)
-        Yeppp.exp!(llN, llN)
         if length(storage) > 0
             copy!(llN2, llN)
-            x1x!(llN2)
+            logistic!(llN2, llN2, N)
             negateiffalse!(llN2, Y)
 
             for i in 1:N
@@ -201,7 +196,7 @@ function FI_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
             end
         end
 
-        log1p!(llN)
+        log1pexp!(llN, llN, N)
         fill!(lln, 0.0)
         for i in 1:N
             @inbounds lln[groupindex[i]] += llN[i]
