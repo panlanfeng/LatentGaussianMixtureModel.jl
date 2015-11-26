@@ -50,7 +50,7 @@ import Yeppp
         end
     end
 
-    lr=LatentGaussianMixtureModel.loglikelihoodratioEM(X, Y, groupindex, Calternative, ntrials=25, debuginfo=debuginfo, ngh=200)
+    lr=LatentGaussianMixtureModel.loglikelihoodratioEM(X, Y, groupindex, Calternative, ntrials=25, debuginfo=debuginfo, ngh=100)
     println("Mission $b completed with lr=$lr")
     lr
 end
