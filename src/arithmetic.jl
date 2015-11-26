@@ -1,9 +1,24 @@
-function log1pexp!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, n::Int64=length(x))
+# function log1pexp!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, n::Int64=length(x))
+#     for i in 1:n
+#         @inbounds res[i] = StatsFuns.log1pexp(x[i])
+#     end
+#     res
+# end
+function log1pexp!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, res2::AbstractArray{Float64}, n::Int64=length(x))
+    
+    copy!(res2, x)
+    Yeppp.exp!(res, x)
+    log1p!(res, res, n)
     for i in 1:n
-        @inbounds res[i] = StatsFuns.log1pexp(x[i])
+        @inbounds res[i] = ifelse(isinf(res[i]), res2[i], res[i])
     end
-    res
 end
+function log1pexp!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, n::Int64=length(x))
+     
+    res2=copy(x)
+    log1pexp!(res, x, res2, n)
+end
+# log1pexp(x::AbstractFloat) = x < 18.0 ? log1p(exp(x)) : x < 33.3 ? x + exp(-x) : x
 log1pexp!(x::AbstractArray{Float64}, n::Int64=length(x))=log1pexp!(x, x, n)
 
 function sumexp{T<:Real}(x::AbstractArray{T})
@@ -129,11 +144,12 @@ function negateiftrue!(x::AbstractArray{Float64}, y::AbstractArray{Bool, 1}, n::
     nothing
 end
 
-function log1p!(x::AbstractArray{Float64}, n::Int64=length(x))
-    plusone!(x, n)
-    Yeppp.log!(x, x)
-    nothing
+function log1p!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, n::Int64=length(x))
+    add!(x, x, 1., n)
+    Yeppp.log!(res, res)
+    res
 end
+log1p!(x::AbstractArray{Float64}, n::Int64=length(x)) = log1p!(x, x, n)
 
 # -log(1+exp(-xy))
 function loglogistic!(x::AbstractArray{Float64}, y::AbstractArray{Bool, 1}, n::Int=length(x))

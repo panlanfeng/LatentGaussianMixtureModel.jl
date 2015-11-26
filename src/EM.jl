@@ -1,4 +1,4 @@
-function integralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,  gammaM::Vector{Float64}, wi::Vector{Float64}, ghw::Vector{Float64}, llN::Vector{Float64}, xb::Vector{Float64},  N::Int, J::Int, n::Int, C::Int, ngh::Int)
+function integralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,  gammaM::Vector{Float64}, wi::Vector{Float64}, ghw::Vector{Float64}, llN::Vector{Float64}, llN2::Vector{Float64}, xb::Vector{Float64},  N::Int, J::Int, n::Int, C::Int, ngh::Int)
     #A_mul_B!(xb, X, betas)
     ll = 0.0
     for jcom in 1:C
@@ -8,7 +8,7 @@ function integralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractAr
             fill!(llN, gammaM[ixM])
             Yeppp.add!(llN, llN, xb)
             negateiftrue!(llN, Y)
-            log1pexp!(llN, llN, N)
+            log1pexp!(llN, llN, llN2, N)
 
             for i in 1:n
                 Wim[i, ixM] = wtmp
@@ -84,7 +84,7 @@ function EM_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
                 end
             end
         end
-        log1pexp!(llN, llN, N)
+        log1pexp!(llN, llN, llN2, N)
         fill!(lln, 0.0)
         for i in 1:N
             @inbounds lln[groupindex[i]] += llN[i]
@@ -135,7 +135,7 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
         copy!(sigmas_old, sigmas)
 
         A_mul_B!(xb, X, β)
-        ll=integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, xb, N, J, n, ncomponent, ngh)
+        ll=integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, llN2, xb, N, J, n, ncomponent, ngh)
         if dotest
             #ll = marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim)
             lldiff = ll - ll0
