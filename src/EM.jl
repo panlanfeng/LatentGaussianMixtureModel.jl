@@ -220,8 +220,8 @@ function loglikelihoodratioEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
     llN = zeros(N)
     llN2 = zeros(N)
     xb = zeros(N)
-
-    lr=@parallel (max) for irun in 1:(C0*length(vtau))
+    lrv = -Inf .* ones(C0*length(vtau))
+    for irun in 1:(C0*length(vtau))
         whichtosplit = mod1(irun, C0)
         i = cld(irun, C0)
         ind = [1:whichtosplit, whichtosplit:C0;]
@@ -264,9 +264,9 @@ function loglikelihoodratioEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
         imax = mlperm[3*ntrials+imax]
 
         res = latentgmmEM(X, Y, groupindex, ncomponent1, betas[:, imax], wi[:, imax], mu[:, imax], sigmas[:, imax], maxiteration=3, an=an, sn=sigmas0[ind], debuginfo=debuginfo, ghx=ghx, ghw=ghw, ngh=ngh)
-        res[5]
+        lrv[irun] = res[5]
     end
-
+    lr = maximum(lrv)
     Tvalue = 2*(lr - ml_C0)
     if C0 == 1
         pvalue = 1 - cdf(Chisq(2), Tvalue)
