@@ -167,12 +167,13 @@ function mpe_goalfun(input::Vector{Float64}, storage::Vector, X::Matrix{Float64}
 
     Yeppp.add!(llvec, mygamma[groupindex]+mymu, llvec)
     negateiftrue!(llvec, Y)
-    Yeppp.exp!(llvec, llvec)
+    #Yeppp.exp!(llvec, llvec)
 
     if length(storage)>0
         fill!(storage, 0.0)
         llvecnew[:] = llvec
-        x1x!(llvecnew)
+        # x1x!(llvecnew)
+        logistic!(llvecnew, llvecnew, N)
         negateiffalse!(llvecnew, Y)
 
         for i in 1:nF
@@ -189,7 +190,8 @@ function mpe_goalfun(input::Vector{Float64}, storage::Vector, X::Matrix{Float64}
         end
         storage[nF+J+2] = sumabs2(mygamma) / (mytheta * mytheta) /2 - nF/mytheta/2
     end
-    log1p!(llvec)
+    # log1p!(llvec)
+    log1pexp!(llvec, llvec, N)
     -sum(llvec) - sumabs2(mygamma)/mytheta/2 - log(mytheta) * nF / 2
 end
 function maxposterior(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector)
@@ -240,8 +242,9 @@ function marginallikelihood(beta_new::Array{Float64,1}, X::Matrix{Float64}, Y::A
             for i in 1:N
                 @inbounds llvec[i] = ifelse(Y[i], -xtmp - xb[i], xtmp + xb[i])
             end
-            Yeppp.exp!(llvec, llvec)
-            log1p!(llvec)
+            # Yeppp.exp!(llvec, llvec)
+            # log1p!(llvec)
+            log1pexp!(llvec, llvec, N)
             ixM = ix+M*(jcom-1)
             for i in 1:nF
                 sumlogmat[i, ixM] = wtmp
@@ -286,9 +289,9 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
                 @inbounds llvec[i] = ifelse(Y[i], -xtmp[ixM] - xb[i], xtmp[ixM] + xb[i])
             end
 
-            Yeppp.exp!(llvec, llvec)
+            # Yeppp.exp!(llvec, llvec)
             copy!(llN2, llvec)
-            x1x!(llN2)
+            logistic!(llN2)
             negateiffalse!(llN2, Y)
             for i in 1:N
                 for j in 1:J
@@ -296,7 +299,7 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
                     # ifelse(Y[i], exp(-llvec[i])*X[i, j], -exp(-llvec[i])*X[i, j])
                 end
             end
-            log1p!(llvec)
+            log1pexp!(llvec)
 
             for i in 1:N
                 @inbounds sumlogmat[groupindex[i], ixM] -= llvec[i]

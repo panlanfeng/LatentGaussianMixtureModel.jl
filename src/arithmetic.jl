@@ -1,4 +1,10 @@
-
+function log1pexp!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, n::Int64=length(x))
+    for i in 1:n
+        @inbounds res[i] = StatsFuns.log1pexp(x[i])
+    end
+    res
+end
+log1pexp!(x::AbstractArray{Float64}, n::Int64=length(x))=log1pexp!(x, x, n)
 
 function sumexp{T<:Real}(x::AbstractArray{T})
     isempty(x) && return -Inf
@@ -130,44 +136,24 @@ function log1p!(x::AbstractArray{Float64}, n::Int64=length(x))
     nothing
 end
 
-function x1x!(x::AbstractArray{Float64}, n::Int64=length(x))
-    # n = length(x)
-    for i in 1:n
-        @inbounds x[i] = x[i] / (1.0 + x[i])
-    end
-    nothing
-end
-
-
 # -log(1+exp(-xy))
 function loglogistic!(x::AbstractArray{Float64}, y::AbstractArray{Bool, 1}, n::Int=length(x))
     negateiftrue!(x, y, n)
-    Yeppp.exp!(x, x)
-    add!(x, x, 1.0)
-    Yeppp.log!(x, x)
+    log1pexp!(x, x, n)
     negate!(x, x, n)
     nothing
 end
 
 # 1/(1+exp(-x))
-function logistic!(x::AbstractArray{Float64})
-    n = length(x)
-    negate!(x)
-    Yeppp.exp!(x, x)
-    add!(x, x, 1.0)
-    rcp!(x, n)
-    nothing
+function logistic!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, n::Int=length(x))
+    
+    for i in 1:n
+        @inbounds res[i] = StatsFuns.logistic(x[i])
+    end
+    res
 end
+logistic!(x::AbstractArray{Float64}, n::Int=length(x)) = logistic!(x, x, n)
 
-# 1+exp(-x*y)
-function rcplogistic!(x::AbstractArray{Float64}, y::AbstractArray{Bool, 1})
-    n = length(x)
-    assert(length(y) == n)
-    negateiftrue!(x, y, n)
-    Yeppp.exp!(x, x)
-    add!(x, x, 1.0)
-    nothing
-end
 
 function relocate!(res::AbstractArray{Float64}, ga::Vector{Float64}, groupindex::IntegerVector, N::Int)
     for i in 1:N
@@ -175,7 +161,6 @@ function relocate!(res::AbstractArray{Float64}, ga::Vector{Float64}, groupindex:
     end
     nothing
 end
-
 
 function sumby!(r::AbstractArray, y::AbstractArray, x::IntegerArray, levels::IntUnitRange)
 	k = length(levels)

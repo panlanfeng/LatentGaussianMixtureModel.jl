@@ -8,8 +8,7 @@ function integralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractAr
             fill!(llN, gammaM[ixM])
             Yeppp.add!(llN, llN, xb)
             negateiftrue!(llN, Y)
-            Yeppp.exp!(llN, llN)
-            log1p!(llN)
+            log1pexp!(llN, llN)
 
             for i in 1:n
                 Wim[i, ixM] = wtmp
@@ -58,7 +57,6 @@ function updateβ!(β::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Boo
     maxeval!(opt, Qmaxiteration)
     max_objective!(opt, (beta2, storage)->EM_Q1(beta2, storage, X, Y,  groupindex, gammaM, Wim, lln, llN, llN2, xb, N, J, n, C*ngh))
 
-    #(minf,β,ret)=optimize(opt, β)
     optimize!(opt, β)
 end
 
@@ -74,10 +72,9 @@ function EM_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
         fill!(llN, gammaM[jcol])
         Yeppp.add!(llN, llN, xb)
         negateiftrue!(llN, Y)
-        Yeppp.exp!(llN, llN)
         if length(storage) > 0
             copy!(llN2, llN)
-            x1x!(llN2)
+            logistic!(llN2, llN2, N)
             negateiffalse!(llN2, Y)
 
             for i in 1:N
@@ -87,8 +84,7 @@ function EM_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
                 end
             end
         end
-
-        log1p!(llN)
+        log1pexp!(llN, llN, N)
         fill!(lln, 0.0)
         for i in 1:N
             @inbounds lln[groupindex[i]] += llN[i]
@@ -145,6 +141,7 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
             lldiff = ll - ll0
             if debuginfo
                 println("lldiff=", lldiff)
+                println("ll=", ll)
             end
             if (lldiff < epsilon) && (iter_em > 3)
                 break
@@ -155,7 +152,7 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
         if debuginfo
             println("At $(iter_em)th iteration:")
         end
-        if updatebeta && !stopRule(β, beta_old, tol=tol/10)
+        if updatebeta && !stopRule(β, beta_old, tol=0)
             copy!(beta_old, β)
             updateβ!(β, X, Y, groupindex, gammaM, Wim, lln, llN, llN2, xb, N, J, n, ncomponent, ngh, Qmaxiteration)
             if debuginfo
