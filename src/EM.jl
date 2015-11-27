@@ -152,7 +152,7 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
         if debuginfo
             println("At $(iter_em)th iteration:")
         end
-        if updatebeta && !stopRule(β, beta_old, tol=tol/10)
+        if updatebeta && !stopRule(β, beta_old, tol=0.)
             copy!(beta_old, β)
             updateβ!(β, X, Y, groupindex, gammaM, Wim, lln, llN, llN2, xb, N, J, n, ncomponent, ngh, Qmaxiteration)
             if debuginfo
@@ -216,7 +216,7 @@ function loglikelihoodratioEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
     N,J=size(X)
     gammaM = zeros(ngh*ncomponent1)
     Wim = zeros(nF, ngh*ncomponent1)
-    Wm = zeros(ngh*ncomponent1)
+    Wm = zeros(1, ngh*ncomponent1)
     lln = zeros(nF)
     llN = zeros(N)
     llN2 = zeros(N)
@@ -258,7 +258,7 @@ function loglikelihoodratioEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
         mlperm = sortperm(ml)
         for j in 1:ntrials
             i = mlperm[4*ntrials+1 - j] # start from largest ml
-            wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmEM(X, Y, groupindex, ncomponent1, betas[:, i], wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=500, sn=sigmas0[ind], an=an, gammaM = gammaM, Wim=Wim, Wm=Wm, lln=lln, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=2, wifixed=true, ngh=ngh, updatebeta=true)
+            wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmEM(X, Y, groupindex, ncomponent1, betas[:, i], wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=500, sn=sigmas0[ind], an=an, gammaM = gammaM, Wim=Wim, Wm=Wm, lln=lln, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=2, wifixed=true, ngh=ngh, updatebeta=false)
         end
 
         mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
