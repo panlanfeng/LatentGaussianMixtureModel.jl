@@ -258,7 +258,7 @@ function loglikelihoodratioEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
         mlperm = sortperm(ml)
         for j in 1:ntrials
             i = mlperm[4*ntrials+1 - j] # start from largest ml
-            wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmEM(X, Y, groupindex, ncomponent1, betas[:, i], wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=500, sn=sigmas0[ind], an=an, gammaM = gammaM, Wim=Wim, Wm=Wm, lln=lln, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=2, wifixed=true, ngh=ngh, updatebeta=false)
+            wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmEM(X, Y, groupindex, ncomponent1, betas[:, i], wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=1000, sn=sigmas0[ind], an=an, gammaM = gammaM, Wim=Wim, Wm=Wm, lln=lln, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=2, wifixed=true, ngh=ngh, updatebeta=true)
         end
 
         mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
