@@ -365,7 +365,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupinde
          for ic in 1:ncomponent
              wi[ic] = wipool[ic] / wipoolsum
              mu[ic] = mupool[ic] / wipool[ic]
-             sigmas[ic] = sqrt((sigmaspool[ic] - wipool[ic] * mu[ic] ^2 + 2 * an * sn[ic]) / (wipool[ic] + 2 * an))
+             sigmas[ic] = sqrt((sigmaspool[ic] - wipool[ic] * mu[ic] ^2 + 2 * an * sn[ic].^2) / (wipool[ic] + 2 * an))
          end
 
         wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
