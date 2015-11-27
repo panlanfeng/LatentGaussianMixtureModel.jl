@@ -152,7 +152,7 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
         if debuginfo
             println("At $(iter_em)th iteration:")
         end
-        if updatebeta && !stopRule(β, beta_old, tol=0)
+        if updatebeta && !stopRule(β, beta_old, tol=tol/10)
             copy!(beta_old, β)
             updateβ!(β, X, Y, groupindex, gammaM, Wim, lln, llN, llN2, xb, N, J, n, ncomponent, ngh, Qmaxiteration)
             if debuginfo
@@ -199,7 +199,7 @@ function loglikelihoodratioEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmEM(X, Y, groupindex, 1, randn(J), [1.0], [0.], [1.], maxiteration=500, an=an1, ghx=ghx, ghw=ghw, ngh=ngh, epsilon=0.01)
     gamma_init = predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
     wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=an1)
-    wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init, sigmas_init, maxiteration=1000, an=an1, sn=std(gamma_init).*ones(C0), ghx=ghx, ghw=ghw, ngh=ngh)
+    wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init, sigmas_init, maxiteration=500, an=an1, sn=std(gamma_init).*ones(C0), ghx=ghx, ghw=ghw, ngh=ngh)
     if C0 > 1
         trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
     end
@@ -216,7 +216,8 @@ function loglikelihoodratioEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
     N,J=size(X)
     gammaM = zeros(ngh*ncomponent1)
     Wim = zeros(nF, ngh*ncomponent1)
-    #Wm = zeros(ngh*ncomponent1)
+    Wm = zeros(ngh*ncomponent1)
+    lln = zeros(nF)
     llN = zeros(N)
     llN2 = zeros(N)
     xb = zeros(N)
@@ -251,13 +252,13 @@ function loglikelihoodratioEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
             mu[:, i] = rand(ncomponent1) .* (mu_ub .- mu_lb) .+ mu_lb
             sigmas[:, i] = rand(ncomponent1) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
 
-            wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmEM(X, Y, groupindex, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb, mu_ub=mu_ub, maxiteration=200, sn=sigmas0[ind], an=an, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=2, wifixed=true, ngh=ngh, epsilon=0.01, updatebeta=false)
+            wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmEM(X, Y, groupindex, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb, mu_ub=mu_ub, maxiteration=200, sn=sigmas0[ind], an=an, gammaM = gammaM, Wim=Wim, Wm=Wm, lln=lln, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=2, wifixed=true, ngh=ngh, epsilon=0.01, updatebeta=false)
         end
 
         mlperm = sortperm(ml)
         for j in 1:ntrials
             i = mlperm[4*ntrials+1 - j] # start from largest ml
-            wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmEM(X, Y, groupindex, ncomponent1, betas[:, i], wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=500, sn=sigmas0[ind], an=an, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=2, wifixed=true, ngh=ngh, updatebeta=false)
+            wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = latentgmmEM(X, Y, groupindex, ncomponent1, betas[:, i], wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=500, sn=sigmas0[ind], an=an, gammaM = gammaM, Wim=Wim, Wm=Wm, lln=lln, llN=llN, llN2=llN2, xb=xb, Qmaxiteration=2, wifixed=true, ngh=ngh, updatebeta=true)
         end
 
         mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
