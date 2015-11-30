@@ -144,6 +144,9 @@ function latentgmmEM(X::Matrix{Float64},
             ixM = ix+ngh*(jcom-1)
             gammaM[ixM] = ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom]
         end
+        if iter_em > 50
+            Qmaxiteration = max(Qmaxiteration, 10)
+        end
 
         copy!(wi_old, wi)
         copy!(mu_old, mu)
@@ -198,7 +201,7 @@ function latentgmmEM(X::Matrix{Float64},
             end
         end
         if (iter_em == maxiteration) && (maxiteration > 3)
-            warn("latentgmmEM not converge! $(wifixed), $(lldiff), $(wi), $(mu), $(sigmas), $(β)")
+            warn("latentgmmEM not converge! $(iter_em), $(wifixed), $(lldiff), $(wi), $(mu), $(sigmas), $(β)")
         end
     end
     return(wi, mu, sigmas, β, ll)
@@ -300,9 +303,10 @@ function loglikelihoodratioEM(X::Matrix{Float64},
              latentgmmEM(X, Y, groupindex, ncomponent1, betas[:, i],
              wi[:, i], mu[:, i], sigmas[:, i], whichtosplit=whichtosplit,
               tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb,mu_ub=mu_ub,
-               maxiteration=500, sn=sigmas0[ind], an=an, gammaM = gammaM,
+               maxiteration=800, sn=sigmas0[ind], an=an, gammaM = gammaM,
                 Wim=Wim, Wm=Wm, lln=lln, llN=llN, llN2=llN2, xb=xb,
-                 Qmaxiteration=2, wifixed=true, ngh=ngh, updatebeta=true)
+                 Qmaxiteration=5, wifixed=true, ngh=ngh, updatebeta=true,
+                  betatol=0.0)
         end
 
         mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
