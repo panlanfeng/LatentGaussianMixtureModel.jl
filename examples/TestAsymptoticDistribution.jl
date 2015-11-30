@@ -49,8 +49,8 @@ import Yeppp
             Y[i] = false
         end
     end
-
-    lr=LatentGaussianMixtureModel.loglikelihoodratioEM(X, Y, groupindex, Calternative, ntrials=25, debuginfo=debuginfo, ctauparallel=false, reportT=true)
+    X = X .- mean(X, 1)
+    lr=LatentGaussianMixtureModel.loglikelihoodratioEM(X, Y, groupindex, Calternative, ntrials=5, debuginfo=debuginfo, ctauparallel=false)
     println("Mission $b completed with lr=$lr")
     lr
 end
