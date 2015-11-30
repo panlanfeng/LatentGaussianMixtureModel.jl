@@ -1,6 +1,6 @@
-function integralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,  gammaM::Vector{Float64}, wi::Vector{Float64}, ghw::Vector{Float64}, llN::Vector{Float64}, xb::Vector{Float64},  N::Int, J::Int, n::Int, C::Int, ngh::Int)
+function integralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,  gammaM::Vector{Float64}, wi::Vector{Float64}, ghw::Vector{Float64}, llN::Vector{Float64}, llN2::Vector{Float64}, xb::Vector{Float64},  N::Int, J::Int, n::Int, C::Int, ngh::Int)
     #A_mul_B!(xb, X, betas)
-
+    ll = 0.
     for jcom in 1:C
         for ix in 1:ngh
             wtmp = log(ghw[ix])+log(wi[jcom])
@@ -8,8 +8,9 @@ function integralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractAr
             fill!(llN, gammaM[ixM])
             Yeppp.add!(llN, llN, xb)
             negateiftrue!(llN, Y)   
-            Yeppp.exp!(llN, llN)
-            log1p!(llN)
+            # Yeppp.exp!(llN, llN)
+            # log1p!(llN)
+            log1pexp!(llN, llN, llN2, n)
             
             for i in 1:n 
                 Wim[i, ixM] = wtmp
@@ -19,7 +20,9 @@ function integralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractAr
             end
         end
     end
-
+    for i in 1:n
+        ll += logsumexp(Wim[i,:])
+    end
     for i in 1:n
         u = maximum(Wim[i, :])
         for jcol in 1:C*ngh
@@ -33,6 +36,7 @@ function integralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractAr
             @inbounds Wim[i, jcol] = Wim[i, jcol] / u
         end
     end
+    return ll #- n*log(pi)/2
 end
 
 function updateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, gammaM::Vector{Float64}, Wim::Matrix{Float64}, Wm::Matrix{Float64}, sn::Vector{Float64}, an::Real, N::Int, J::Int, n::Int, C::Int, ngh::Int)
@@ -70,10 +74,10 @@ function EM_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
         fill!(llN, gammaM[jcol])
         Yeppp.add!(llN, llN, xb)
         negateiftrue!(llN, Y)
-        Yeppp.exp!(llN, llN)
+        #Yeppp.exp!(llN, llN)
         if length(storage) > 0
             copy!(llN2, llN)
-            x1x!(llN2)
+            logistic!(llN2)
             negateiffalse!(llN2, Y)
 
             for i in 1:N
@@ -84,7 +88,8 @@ function EM_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
             end
         end
         
-        log1p!(llN)
+        # log1p!(llN)
+        log1pexp!(llN, llN, llN2, n)
         fill!(lln, 0.0)
         for i in 1:N
             @inbounds lln[groupindex[i]] += llN[i]
@@ -129,7 +134,8 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
     #llN2 = zeros(N)
     #xb = X * β
     #gammaM = zeros(M)
-
+    ll0=-Inf
+    ll = 0.
     for iter_em in 1:maxiteration
         for ix in 1:ngh, jcom in 1:ncomponent
             ixM = ix+ngh*(jcom-1)
@@ -141,8 +147,9 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
         copy!(sigmas_old, sigmas)
         
         A_mul_B!(xb, X, β)
-        integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, xb, N, J, n, ncomponent, ngh)
-
+        ll=integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, llN2, xb, N, J, n, ncomponent, ngh)+ sum(pn(sigmas, sn, an=an))
+        lldiff = ll - ll0
+        ll0 = ll
         if debuginfo
             println("At $(iter_em)th iteration:")
         end
@@ -165,7 +172,7 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
             println("wi=$wi")
             println("mu=$mu")
             println("sigma=$sigmas")
-            println("ll=",marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim))
+            println("ll=",ll)
         end
         
         if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3)
@@ -181,7 +188,7 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
             $(ll), $(lldiff), $(wi), $(mu), $(sigmas), $(β)")
         end
     end
-    return(wi, mu, sigmas, β, marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, llN, lln, xb, Wim)+sum(pn(sigmas, sn, an=an)))
+    return(wi, mu, sigmas, β, ll)
 end
 
 
@@ -230,7 +237,7 @@ function loglikelihoodratioEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmEM(X, Y, groupindex, 1, [1.,1.], [1.0], [0.], [1.], maxiteration=100, an=an1, sn=ones(C0))
     gamma_init = predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
     wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=an1)
-    wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init, sigmas_init, maxiteration=500, an=an1, sn=std(gamma_init).*ones(C0), ngh=ngh)
+    wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init, sigmas_init, maxiteration=1000, an=an1, sn=std(gamma_init).*ones(C0), ngh=ngh, tol=.001)
     
     trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
     

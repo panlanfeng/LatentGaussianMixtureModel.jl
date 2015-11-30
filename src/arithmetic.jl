@@ -1,8 +1,14 @@
 
-
-#exp!(x::Vector{Float64}) = Yeppp.exp!(x, x)
-#log!(x::Vector{Float64}) = Yeppp.log!(x, x)
-
+function log1pexp!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, res2::AbstractArray{Float64}, n::Int64=length(x))
+    
+    copy!(res2, x)
+    Yeppp.exp!(res, x)
+    log1p!(res, res, n)
+    @inbounds for i in 1:n
+        mylog1pexp(res[i], res2[i])
+    end
+end
+mylog1pexp(x::AbstractFloat, x2::AbstractFloat)=x2 < 18.0 ? x : x2 > 33.3 ? x2 : x2+exp(-x2)
 function sumexp{T<:Real}(x::AbstractArray{T})
     isempty(x) && return -Inf
     u = maximum(x)
