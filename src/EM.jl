@@ -10,7 +10,7 @@ function integralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractAr
             negateiftrue!(llN, Y)   
             # Yeppp.exp!(llN, llN)
             # log1p!(llN)
-            log1pexp!(llN, llN, llN2, n)
+            log1pexp!(llN, llN, llN2, N)
             
             for i in 1:n 
                 Wim[i, ixM] = wtmp
@@ -43,6 +43,7 @@ function updateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Floa
 
     # A_mul_B!(xb, X, betas)
     mean!(Wm, Wim)
+    divide!(Wm, Wm, sum(Wm))
     for kcom in 1:C
         ind = (1+ngh*(kcom-1)):ngh*kcom
         wi[kcom] = sum(Wm[ind])
@@ -77,7 +78,7 @@ function EM_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
         #Yeppp.exp!(llN, llN)
         if length(storage) > 0
             copy!(llN2, llN)
-            logistic!(llN2)
+            logistic!(llN2, llN2, N)
             negateiffalse!(llN2, Y)
 
             for i in 1:N
@@ -89,13 +90,14 @@ function EM_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
         end
         
         # log1p!(llN)
-        log1pexp!(llN, llN, llN2, n)
+        log1pexp!(llN, llN, llN2, N)
         fill!(lln, 0.0)
         for i in 1:N
             @inbounds lln[groupindex[i]] += llN[i]
         end
         res += wsum(lln, Wim[:, jcol])
     end
+    #println(beta2, "->", -res)
     -res
 end
 
@@ -123,7 +125,7 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
     mu_old = zeros(mu)
     sigmas_old = ones(sigmas)
     beta_old = randn(J)
-    if !wifixed || (length(ghw)!=ngh)
+    if !wifixed || (ghx[1] == 0.0)
         ghx, ghw = gausshermite(ngh)
     end
 

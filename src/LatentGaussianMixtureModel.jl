@@ -2,7 +2,7 @@ module LatentGaussianMixtureModel
 
 
 using Distributions
-using StatsBase
+using StatsBase, StatsFuns
 using NLopt
 using FastGaussQuadrature
 using Yeppp
