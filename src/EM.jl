@@ -53,7 +53,7 @@ end
 
 function updateβ!(β::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,  gammaM::Vector{Float64}, Wim::Matrix{Float64}, lln::Vector{Float64}, llN::Vector{Float64}, llN2::Vector{Float64}, xb::Vector{Float64}, N::Int, J::Int, n::Int, C::Int, ngh::Int, Qmaxiteration::Int)
 
-    opt = Opt(:LD_LBFGS, J)
+    opt = Opt(:LD_MMA, J) #LBFGS
     maxeval!(opt, Qmaxiteration)
     max_objective!(opt, (beta2, storage)->EM_Q1(beta2, storage, X, Y,  groupindex, gammaM, Wim, lln, llN, llN2, xb, N, J, n, C*ngh))
 
@@ -91,6 +91,7 @@ function EM_Q1(beta2::Array{Float64,1}, storage::Vector, X::Matrix{Float64}, Y::
         end
         res += wsum(lln, Wim[:, jcol])
     end
+    #println(beta2, "->", -res)
     -res
 end
 
@@ -143,9 +144,6 @@ function latentgmmEM(X::Matrix{Float64},
         for ix in 1:ngh, jcom in 1:ncomponent
             ixM = ix+ngh*(jcom-1)
             gammaM[ixM] = ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom]
-        end
-        if iter_em > 50
-            Qmaxiteration = max(Qmaxiteration, 10)
         end
 
         copy!(wi_old, wi)
@@ -201,7 +199,10 @@ function latentgmmEM(X::Matrix{Float64},
             end
         end
         if (iter_em == maxiteration) && (maxiteration > 3)
-            warn("latentgmmEM not converge! $(iter_em), $(wifixed), $(lldiff), $(wi), $(mu), $(sigmas), $(β)")
+            warn("latentgmmEM not converge! $(iter_em), $(wifixed),
+            $(ll), $(lldiff), $(wi), $(mu), $(sigmas), $(β)")
+            println("latentgmmEM not converge! $(iter_em), $(wifixed),
+            $(ll), $(lldiff), $(wi), $(mu), $(sigmas), $(β)")
         end
     end
     return(wi, mu, sigmas, β, ll)
@@ -292,7 +293,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
                ghx=ghx, ghw=ghw, mu_lb=mu_lb, mu_ub=mu_ub,
              maxiteration=200, sn=sigmas0[ind], an=an, gammaM = gammaM,
               Wim=Wim, Wm=Wm, lln=lln, llN=llN, llN2=llN2, xb=xb,
-              Qmaxiteration=2, wifixed=true, ngh=ngh, epsilon=0.01,
+              Qmaxiteration=10, wifixed=true, ngh=ngh, epsilon=0.01,
                updatebeta=true)
         end
 
@@ -305,8 +306,8 @@ function loglikelihoodratioEM(X::Matrix{Float64},
               tau=tau, ghx=ghx, ghw=ghw, mu_lb=mu_lb,mu_ub=mu_ub,
                maxiteration=800, sn=sigmas0[ind], an=an, gammaM = gammaM,
                 Wim=Wim, Wm=Wm, lln=lln, llN=llN, llN2=llN2, xb=xb,
-                 Qmaxiteration=5, wifixed=true, ngh=ngh, updatebeta=true,
-                  betatol=0.0)
+                 Qmaxiteration=10, wifixed=true, ngh=ngh,
+                  updatebeta=true)
         end
 
         mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
