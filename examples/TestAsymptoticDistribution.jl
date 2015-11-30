@@ -17,7 +17,7 @@ import Yeppp
 
     groupindex = inverse_rle(1:nF, n_ij)
     J=2  #42 #beta dimension
-    srand(100*b)
+    srand(200*b)
     X = rand(Normal(0, 9), (N, J))
     beta_true=ones(J) #rand(Normal(0,1), J)
     if Ctrue == 1
