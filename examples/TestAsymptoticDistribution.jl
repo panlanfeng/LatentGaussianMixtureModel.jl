@@ -17,19 +17,19 @@ import Yeppp
 
     groupindex = inverse_rle(1:nF, n_ij)
     J=2  #42 #beta dimension
-    srand(100)
-    X = rand(Normal(), (N, J))
+    srand(100*b)
+    X = rand(Normal(0, 9), (N, J))
     beta_true=ones(J) #rand(Normal(0,1), J)
     if Ctrue == 1
-        mu_true = [-log(1/0.1 - 1)]
+        mu_true = [log(1/0.779 - 1)]
         wi_true = [1.0]
         sigmas_true = [1.2]
     elseif Ctrue == 2
-        mu_true = [log(1/0.779 - 1)/2 - 2.0, log(1/0.779 - 1)/2 + 2.0] 
+        mu_true = [log(1/0.779 - 1) - 2.0, log(1/0.779 - 1) + 2.0] 
         wi_true = [.5, .5]
         sigmas_true = [1.2, .8]
     elseif Ctrue == 3
-        mu_true = [log(1/0.779 - 1)/3 - 4.0, log(1/0.779 - 1)/3 + 1.0, log(1/0.779 - 1)/3 + 4.0;]
+        mu_true = [log(1/0.779 - 1) - 4.0, log(1/0.779 - 1) + 1.0, log(1/0.779 - 1) + 4.0;]
         wi_true = [.3, .4, .3]
         sigmas_true = [1.2, .8, .9]
     end
