@@ -8,4 +8,5 @@ include(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples/TestAsymptotic
 @everywhere Calternative = parse(Int, args[2])
 teststat = pmap((b) -> Brun(b, Ctrue, Calternative), 1:parse(Int, args[3]))
 writecsv("teststat$(Calternative)$(Ctrue).csv", teststat)
-
+run(`sed -i "s/(//g" teststat$(Calternative)$(Ctrue).csv`)
+run(`sed -i "s/)//g" teststat$(Calternative)$(Ctrue).csv`)
