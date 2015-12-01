@@ -271,7 +271,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
              wi[:, i], mu[:, i], sigmas[:, i],
              whichtosplit=whichtosplit, tau=tau,
              ghx=ghx, ghw=ghw, mu_lb=mu_lb, mu_ub=mu_ub,
-             maxiteration=200, sn=sn, an=an,
+             maxiteration=10, sn=sn, an=an,
              gammaM = gammaM, Wim=Wim,
              llN=llN, llN2=llN2, xb=xb,
              Qmaxiteration=2, wifixed=true, ngh=ngh,
@@ -289,7 +289,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
             sn=sn, an=an, debuginfo=debuginfo, gammaM = gammaM,
             Wim=Wim, llN=llN, llN2=llN2, xb=xb,
             Qmaxiteration=2, wifixed=true, ngh=ngh,
-            dotest=true, betatol=.0001)
+            dotest=false, tol=.001)
     end
 
     mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
@@ -326,7 +326,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
         latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
         sigmas_init, maxiteration=2000, an=an1,
-        sn=std(gamma_init).*ones(C0), ngh=ngh, dotest=true, betatol=0.0001)
+        sn=std(gamma_init).*ones(C0), ngh=ngh, dotest=false, tol=0.001)
 
     trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
 
