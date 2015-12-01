@@ -13,7 +13,7 @@ groupindex = inverse_rle(1:nF, n_ij)
 J=2  #42 #beta dimension
 srand(100)
 X = rand(Normal(), (N, J))
-beta_true=ones(J) #rand(Normal(0,1), J)
+betas_true=ones(J) #rand(Normal(0,1), J)
 if Ctrue == 1
     mu_true = [-log(1/0.1 - 1)]
     wi_true = [1.0]
@@ -33,7 +33,7 @@ srand(b * 100)
 m = MixtureModel(map((u, v) -> Normal(u, v), mu_true, sigmas_true), wi_true)
 gamma_true = rand(m, nF)
 
-prob = exp(gamma_true[groupindex] .+ X*beta_true)
+prob = exp(gamma_true[groupindex] .+ X*betas_true)
 prob= prob ./ (1 .+ prob)
 Y = Array(Bool, N)
 srand(b * 100)
