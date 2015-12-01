@@ -62,7 +62,7 @@ wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantil
 #Model fit
 #If there is error, set debuginfo=true to see more information
 
-wi, mu, sigmas, betas, ml_C0 = latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init, sigmas_init, maxiteration=100, an=1/nF, debuginfo=false)
+wi, mu, sigmas, betas, ml_C0 = latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init, sigmas_init, maxiteration=1000, an=1/nF, debuginfo=false)
 #print the output
 println("The returned parameters are:")
 println(wi, mu, sigmas, betas, ml_C0)
@@ -75,6 +75,6 @@ C1=2 # Alternative hypothesis
 #Return  2*loglikelihoodratio and the p value
 #The recommended ntrials=25. Setting it to some smaller number can save much time if we just want to test if the code is working.
 #If there is error, set debuginfo=true to see more information
-lr=loglikelihoodratioEM(X, Y, groupindex, C1, ntrials=25, debuginfo=false, reportT=true)
+lr=loglikelihoodratioEM(X, Y, groupindex, C1, ntrials=25, debuginfo=false)
 println("The test statistic and p value are:")
 println(lr)
