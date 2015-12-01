@@ -107,7 +107,7 @@ function latentgmmEM(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
     debuginfo::Bool=false, Qmaxiteration::Int=2, whichtosplit::Int=1, tau::Real=.5, wifixed::Bool=false,
      mu_lb::Vector=fill(-Inf, ncomponent), mu_ub::Vector=fill(Inf, ncomponent),  
      Wim::Matrix{Float64}=zeros(maximum(groupindex), ncomponent*ngh), Wm::Matrix{Float64}=zeros(1, ncomponent*ngh), lln::Vector{Float64}=zeros(maximum(groupindex)), llN::Vector{Float64}=zeros(length(Y)),
-    llN2::Vector{Float64}=zeros(length(Y)), xb::Vector{Float64}=zeros(length(Y)), gammaM::Vector{Float64}=zeros( ncomponent*ngh), dotest::Bool=false, epsilon::Real=1e-5, betatol::Real=tol/10)
+    llN2::Vector{Float64}=zeros(length(Y)), xb::Vector{Float64}=zeros(length(Y)), gammaM::Vector{Float64}=zeros( ncomponent*ngh), dotest::Bool=false, epsilon::Real=1e-4, betatol::Real=tol/10)
     
     # initialize theta
     length(wi_init) == length(mu_init) == length(sigmas_init) == ncomponent || error("The length of initial values should be $ncomponent")

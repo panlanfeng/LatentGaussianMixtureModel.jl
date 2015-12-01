@@ -53,8 +53,9 @@ end
 #do a single model fit
 C0=2 #number of components to try
 #initialize
+X = X .- mean(X, 1)
 gamma_init, betas_init, sigmas_tmp = maxposterior(X, Y, groupindex)
-wi_init, mu_init, sigmas_init, betas_init, ml_tmp = LatentGaussianMixtureModel.latentgmmEM(X, Y, groupindex, 1, betas_init, [1.0], [mean(gamma_init)], [std(gamma_init)], maxiteration=100)
+wi_init, mu_init, sigmas_init, betas_init, ml_tmp = LatentGaussianMixtureModel.latentgmmEM(X, Y, groupindex, 1, betas_init, [1.0], [0.], [1.], maxiteration=100)
  gamma_init = LatentGaussianMixtureModel.predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init);
  
 wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=1/nF)
