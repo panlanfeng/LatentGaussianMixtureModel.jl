@@ -174,7 +174,7 @@ function latentgmm(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::In
     sigmas_old = ones(sigmas)
     beta_old = randn(J)
 
-    ghx, ghw = hermite(ngh)
+    ghx, ghw = gausshermite(ngh)
     #Preallocate the storage space, reusable for each iteration
     # L_mat = zeros(Int64, (nF, M))
     L = rand(Categorical(wi), nF)
@@ -306,7 +306,7 @@ function latentgmm_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupinde
     sigmas0=copy(sigmas)
     β0 = copy(β)
 
-    #ghx, ghw = hermite(ngh)
+    #ghx, ghw = gausshermite(ngh)
     #Preallocate the storage space, reusable for each iteration
     # L_mat = zeros(Int64, (nF, M))
     L = rand(Categorical(wi), nF)
@@ -426,7 +426,7 @@ function loglikelihoodratio_ctau(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, 
 
     nF = maximum(groupindex)
     tau = min(tau, 1-tau)
-    ghx, ghw = hermite(ngh)
+    ghx, ghw = gausshermite(ngh)
 
     wi = repmat(wi_C1, 1, 4*ntrials)
     mu = zeros(ncomponent1, 4*ntrials)
