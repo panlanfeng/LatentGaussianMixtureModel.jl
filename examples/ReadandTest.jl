@@ -67,6 +67,8 @@ wi, mu, sigmas, betas, ml_C0 = latentgmmEM(X, Y, groupindex, C0, betas_init, wi_
 println("The returned parameters are:")
 println(wi, mu, sigmas, betas, ml_C0)
 
+gammaprediction = LatentGaussianMixtureModel.predictgamma(X, Y, groupindex, wi, mu, sigmas, betas);
+writecsv("gammaprediction.csv", gammaprediction)
 #set the number of components We want to test
 C0=1 # Null hypothesis
 C1=2 # Alternative hypothesis
