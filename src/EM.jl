@@ -327,8 +327,9 @@ function loglikelihoodratioEM(X::Matrix{Float64},
         latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
         sigmas_init, maxiteration=2000, an=an1,
         sn=std(gamma_init).*ones(C0), ngh=ngh, dotest=false, tol=.001)
-
-    trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
+    if C0 > 1
+        trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
+    end
 
     mingamma = minimum(gamma_init)
     maxgamma = maximum(gamma_init)
@@ -376,10 +377,8 @@ function loglikelihoodratioEM(X::Matrix{Float64},
                 gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb,
                 tol=tol)
         end
-
-        return(2*(lr - ml_C0), mean(trand .> 2*(lr - ml_C0)))
     else
-        lr = zeros(length(vtau), C0)
+        lrv = zeros(length(vtau), C0)
         for whichtosplit in 1:C0, i in 1:length(vtau)
 
              #whichtosplit = mod1(irun, C0)
@@ -401,14 +400,20 @@ function loglikelihoodratioEM(X::Matrix{Float64},
              wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
              wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
 
-             lr[i, whichtosplit]=loglikelihoodratioEM_ctau(X, Y,
+             lrv[i, whichtosplit]=loglikelihoodratioEM_ctau(X, Y,
                 groupindex, ncomponent1, betas0, wi_C1, whichtosplit,
                 vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub,
                 ntrials=ntrials, ngh=ngh, sn=sigmas0[ind], an=an,
                 debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
                 llN=llN, llN2=llN2, xb=xb, tol=tol)
-         end
-
-         return(2*(maximum(lr) - ml_C0), mean(trand .> 2*(maximum(lr) - ml_C0)))
+        end
+        lr = maximum(lrv)
     end
+    Tvalue = 2*(lr - ml_C0)
+    if C0 == 1
+        pvalue = 1 - cdf(Chisq(2), Tvalue)
+    else
+        pvalue = mean(trand .> 2*(lr - ml_C0))
+    end
+    return(Tvalue, pvalue)
 end
