@@ -261,7 +261,7 @@ function marginallikelihood(beta_new::Array{Float64,1}, X::Matrix{Float64}, Y::A
     ll - nF*log(pi)/2
 end
 
-function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, betas::Array{Float64,1}; ngh::Int=1000, nrep::Int=10000)
+function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, betas::Array{Float64,1}; ngh::Int=100, nrep::Int=10000)
 
     N,J = size(X)
     nF = maximum(groupindex)
@@ -310,7 +310,12 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
             end
         end
     end
-
+    for i in 1:nF
+        u = maximum(sumlogmat[i, :])
+        for jcol in 1:C*M
+            @inbounds sumlogmat[i, jcol] = sumlogmat[i, jcol] - u
+        end
+    end
     for i in 1:nF
         for kcom in 1:C
             ll_nF[i, kcom] = sumexp(sumlogmat[i,(1+M*(kcom-1)):M*kcom])
