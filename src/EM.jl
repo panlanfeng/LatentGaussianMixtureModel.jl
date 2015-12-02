@@ -127,7 +127,7 @@ function latentgmmEM(X::Matrix{Float64},
     ncomponent::Int, β_init::Vector{Float64},
     wi_init::Vector{Float64}, mu_init::Vector{Float64},
     sigmas_init::Vector{Float64};
-    maxiteration::Int=100, tol::Real=.005,
+    maxiteration::Int=100, tol::Real=.001,
     ngh::Int=100, ghx::Vector=zeros(ngh), ghw::Vector=zeros(ngh),
     sn::Vector{Float64}=sigmas_init, an::Float64=1.0/maximum(groupindex),
     debuginfo::Bool=false, Qmaxiteration::Int=2,
@@ -141,7 +141,7 @@ function latentgmmEM(X::Matrix{Float64},
     llN2::Vector{Float64}=zeros(length(Y)),
     xb::Vector{Float64}=zeros(length(Y)),
     gammaM::Vector{Float64}=zeros( ncomponent*ngh),
-    dotest::Bool=false, epsilon::Real=1e-4, betatol::Real=tol/10)
+    dotest::Bool=false, epsilon::Real=1e-4)
 
     # initialize theta
     length(wi_init) == length(mu_init) == length(sigmas_init) == ncomponent || error("The length of initial values should be $ncomponent")
@@ -194,7 +194,7 @@ function latentgmmEM(X::Matrix{Float64},
         if debuginfo
             println("At $(iter_em)th iteration:")
         end
-        if !stopRule(β, beta_old, tol=betatol)
+        if mod1(iter_em, 3) == 1
             copy!(beta_old, β)
             updateβ!(β, X, Y, groupindex, gammaM, Wim, lln, llN, llN2, xb, N, J, n, ncomponent, ngh, Qmaxiteration)
             if debuginfo
@@ -251,7 +251,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
     Wim::Matrix = zeros(maximum(groupindex), ngh*ncomponent),
     llN::Vector=zeros(length(Y)),
     llN2::Vector = zeros(length(Y)),
-    xb::Vector=zeros(length(Y)))
+    xb::Vector=zeros(length(Y)), tol::Real=.001)
 
     nF = maximum(groupindex)
     tau = min(tau, 1-tau)
@@ -275,7 +275,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
              gammaM = gammaM, Wim=Wim,
              llN=llN, llN2=llN2, xb=xb,
              Qmaxiteration=2, wifixed=true, ngh=ngh,
-             dotest=true, epsilon=0.01)
+             dotest=false, epsilon=0.01, tol=tol)
     end
 
     mlperm = sortperm(ml)
@@ -289,7 +289,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
             sn=sn, an=an, debuginfo=debuginfo, gammaM = gammaM,
             Wim=Wim, llN=llN, llN2=llN2, xb=xb,
             Qmaxiteration=2, wifixed=true, ngh=ngh,
-            dotest=false, tol=.001)
+            dotest=false, tol=tol)
     end
 
     mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
@@ -306,7 +306,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
     ncomponent1::Int; vtau::Vector{Float64}=[.5,.3,.1;],
     ntrials::Int=25, ngh::Int=100, debuginfo::Bool=false,
-    ctauparallel=true)
+    ctauparallel=true, tol::Real=0.001)
 
     C0 = ncomponent1 - 1
     C1 = ncomponent1
@@ -316,7 +316,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     #gamma_init, betas_init, sigmas_tmp = maxposterior(X, Y, groupindex)
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
     latentgmmEM(X, Y, groupindex, 1, [1.,1.],
-    [1.0], [0.], [1.], maxiteration=100, an=an1, sn=ones(C0))
+    [1.0], [0.], [1.], maxiteration=100, an=an1, sn=ones(C0), tol=.005)
     gamma_init = predictgamma(X, Y, groupindex,
         wi_init, mu_init, sigmas_init, betas_init)
     wi_init, mu_init, sigmas_init, ml_tmp =
@@ -326,7 +326,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
         latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
         sigmas_init, maxiteration=2000, an=an1,
-        sn=std(gamma_init).*ones(C0), ngh=ngh, dotest=false, tol=0.001)
+        sn=std(gamma_init).*ones(C0), ngh=ngh, dotest=false, tol=tol)
 
     trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
 
@@ -373,7 +373,8 @@ function loglikelihoodratioEM(X::Matrix{Float64},
                 betas0, wi_C1, whichtosplit, vtau[i],
                 mu_lb, mu_ub, sigmas_lb, sigmas_ub, ntrials=ntrials,
                 ngh=ngh, sn=sigmas0[ind], an=an, debuginfo=debuginfo,
-                gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb)
+                gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb,
+                tol=tol)
         end
 
         return(2*(lr - ml_C0), mean(trand .> 2*(lr - ml_C0)))
@@ -405,7 +406,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
                 vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub,
                 ntrials=ntrials, ngh=ngh, sn=sigmas0[ind], an=an,
                 debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
-                llN=llN, llN2=llN2, xb=xb)
+                llN=llN, llN2=llN2, xb=xb, tol=tol)
          end
 
          return(2*(maximum(lr) - ml_C0), mean(trand .> 2*(maximum(lr) - ml_C0)))
