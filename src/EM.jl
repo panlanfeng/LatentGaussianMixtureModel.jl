@@ -127,7 +127,7 @@ function latentgmmEM(X::Matrix{Float64},
     ncomponent::Int, β_init::Vector{Float64},
     wi_init::Vector{Float64}, mu_init::Vector{Float64},
     sigmas_init::Vector{Float64};
-    maxiteration::Int=100, tol::Real=.001,
+    maxiteration::Int=100, tol::Real=.005,
     ngh::Int=100, ghx::Vector=zeros(ngh), ghw::Vector=zeros(ngh),
     sn::Vector{Float64}=sigmas_init, an::Float64=1.0/maximum(groupindex),
     debuginfo::Bool=false, Qmaxiteration::Int=2,
@@ -251,7 +251,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
     Wim::Matrix = zeros(maximum(groupindex), ngh*ncomponent),
     llN::Vector=zeros(length(Y)),
     llN2::Vector = zeros(length(Y)),
-    xb::Vector=zeros(length(Y)), tol::Real=.001)
+    xb::Vector=zeros(length(Y)), tol::Real=.005)
 
     nF = maximum(groupindex)
     tau = min(tau, 1-tau)
@@ -306,7 +306,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
     ncomponent1::Int; vtau::Vector{Float64}=[.5,.3,.1;],
     ntrials::Int=25, ngh::Int=100, debuginfo::Bool=false,
-    ctauparallel=true, tol::Real=0.001)
+    ctauparallel=true, tol::Real=0.005)
 
     C0 = ncomponent1 - 1
     C1 = ncomponent1
@@ -326,7 +326,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
         latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
         sigmas_init, maxiteration=2000, an=an1,
-        sn=std(gamma_init).*ones(C0), ngh=ngh, dotest=false, tol=tol)
+        sn=std(gamma_init).*ones(C0), ngh=ngh, dotest=false, tol=.001)
 
     trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
 
