@@ -261,7 +261,7 @@ function marginallikelihood(beta_new::Array{Float64,1}, X::Matrix{Float64}, Y::A
     ll - nF*log(pi)/2
 end
 
-function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, betas::Array{Float64,1}; ngh::Int=100, nrep::Int=10000)
+function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, betas::Array{Float64,1}; ngh::Int=100, nrep::Int=10000, debuginfo::Bool=false)
 
     N,J = size(X)
     nF = maximum(groupindex)
@@ -296,7 +296,6 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
             for i in 1:N
                 for j in 1:J
                     summat_beta[groupindex[i], ixM, j] += llN2[i] * X[i,j]
-                    # ifelse(Y[i], exp(-llvec[i])*X[i, j], -exp(-llvec[i])*X[i, j])
                 end
             end
             log1pexp!(llvec)
@@ -305,8 +304,7 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
                 @inbounds sumlogmat[groupindex[i], ixM] -= llvec[i]
             end
             for i in 1:nF
-                sumlogmat[i, ixM] +=  log(ghw[ix]) # +log(wi[jcom]) + H1(xtmp, sigmas[jcom])
-
+                sumlogmat[i, ixM] +=  log(ghw[ix])
             end
         end
     end
@@ -329,7 +327,9 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
         end
         ml[i]=sumexp(sumlogmat[i, :])
     end
-
+    if debuginfo
+        println(round(ml, 2))
+    end
     for kcom in 1:(C-1)
         S_π[:, kcom] = (ll_nF[:, kcom] .- ll_nF[:, C]) ./ ml
     end
@@ -348,6 +348,9 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
         end
     end
     S_η = hcat(S_β, S_π, S_μσ)
+    if debuginfo
+        println(round(sum(S_η, 1), 2))
+    end
     I_η = S_η'*S_η./nF
     I_λη = S_λ'*S_η./nF
     I_λ = S_λ'*S_λ./nF
