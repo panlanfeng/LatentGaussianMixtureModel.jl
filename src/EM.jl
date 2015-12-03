@@ -289,7 +289,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
             sn=sn, an=an, debuginfo=debuginfo, gammaM = gammaM,
             Wim=Wim, llN=llN, llN2=llN2, xb=xb,
             Qmaxiteration=2, wifixed=true, ngh=ngh,
-            dotest=false, tol=tol)
+            dotest=true, tol=tol, epsilon=1e-5)
     end
 
     mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
@@ -326,11 +326,13 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
         latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
         sigmas_init, maxiteration=2000, an=an1,
-        sn=std(gamma_init).*ones(C0), ngh=ngh, dotest=false, tol=.001)
+        sn=std(gamma_init).*ones(C0), ngh=ngh, dotest=true, tol=.001)
     if C0 > 1
         trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
     end
-
+    if debuginfo
+        println("ml_C0=", ml_C0)
+    end
     mingamma = minimum(gamma_init)
     maxgamma = maximum(gamma_init)
 
@@ -370,12 +372,16 @@ function loglikelihoodratioEM(X::Matrix{Float64},
             wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
             wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
 
-            loglikelihoodratioEM_ctau(X, Y, groupindex, ncomponent1,
+            ml_tmp=loglikelihoodratioEM_ctau(X, Y, groupindex, ncomponent1,
                 betas0, wi_C1, whichtosplit, vtau[i],
                 mu_lb, mu_ub, sigmas_lb, sigmas_ub, ntrials=ntrials,
-                ngh=ngh, sn=sigmas0[ind], an=an, debuginfo=debuginfo,
+                ngh=ngh, sn=sigmas0[ind], an=an, debuginfo=false,
                 gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb,
                 tol=tol)
+            if debuginfo
+                println(whichtosplit, " ", vtau[i], "->", ml_tmp)
+            end
+            ml_tmp
         end
     else
         lrv = zeros(length(vtau), C0)
@@ -404,10 +410,16 @@ function loglikelihoodratioEM(X::Matrix{Float64},
                 groupindex, ncomponent1, betas0, wi_C1, whichtosplit,
                 vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub,
                 ntrials=ntrials, ngh=ngh, sn=sigmas0[ind], an=an,
-                debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
+                debuginfo=false, gammaM = gammaM, Wim=Wim,
                 llN=llN, llN2=llN2, xb=xb, tol=tol)
+            if debuginfo
+                println(whichtosplit, " ", vtau[i], "->", lrv[i, whichtosplit])
+            end
         end
         lr = maximum(lrv)
+    end
+    if debuginfo
+        println("lr=", lr)
     end
     Tvalue = 2*(lr - ml_C0)
     if C0 == 1
