@@ -4,8 +4,8 @@ function log1pexp!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, res2:
     copy!(res2, x)
     Yeppp.exp!(res, x)
     log1p!(res, res, n)
-    @inbounds for i in 1:n
-        res[i]=mylog1pexp(res[i], res2[i])
+    for i in 1:n
+        @inbounds res[i]=mylog1pexp(res[i], res2[i])
     end
     # for i in 1:n
     #     @inbounds res[i]=log1pexp(x[i])

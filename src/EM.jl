@@ -70,7 +70,7 @@ function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
     Xscratch::Matrix{Float64}, 
     gammaM::Vector{Float64}, Wim::Matrix{Float64},
     lln::Vector{Float64}, llN::Vector{Float64},
-    llN2::Vector{Float64}, xb::Vector{Float64},
+    llN2::Vector{Float64}, llN3::Vector{Float64}, xb::Vector{Float64},
     N::Int, J::Int, n::Int, C::Int, ngh::Int, Qmaxiteration::Int)
     M = C*ngh
     dev0 = negdeviance(β, X, Y, groupindex,
@@ -78,7 +78,7 @@ function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
     
     for iterbeta in 1:Qmaxiteration
         deltabeta!(XWY, XWX, X, Y, groupindex, β, Xscratch, gammaM, Wim, 
-        lln, llN, llN2, xb, N, J, n, M)
+        llN, llN2, llN3, xb, N, J, n, M)
         f = 1.
         dev = negdeviance(β .+ f .* XWY, X, Y, groupindex,
         gammaM, Wim, lln, llN, llN2, xb, N, J, n, M)
@@ -104,8 +104,8 @@ function deltabeta!(XWY::Vector{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
     β::Vector{Float64}, Xscratch::Matrix{Float64},
     gammaM::Vector{Float64}, Wim::Matrix{Float64}, 
-    lln::Vector{Float64}, llN::Vector{Float64},
-    llN2::Vector{Float64}, xb::Vector{Float64},
+    llN::Vector{Float64},llN2::Vector{Float64},
+    llN3::Vector{Float64}, xb::Vector{Float64},
     N::Int, J::Int, n::Int, M::Int)
     A_mul_B!(xb, X, β)
     fill!(XWX, 0.)
@@ -115,30 +115,16 @@ function deltabeta!(XWY::Vector{Float64},
         fill!(llN, gammaM[jcol])
         Yeppp.add!(llN, llN, xb)
         logistic!(llN, llN, N)
-        # x1_x!(llN2, llN, N)
-        # negate!(llN)
-        # plusoneiftrue!(llN, llN, Y, N)
+
         @inbounds for i in 1:N
-            llN2[i] = llN[i]*(1.0 -llN[i]) #the weight
+            llN2[i] = llN[i]*(1.0 -llN[i]) #working weight
             llN[i] = Y[i] ? 1.0 - llN[i] : -llN[i] #working response without denominator
-            #llN[i] /= llN2[i]
-            #llN2[i] *= Wim[groupindex[i], jcol]
         end
-        
-        scale!(Xscratch, Wim[groupindex, jcol], X)
+        relocate!(llN3, Wim[:, jcol], groupindex, N)
+        scale!(Xscratch, llN3, X)
         Base.BLAS.gemv!('T', 1.0, Xscratch, llN, 1.0, XWY)
         scale!(Xscratch, llN2, Xscratch)
         Base.BLAS.gemm!('T', 'N', 1.0, Xscratch, X, 1.0, XWX)
-        # for i in 1:N
-        #     groupindexi = groupindex[i]
-        #     wikm = llN[i]*(1-llN[i])
-        #     for j1 in 1:J
-        #         for j2 in 1:J
-        #             XWX[j1, j2] += wikm * Wim[groupindexi, jcol] * X[i,j1] * X[i, j2]
-        #         end
-        #         XWY[j1] += Wim[groupindexi, jcol] * X[i,j1] * (Y[i] ? 1 - llN[i] : -llN[i])
-        #     end
-        # end
     end
     A_ldiv_B!(cholfact!(XWX, :U), XWY)
 end
@@ -239,9 +225,12 @@ function latentgmmEM(X::Matrix{Float64},
     lln::Vector{Float64}=zeros(maximum(groupindex)),
     llN::Vector{Float64}=zeros(length(Y)),
     llN2::Vector{Float64}=zeros(length(Y)),
+    llN3::Vector{Float64}=zeros(length(Y)),
+    Xscratch::Matrix{Float64}=copy(X),
     xb::Vector{Float64}=zeros(length(Y)),
     gammaM::Vector{Float64}=zeros( ncomponent*ngh),
-    dotest::Bool=false, epsilon::Real=1e-4)
+    dotest::Bool=false, epsilon::Real=1e-4,
+    theta_ninitial::Int=0)
 
     # initialize theta
     length(wi_init) == length(mu_init) == length(sigmas_init) == ncomponent || error("The length of initial values should be $ncomponent")
@@ -264,7 +253,8 @@ function latentgmmEM(X::Matrix{Float64},
     end
     XWX = zeros(J, J)
     XWY = zeros(J)
-    Xscratch=copy(X)
+    #Xscratch=copy(X)
+    #llN3 = zeros(N)
     #Wim = zeros(n, M)
     #Wm = zeros(1, M)
     #lln = zeros(n)
@@ -274,6 +264,7 @@ function latentgmmEM(X::Matrix{Float64},
     #gammaM = zeros(M)
     ll0=-Inf
     ll = 0.
+    iter_ninitial=1
     for iter_em in 1:maxiteration
         for ix in 1:ngh, jcom in 1:ncomponent
             ixM = ix+ngh*(jcom-1)
@@ -296,14 +287,19 @@ function latentgmmEM(X::Matrix{Float64},
         if debuginfo
             println("At $(iter_em)th iteration:")
         end
-        if true#mod1(iter_em, 3) == 1
+        if iter_ninitial>theta_ninitial && (mod1(iter_em, 3) == 1 || iter_em <= 5)
             copy!(beta_old, β)
-            updateβ!(β, X, Y, groupindex, .00001, .001, XWX, XWY, Xscratch, gammaM, Wim, lln, llN, llN2, xb, N, J, n, ncomponent, ngh, Qmaxiteration)
+            updateβ!(β, X, Y, groupindex, .00001, .001, 
+            XWX, XWY, Xscratch, gammaM, Wim, lln, llN, llN2, llN3, 
+            xb, N, J, n, ncomponent, ngh, Qmaxiteration)
             if debuginfo
                 println("beta=", β)
             end
+        else
+            iter_ninitial += 1
         end
-        updateθ!(wi, mu, sigmas, X, Y, groupindex, gammaM, Wim, Wm, sn, an, N, J, n, ncomponent, ngh)
+        updateθ!(wi, mu, sigmas, X, Y, groupindex, 
+        gammaM, Wim, Wm, sn, an, N, J, n, ncomponent, ngh)
         if wifixed
             wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
             wi[whichtosplit] = wi_tmp*tau
@@ -319,7 +315,7 @@ function latentgmmEM(X::Matrix{Float64},
         end
 
         if !dotest
-            if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3)
+            if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3+theta_ninitial)
                 if debuginfo
                     println("latentgmmEM converged at $(iter_em)th iteration")
                 end
@@ -353,6 +349,8 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
     Wim::Matrix = zeros(maximum(groupindex), ngh*ncomponent),
     llN::Vector=zeros(length(Y)),
     llN2::Vector = zeros(length(Y)),
+    llN3::Vector{Float64}=zeros(length(Y)),
+    Xscratch::Matrix{Float64}=copy(X),
     xb::Vector=zeros(length(Y)), tol::Real=.005)
 
     nF = maximum(groupindex)
@@ -367,7 +365,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
     for i in 1:4*ntrials
         mu[:, i] = rand(ncomponent1) .* (mu_ub .- mu_lb) .+ mu_lb
         sigmas[:, i] = rand(ncomponent1) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
-
+        
         wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] =
              latentgmmEM(X, Y, groupindex, ncomponent1, betas0,
              wi[:, i], mu[:, i], sigmas[:, i],
@@ -375,9 +373,10 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
              ghx=ghx, ghw=ghw, mu_lb=mu_lb, mu_ub=mu_ub,
              maxiteration=10, sn=sn, an=an,
              gammaM = gammaM, Wim=Wim,
-             llN=llN, llN2=llN2, xb=xb,
+             llN=llN, llN2=llN2, llN3=llN3,
+             Xscratch=Xscratch, xb=xb,
              Qmaxiteration=2, wifixed=true, ngh=ngh,
-             dotest=false, epsilon=0.01, tol=tol)
+             dotest=false, epsilon=0.01, tol=tol, theta_ninitial=20)
     end
 
     mlperm = sortperm(ml)
@@ -389,7 +388,8 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
             whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw,
             mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=2000,
             sn=sn, an=an, debuginfo=debuginfo, gammaM = gammaM,
-            Wim=Wim, llN=llN, llN2=llN2, xb=xb,
+            Wim=Wim, llN=llN, llN2=llN2, llN3=llN3,
+            Xscratch=Xscratch, xb=xb,
             Qmaxiteration=6, wifixed=true, ngh=ngh,
             dotest=true, tol=tol, epsilon=1e-5)
     end
@@ -451,6 +451,8 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     #Wm = zeros(ngh*ncomponent1)
     llN = zeros(N)
     llN2 = zeros(N)
+    llN3 = zeros(N)
+    Xscratch = copy(X)
     xb = zeros(N)
     if ctauparallel
         lr=@parallel (max) for irun in 1:(C0*length(vtau))
@@ -478,7 +480,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
                 betas0, wi_C1, whichtosplit, vtau[i],
                 mu_lb, mu_ub, sigmas_lb, sigmas_ub, ntrials=ntrials,
                 ngh=ngh, sn=sigmas0[ind], an=an, debuginfo=false,
-                gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb,
+                gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, llN3=llN3, Xscratch=Xscratch, xb=xb,
                 tol=tol)
             if debuginfo
                 println(whichtosplit, " ", vtau[i], "->", ml_tmp)
