@@ -41,15 +41,9 @@ import Yeppp
     
     prob = exp(gamma_true[groupindex] .+ X*betas_true)
     prob= prob ./ (1 .+ prob)
-    Y = Array(Bool, N)
-    for i in 1:N
-        if rand(Binomial(1, prob[i])) == 1
-            Y[i] = true
-        else
-            Y[i] = false
-        end
-    end
-    X = X .- mean(X, 1)
+    Y = Bool[rand(Binomial(1, prob[i])) == 1 for i in 1:N];
+    X = X .- mean(X, 1);
+
     lr=LatentGaussianMixtureModel.loglikelihoodratioEM(X, Y, groupindex, Calternative, ntrials=15, debuginfo=debuginfo, ctauparallel=false)
     println("Mission $b completed with lr=$lr")
     lr

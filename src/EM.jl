@@ -71,7 +71,8 @@ function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
     llN2::Vector{Float64}, xb::Vector{Float64},
     N::Int, J::Int, n::Int, C::Int, ngh::Int, Qmaxiteration::Int)
 
-    opt = Opt(:LD_LBFGS, J)
+    opt = Opt(:LD_MMA, J)
+    ftol_abs!(opt, 1e-2)
     maxeval!(opt, Qmaxiteration)
     max_objective!(opt, (beta2, storage)->EM_Q1(beta2, storage, X, Y,  groupindex, gammaM, Wim, lln, llN, llN2, xb, N, J, n, C*ngh))
 
@@ -288,7 +289,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
             mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=2000,
             sn=sn, an=an, debuginfo=debuginfo, gammaM = gammaM,
             Wim=Wim, llN=llN, llN2=llN2, xb=xb,
-            Qmaxiteration=2, wifixed=true, ngh=ngh,
+            Qmaxiteration=6, wifixed=true, ngh=ngh,
             dotest=true, tol=tol, epsilon=1e-5)
     end
 
