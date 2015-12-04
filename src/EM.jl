@@ -63,7 +63,106 @@ function updateθ!(wi::Vector{Float64}, mu::Vector{Float64},
     end
 
 end
-
+function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
+    Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, 
+    minStepFac::Real, betadevtol::Real,
+    XWX::Matrix{Float64}, XWY::Vector{Float64},
+    Xscratch::Matrix{Float64}, 
+    gammaM::Vector{Float64}, Wim::Matrix{Float64},
+    lln::Vector{Float64}, llN::Vector{Float64},
+    llN2::Vector{Float64}, xb::Vector{Float64},
+    N::Int, J::Int, n::Int, C::Int, ngh::Int, Qmaxiteration::Int)
+    M = C*ngh
+    dev0 = negdeviance(β, X, Y, groupindex,
+    gammaM, Wim, lln, llN, llN2, xb, N, J, n, M)
+    
+    for iterbeta in 1:Qmaxiteration
+        deltabeta!(XWY, XWX, X, Y, groupindex, β, Xscratch, gammaM, Wim, 
+        lln, llN, llN2, xb, N, J, n, M)
+        f = 1.
+        dev = negdeviance(β .+ f .* XWY, X, Y, groupindex,
+        gammaM, Wim, lln, llN, llN2, xb, N, J, n, M)
+        while dev < dev0
+            f ./=2
+            f > minStepFac || error("step-halving failed at beta = $(β), deltabeta=$(XWY), dev=$(dev), dev0=$dev0, f=$f")
+            dev = negdeviance(β .+ f .* XWY, X, Y, groupindex,
+            gammaM, Wim, lln, llN, llN2, xb, N, J, n, M)
+        end
+        for j in 1:J
+            β[j] += f * XWY[j]
+        end
+        
+        if dev - dev0 < betadevtol
+            break
+        end
+        dev0 = dev
+    end
+    
+end
+function deltabeta!(XWY::Vector{Float64}, 
+    XWX::Matrix{Float64}, X::Matrix{Float64},
+    Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
+    β::Vector{Float64}, Xscratch::Matrix{Float64},
+    gammaM::Vector{Float64}, Wim::Matrix{Float64}, 
+    lln::Vector{Float64}, llN::Vector{Float64},
+    llN2::Vector{Float64}, xb::Vector{Float64},
+    N::Int, J::Int, n::Int, M::Int)
+    A_mul_B!(xb, X, β)
+    fill!(XWX, 0.)
+    fill!(XWY, 0.)
+    
+    for jcol in 1:M
+        fill!(llN, gammaM[jcol])
+        Yeppp.add!(llN, llN, xb)
+        logistic!(llN, llN, N)
+        # x1_x!(llN2, llN, N)
+        # negate!(llN)
+        # plusoneiftrue!(llN, llN, Y, N)
+        @inbounds for i in 1:N
+            llN2[i] = llN[i]*(1.0 -llN[i]) #the weight
+            llN[i] = Y[i] ? 1.0 - llN[i] : -llN[i] #working response without denominator
+            #llN[i] /= llN2[i]
+            #llN2[i] *= Wim[groupindex[i], jcol]
+        end
+        
+        scale!(Xscratch, Wim[groupindex, jcol], X)
+        Base.BLAS.gemv!('T', 1.0, Xscratch, llN, 1.0, XWY)
+        scale!(Xscratch, llN2, Xscratch)
+        Base.BLAS.gemm!('T', 'N', 1.0, Xscratch, X, 1.0, XWX)
+        # for i in 1:N
+        #     groupindexi = groupindex[i]
+        #     wikm = llN[i]*(1-llN[i])
+        #     for j1 in 1:J
+        #         for j2 in 1:J
+        #             XWX[j1, j2] += wikm * Wim[groupindexi, jcol] * X[i,j1] * X[i, j2]
+        #         end
+        #         XWY[j1] += Wim[groupindexi, jcol] * X[i,j1] * (Y[i] ? 1 - llN[i] : -llN[i])
+        #     end
+        # end
+    end
+    A_ldiv_B!(cholfact!(XWX, :U), XWY)
+end
+function negdeviance(beta2::Vector{Float64}, X::Matrix{Float64},
+    Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
+    gammaM::Vector{Float64}, Wim::Matrix{Float64}, 
+    lln::Vector{Float64}, llN::Vector{Float64},
+    llN2::Vector{Float64}, xb::Vector{Float64},
+    N::Int, J::Int, n::Int, M::Int)
+    dev = 0.
+    A_mul_B!(xb, X, beta2)
+    for jcol in 1:M
+        fill!(llN, gammaM[jcol])
+        Yeppp.add!(llN, llN, xb)
+        negateiftrue!(llN, Y)
+        log1pexp!(llN, llN, llN2, N)
+        fill!(lln, 0.0)
+        for i in 1:N
+            @inbounds lln[groupindex[i]] += llN[i]
+        end
+        dev += wsum(lln, Wim[:, jcol])
+    end
+    -dev
+end
 function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
     gammaM::Vector{Float64}, Wim::Matrix{Float64},
@@ -163,7 +262,9 @@ function latentgmmEM(X::Matrix{Float64},
     if !wifixed || (ghx[1] == 0.0)
         ghx, ghw = gausshermite(ngh)
     end
-
+    XWX = zeros(J, J)
+    XWY = zeros(J)
+    Xscratch=copy(X)
     #Wim = zeros(n, M)
     #Wm = zeros(1, M)
     #lln = zeros(n)
@@ -195,9 +296,9 @@ function latentgmmEM(X::Matrix{Float64},
         if debuginfo
             println("At $(iter_em)th iteration:")
         end
-        if mod1(iter_em, 3) == 1
+        if true#mod1(iter_em, 3) == 1
             copy!(beta_old, β)
-            updateβ!(β, X, Y, groupindex, gammaM, Wim, lln, llN, llN2, xb, N, J, n, ncomponent, ngh, Qmaxiteration)
+            updateβ!(β, X, Y, groupindex, .00001, .001, XWX, XWY, Xscratch, gammaM, Wim, lln, llN, llN2, xb, N, J, n, ncomponent, ngh, Qmaxiteration)
             if debuginfo
                 println("beta=", β)
             end
