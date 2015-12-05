@@ -64,10 +64,10 @@ function updateθ!(wi::Vector{Float64}, mu::Vector{Float64},
 
 end
 function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
-    Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, 
+    Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
     minStepFac::Real, betadevtol::Real,
     XWX::Matrix{Float64}, XWY::Vector{Float64},
-    Xscratch::Matrix{Float64}, 
+    Xscratch::Matrix{Float64},
     gammaM::Vector{Float64}, Wim::Matrix{Float64},
     lln::Vector{Float64}, llN::Vector{Float64},
     llN2::Vector{Float64}, llN3::Vector{Float64}, xb::Vector{Float64},
@@ -75,10 +75,13 @@ function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
     M = C*ngh
     dev0 = negdeviance(β, X, Y, groupindex,
     gammaM, Wim, lln, llN, llN2, xb, N, J, n, M)
-    
+
     for iterbeta in 1:Qmaxiteration
-        deltabeta!(XWY, XWX, X, Y, groupindex, β, Xscratch, gammaM, Wim, 
+        deltabeta!(XWY, XWX, X, Y, groupindex, β, Xscratch, gammaM, Wim,
         llN, llN2, llN3, xb, N, J, n, M)
+        if sumabs2((XWY .- β)./β) < 1e-8
+            break
+        end
         f = 1.
         dev = negdeviance(β .+ f .* XWY, X, Y, groupindex,
         gammaM, Wim, lln, llN, llN2, xb, N, J, n, M)
@@ -91,26 +94,26 @@ function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
         for j in 1:J
             β[j] += f * XWY[j]
         end
-        
+
         if dev - dev0 < betadevtol
             break
         end
         dev0 = dev
     end
-    
+
 end
-function deltabeta!(XWY::Vector{Float64}, 
+function deltabeta!(XWY::Vector{Float64},
     XWX::Matrix{Float64}, X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
     β::Vector{Float64}, Xscratch::Matrix{Float64},
-    gammaM::Vector{Float64}, Wim::Matrix{Float64}, 
+    gammaM::Vector{Float64}, Wim::Matrix{Float64},
     llN::Vector{Float64},llN2::Vector{Float64},
     llN3::Vector{Float64}, xb::Vector{Float64},
     N::Int, J::Int, n::Int, M::Int)
     A_mul_B!(xb, X, β)
     fill!(XWX, 0.)
     fill!(XWY, 0.)
-    
+
     for jcol in 1:M
         fill!(llN, gammaM[jcol])
         Yeppp.add!(llN, llN, xb)
@@ -130,7 +133,7 @@ function deltabeta!(XWY::Vector{Float64},
 end
 function negdeviance(beta2::Vector{Float64}, X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
-    gammaM::Vector{Float64}, Wim::Matrix{Float64}, 
+    gammaM::Vector{Float64}, Wim::Matrix{Float64},
     lln::Vector{Float64}, llN::Vector{Float64},
     llN2::Vector{Float64}, xb::Vector{Float64},
     N::Int, J::Int, n::Int, M::Int)
@@ -289,8 +292,8 @@ function latentgmmEM(X::Matrix{Float64},
         end
         if iter_ninitial>theta_ninitial && (mod1(iter_em, 3) == 1 || iter_em <= 5)
             copy!(beta_old, β)
-            updateβ!(β, X, Y, groupindex, .00001, .001, 
-            XWX, XWY, Xscratch, gammaM, Wim, lln, llN, llN2, llN3, 
+            updateβ!(β, X, Y, groupindex, .001, .001,
+            XWX, XWY, Xscratch, gammaM, Wim, lln, llN, llN2, llN3,
             xb, N, J, n, ncomponent, ngh, Qmaxiteration)
             if debuginfo
                 println("beta=", β)
@@ -298,7 +301,7 @@ function latentgmmEM(X::Matrix{Float64},
         else
             iter_ninitial += 1
         end
-        updateθ!(wi, mu, sigmas, X, Y, groupindex, 
+        updateθ!(wi, mu, sigmas, X, Y, groupindex,
         gammaM, Wim, Wm, sn, an, N, J, n, ncomponent, ngh)
         if wifixed
             wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
@@ -365,7 +368,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
     for i in 1:4*ntrials
         mu[:, i] = rand(ncomponent1) .* (mu_ub .- mu_lb) .+ mu_lb
         sigmas[:, i] = rand(ncomponent1) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
-        
+
         wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] =
              latentgmmEM(X, Y, groupindex, ncomponent1, betas0,
              wi[:, i], mu[:, i], sigmas[:, i],
