@@ -79,7 +79,7 @@ function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
     for iterbeta in 1:Qmaxiteration
         deltabeta!(XWY, XWX, X, Y, groupindex, β, Xscratch, gammaM, Wim,
         llN, llN2, llN3, xb, N, J, n, M)
-        if sumabs2((XWY .- β)./β) < 1e-8
+        if maxabs(XWY ./ (abs(β)+0.001)) < 1e-5
             break
         end
         f = 1.
@@ -394,7 +394,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
             Wim=Wim, llN=llN, llN2=llN2, llN3=llN3,
             Xscratch=Xscratch, xb=xb,
             Qmaxiteration=6, wifixed=true, ngh=ngh,
-            dotest=true, tol=tol, epsilon=1e-5)
+            dotest=true, tol=tol, epsilon=1e-4)
     end
 
     mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])

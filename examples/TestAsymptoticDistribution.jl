@@ -18,7 +18,7 @@ import Yeppp
     groupindex = inverse_rle(1:nF, n_ij)
     J=2  #42 #beta dimension
     srand(200*b)
-    X = rand(TDist(8), N, 2) .* [14.71 4.47] ./ std(TDist(8)) .+ [51.81 2.77]
+    X = rand(TDist(8), N, 2) .* [14.71 4.47] ./ std(TDist(8))
     betas_true=[0.0274, 0.00878] #rand(Normal(0,1), J)
     if Ctrue == 1
         mu_true = [log(1/0.779 - 1)]
