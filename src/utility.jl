@@ -327,9 +327,6 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
         end
         ml[i]=sumexp(sumlogmat[i, :])
     end
-    if debuginfo
-        println(round(ml, 2))
-    end
     for kcom in 1:(C-1)
         S_π[:, kcom] = (ll_nF[:, kcom] .- ll_nF[:, C]) ./ ml
     end
@@ -348,9 +345,7 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
         end
     end
     S_η = hcat(S_β, S_π, S_μσ)
-    if debuginfo
-        println(round(sum(S_η, 1), 2))
-    end
+    debuginfo && println(round(sum(S_η, 1)./sqrt(nF), 6))
     I_η = S_η'*S_η./nF
     I_λη = S_λ'*S_η./nF
     I_λ = S_λ'*S_λ./nF
@@ -359,8 +354,9 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
     tol2 = abs(D[1]) * 1e-14
     D[abs(D).<tol2] = tol2
     I_all = V*diagm(D)*V'
-
+    debuginfo && println(round(I_all, 6))
     I_λ_η = I_all[(J+3*C):(J+5*C-1), (J+3*C):(J+5*C-1)] - I_all[(J+3*C):(J+5*C-1), 1:(J+3*C-1)] * inv(I_all[1:(J+3*C-1), 1:(J+3*C-1)]) * I_all[1:(J+3*C-1),(J+3*C):(J+5*C-1) ]
+    debuginfo && println(round(I_λ_η, 6))
     D, V = eig(I_λ_η)
     I_λ_η2 = V * diagm(sqrt(D)) * V'
     u = randn(nrep, 2*C) * I_λ_η2
