@@ -267,8 +267,7 @@ function latentgmmEM(X::Matrix{Float64},
     #gammaM = zeros(M)
     ll0=-Inf
     ll = 0.
-    iter_ninitial=1
-    for iter_em in 1:maxiteration
+    for iter_em in 1:maxiteration+theta_ninitial
         for ix in 1:ngh, jcom in 1:ncomponent
             ixM = ix+ngh*(jcom-1)
             gammaM[ixM] = ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom]
@@ -290,7 +289,7 @@ function latentgmmEM(X::Matrix{Float64},
         if debuginfo
             println("At $(iter_em)th iteration:")
         end
-        if iter_ninitial>theta_ninitial && (mod1(iter_em, 3) == 1 || iter_em <= 5)
+        if iter_em>theta_ninitial && (mod1(iter_em, 3) == 1 || iter_em <= 5)
             copy!(beta_old, β)
             updateβ!(β, X, Y, groupindex, .001, .001,
             XWX, XWY, Xscratch, gammaM, Wim, lln, llN, llN2, llN3,
@@ -298,8 +297,6 @@ function latentgmmEM(X::Matrix{Float64},
             if debuginfo
                 println("beta=", β)
             end
-        else
-            iter_ninitial += 1
         end
         updateθ!(wi, mu, sigmas, X, Y, groupindex,
         gammaM, Wim, Wm, sn, an, N, J, n, ncomponent, ngh)
@@ -431,7 +428,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
         latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
         sigmas_init, maxiteration=2000, an=an1,
-        sn=std(gamma_init).*ones(C0), ngh=ngh, dotest=true, tol=.001)
+        sn=std(gamma_init).*ones(C0), ngh=ngh, dotest=true, tol=.001, Qmaxiteration=6, epsilon=1e-4)
     if C0 > 1
         trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
     end
