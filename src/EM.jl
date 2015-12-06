@@ -377,7 +377,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
              Xscratch=Xscratch, xb=xb,
              Qmaxiteration=2, wifixed=true, ngh=ngh,
              dotest=false, epsilon=0.01, tol=tol,
-             theta_ninitial=0, updatebeta=fasle)
+             theta_ninitial=0, updatebeta=false)
     end
 
     mlperm = sortperm(ml)
@@ -392,7 +392,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
             Wim=Wim, llN=llN, llN2=llN2, llN3=llN3,
             Xscratch=Xscratch, xb=xb,
             Qmaxiteration=6, wifixed=true, ngh=ngh,
-            dotest=true, tol=tol, epsilon=1e-6, updatebeta=fasle)
+            dotest=true, tol=tol, epsilon=1e-6, updatebeta=false)
     end
 
     mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
@@ -401,7 +401,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
     re=latentgmmEM(X, Y, groupindex, ncomponent1,
         betas[:, imax], wi[:, imax], mu[:, imax], sigmas[:, imax],
          maxiteration=3, an=an, sn=sn, debuginfo=debuginfo, ngh=ngh,
-         tol=0., updatebeta=fasle)
+         tol=0., updatebeta=false)
 
     return(re[5])
 end
