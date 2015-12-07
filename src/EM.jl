@@ -219,7 +219,7 @@ function latentgmmEM(X::Matrix{Float64},
     maxiteration::Int=100, tol::Real=.005,
     ngh::Int=100, ghx::Vector=zeros(ngh), ghw::Vector=zeros(ngh),
     sn::Vector{Float64}=sigmas_init, an::Float64=1.0/maximum(groupindex),
-    debuginfo::Bool=false, Qmaxiteration::Int=2,
+    debuginfo::Bool=false, Qmaxiteration::Int=5,
     whichtosplit::Int=1, tau::Real=.5, wifixed::Bool=false,
     mu_lb::Vector=fill(-Inf, ncomponent),
     mu_ub::Vector=fill(Inf, ncomponent),
@@ -232,7 +232,7 @@ function latentgmmEM(X::Matrix{Float64},
     Xscratch::Matrix{Float64}=copy(X),
     xb::Vector{Float64}=zeros(length(Y)),
     gammaM::Vector{Float64}=zeros( ncomponent*ngh),
-    dotest::Bool=false, epsilon::Real=1e-4,
+    dotest::Bool=false, epsilon::Real=1e-6,
     theta_ninitial::Int=0, updatebeta::Bool=true)
 
     # initialize theta
@@ -282,14 +282,14 @@ function latentgmmEM(X::Matrix{Float64},
         lldiff = ll - ll0
         ll0 = ll
         if dotest
-            if (lldiff < epsilon) && (iter_em > 3)
+            if (lldiff < epsilon) && (iter_em > 3+theta_ninitial)
                 break
             end
         end
         if debuginfo
             println("At $(iter_em)th iteration:")
         end
-        if updatebeta && (mod1(iter_em, 3) == 1 || iter_em <= 5)
+        if updatebeta && iter_em > theta_ninitial && (mod1(iter_em, 3) == 1 || iter_em <= 5)
             copy!(beta_old, β)
             updateβ!(β, X, Y, groupindex, .001, .001,
             XWX, XWY, Xscratch, gammaM, Wim, lln, llN, llN2, llN3,
@@ -376,8 +376,8 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
              llN=llN, llN2=llN2, llN3=llN3,
              Xscratch=Xscratch, xb=xb,
              Qmaxiteration=2, wifixed=true, ngh=ngh,
-             dotest=false, epsilon=0.01, tol=tol,
-             theta_ninitial=0, updatebeta=false)
+             dotest=true, epsilon=0.01, tol=tol,
+             theta_ninitial=10)
     end
 
     mlperm = sortperm(ml)
@@ -391,8 +391,8 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
             sn=sn, an=an, debuginfo=debuginfo, gammaM = gammaM,
             Wim=Wim, llN=llN, llN2=llN2, llN3=llN3,
             Xscratch=Xscratch, xb=xb,
-            Qmaxiteration=6, wifixed=true, ngh=ngh,
-            dotest=true, tol=tol, epsilon=1e-6, updatebeta=false)
+            Qmaxiteration=5, wifixed=true, ngh=ngh,
+            dotest=true, tol=tol)
     end
 
     mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
@@ -401,7 +401,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
     re=latentgmmEM(X, Y, groupindex, ncomponent1,
         betas[:, imax], wi[:, imax], mu[:, imax], sigmas[:, imax],
          maxiteration=3, an=an, sn=sn, debuginfo=debuginfo, ngh=ngh,
-         tol=0., updatebeta=false)
+         tol=0.)
 
     return(re[5])
 end
@@ -431,7 +431,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
         latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
         sigmas_init, maxiteration=2000, an=an1,
         sn=std(gamma_init).*ones(C0), ngh=ngh, dotest=true,
-        Qmaxiteration=6, epsilon=1e-6)
+        Qmaxiteration=5)
     if C0 > 1
         trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
     end

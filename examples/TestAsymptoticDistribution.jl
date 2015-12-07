@@ -21,9 +21,9 @@ import Yeppp
     X = rand(TDist(8), N, 2) .* [14.71 4.47] ./ std(TDist(8))
     betas_true=[0.0274, 0.00878]
     if Ctrue == 1
-        mu_true = [log(1/0.779 - 1)]
+        mu_true = [-1.54]
         wi_true = [1.0]
-        sigmas_true = [1.2]
+        sigmas_true = [0.3493]
     elseif Ctrue == 2
         mu_true = [log(1/0.779 - 1) - 2.0, log(1/0.779 - 1) + 2.0] 
         wi_true = [.5, .5]
