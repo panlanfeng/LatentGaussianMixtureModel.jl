@@ -101,7 +101,7 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
     if ncomponent == 1
         mu = [mean(x)]
         sigmas = [std(x)]
-        ml = sum(logpdf(Normal(mean(x), std(x)), x)) + sum(pn(sigmas, sn, an=an))
+        ml = sum(logpdf(Normal(mean(x), std(x)), x)) #+ sum(pn(sigmas, sn, an=an))
         return([1.0], mu, sigmas, ml)
     end
     nF = length(x)
@@ -111,6 +111,14 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
     wi = copy(wi_init)
     mu = copy(mu_init)
     sigmas = copy(sigmas_init)
+    wi_old = copy(wi)
+    mu_old = copy(mu)
+    sigmas_old=copy(sigmas)
+    tmp_p=ones(ncomponent) / ncomponent
+    tmp_mu=zeros(ncomponent)
+    wi_divide_sigmas = zeros(wi)
+    inv_2sigmas_sq = ones(sigmas) .* 1e20
+
     if wifixed
         wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
         wi[whichtosplit] = wi_tmp*tau
@@ -120,15 +128,28 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
 
     pwi = ones(nF, ncomponent) ./ ncomponent
     for iter_em in 1:maxiter
+        fill!(wi_divide_sigmas, 0.0)
+        fill!(inv_2sigmas_sq, 0.0)
+        for i in 1:length(wi)
+            if sigmas[i] < realmin(Float64)
+                wi_divide_sigmas[i] = 0.0
+                inv_2sigmas_sq[i] = wi[i]*realmax(Float64)
+            else
+                wi_divide_sigmas[i] = wi[i]/sigmas[i]
+                inv_2sigmas_sq[i] = 0.5 / sigmas[i]^2
+            end
+        end
         for i in 1:nF
             # pwi[i, :] = ratiosumexp(-(mu .- x[i]).^2 ./ (2 .* sigmas .^ 2), wi ./ sigmas)
-
-            ratiosumexp!(-(mu .- x[i]).^2 ./ (2 .* sigmas .^ 2), wi ./ sigmas, pwi, i, ncomponent)
+            for j in 1:ncomponent
+                tmp_mu[j] = -(mu[j] - x[i])^2 * inv_2sigmas_sq[j]
+            end
+            ratiosumexp!(tmp_mu, wi_divide_sigmas, pwi, i, ncomponent)
         end
 
-        wi_old=copy(wi)
-        mu_old=copy(mu)
-        sigmas_old=copy(sigmas)
+        copy!(wi_old, wi)
+        copy!(mu_old, mu)
+        copy!(sigmas_old, sigmas)
 
         for j in 1:ncomponent
             colsum = sum(pwi[:, j])
@@ -150,10 +171,70 @@ function gmm(x::Vector{Float64}, ncomponent::Int, wi_init::Vector{Float64}, mu_i
     end
     m = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
 
-    ml = sum(logpdf(m, x)) + sum(pn(sigmas, sn, an=an)) #+ log(1 - abs(1 - 2*tau))
+    ml = sum(logpdf(m, x))# + sum(pn(sigmas, sn, an=an)) #+ log(1 - abs(1 - 2*tau))
     return (wi, mu, sigmas, ml)
 end
 
+function llr(x::Vector{Float64}, ncomponent::Int; vtau::Vector{Float64}=[.5,.3,.1;], ntrials::Int=25)
+    C0=ncomponent-1
+    C1 = ncomponent
+    n = length(x)
+    wi0, mu0, sigmas0, ml0 =
+    LatentGaussianMixtureModel.gmm(x, C0, ones(C0)/C0, 
+        quantile(x, linspace(0, 1, C0+2)[2:end-1]), ones(C0), 
+        an=1/n, maxiter=10000, tol=0.0001)
+    modelC0 = MixtureModel(map((u, v) -> Normal(u, v), mu0, sigmas0), wi0)
+    modelC1 = modelC0
+    an = decidepenalty(wi0, mu0, sigmas0, n)
+    mingamma, maxgamma = extrema(x)
+    ml1=-Inf
+    p=0.0
+    sigmas1 = ones(C1)
+    wi = ones(C1, ntrials)./C1
+    mu = zeros(C1, ntrials)
+    sigmas = ones(C1, ntrials)
+    ml = -Inf .* ones(ntrials)
+    for whichtosplit in 1:C0, i in 1:length(vtau)
+        ind = [1:whichtosplit, whichtosplit:C0;]
+        if C1==2
+            mu_lb = mingamma .* ones(2)
+            mu_ub = maxgamma .* ones(2)
+        elseif C1>2
+            mu_lb = [mingamma, (mu0[1:(C0-1)] .+ mu0[2:C0])./2;]
+            mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2, maxgamma;]
+            mu_lb = mu_lb[ind]
+            mu_ub = mu_ub[ind]
+        end
+        sigmas_lb = 0.25 .* sigmas0[ind]
+        sigmas_ub = 2 .* sigmas0[ind]
+
+        wi_C1 = wi0[ind]
+        wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
+        wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
+        fill!(ml, -Inf)
+        for itrial in 1:ntrials
+            mu[:, i] = rand(C1) .* (mu_ub .- mu_lb) .+ mu_lb
+            sigmas[:, i] = rand(C1) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
+            
+            wi[:,i], mu[:,i], sigmas[:,i], ml[i] =
+            LatentGaussianMixtureModel.gmm(x, C1, wi_C1, 
+                mu[:,i], sigmas[:,i], sn=sigmas0[ind],
+                an=an, maxiter=2000, tol=0.001, whichtosplit=whichtosplit,
+                tau=vtau[i], wifixed=true, mu_lb=mu_lb, mu_ub=mu_ub)
+        end
+        mlmax, imax = findmax(ml)
+        wi1, mu1, sigmas1, ml_tmp =
+        LatentGaussianMixtureModel.gmm(x, C1, wi[:,imax], 
+            mu[:,imax], sigmas[:,imax], sn=sigmas0[ind], 
+            an=an, maxiter=2, tol=0.0)
+        if ml_tmp > ml1
+            ml1=ml_tmp
+            modelC1 = MixtureModel(map((u, v) -> Normal(u, v), mu1, sigmas1), wi1)
+            #p=sum(pn(sigmas1, sigmas0[ind], an=an))-sum(pn(sigmas0, ones(sigmas0).*std(x), an=1/n))
+        end
+    end
+    2*(ml1 - ml0), kl(modelC1, modelC0)*n*2 #+ 2*p
+end
 
 #for maxposterior
 function mpe_goalfun(input::Vector{Float64}, storage::Vector, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, nF::Int, llvec::Vector{Float64},llvecnew::Vector{Float64})
@@ -216,6 +297,42 @@ function marginallikelihood(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, group
     M = ngh * length(wi)
     n = maximum(groupindex)
     marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, zeros(N), zeros(n), zeros(N), zeros(n, M))
+end
+function marginallikelihoodFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, β::Array{Float64,1}; M::Int=5000)
+    
+    N,J=size(X)
+    n = maximum(groupindex)
+    m = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
+    ll =0.0
+    xb= X*β
+    Wim = zeros(n, M)
+    lln = zeros(n)
+    llN = zeros(N)
+    llN2 = copy(llN)
+    for ixM in 1:M
+        for i in 1:n
+            lln[i]=rand(m)
+        end
+        relocate!(llN, lln, groupindex, N)
+        Yeppp.add!(llN, llN, xb)
+        negateiftrue!(llN, Y)
+        log1pexp!(llN, llN, N)
+        for i in 1:N
+            @inbounds Wim[groupindex[i], ixM] -= llN[i]
+        end
+    end
+    for i in 1:n
+        ll += logsumexp(Wim[i,:])
+    end
+    return(ll - n*log(M))
+end
+function kl(m0::Distribution, m1::Distribution; M::Int=100000)
+    dg = 0.0
+    for i in 1:M
+        x = rand(m0)
+        @inbounds dg += logpdf(m0, x) - logpdf(m1, x)
+    end
+    dg/M
 end
 
 function marginallikelihood(beta_new::Array{Float64,1}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, nF::Int64, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, ghx::Vector{Float64}, ghw::Vector{Float64}, llvec::Vector, ll_nF::Vector, xb::Vector, sumlogmat::Matrix)

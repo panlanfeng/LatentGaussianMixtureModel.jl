@@ -53,10 +53,13 @@ end
 function ratiosumexp!{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T}, s::AbstractMatrix{T}, irow::Int, ncomponent::Int)
 
     u = maximum(x)
-    for i in 1:ncomponent
-        @inbounds s[irow, i] = coef[i]*exp(x[i] - u)
+    ssum=0.0
+    @inbounds for i in 1:ncomponent
+        tmp=coef[i]*exp(x[i] - u)
+        s[irow, i] = tmp
+        ssum += tmp
     end
-    ssum = sum(s[irow, :])
+    #ssum = sum(s[irow, :])
     for i in 1:ncomponent
         @inbounds s[irow, i] = s[irow, i] / ssum
     end
