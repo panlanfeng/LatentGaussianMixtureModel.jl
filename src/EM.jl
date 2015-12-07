@@ -278,7 +278,7 @@ function latentgmmEM(X::Matrix{Float64},
         copy!(sigmas_old, sigmas)
 
         A_mul_B!(xb, X, β)
-        ll=integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, llN2, xb, N, J, n, ncomponent, ngh)+ sum(pn(sigmas, sn, an=an))
+        ll=integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, llN2, xb, N, J, n, ncomponent, ngh) #+ sum(pn(sigmas, sn, an=an))
         lldiff = ll - ll0
         ll0 = ll
         if dotest
@@ -341,7 +341,8 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
     ncomponent1::Int,  betas0::Vector{Float64},
     wi_C1::Vector{Float64},  whichtosplit::Int64,
     tau::Float64, mu_lb::Vector{Float64}, mu_ub::Vector{Float64},
-    sigmas_lb::Vector{Float64}, sigmas_ub::Vector{Float64};
+    sigmas_lb::Vector{Float64}, sigmas_ub::Vector{Float64},
+    modelC0::Distribution;
     ntrials::Int=25, ngh::Int=100,
     sn::Vector{Float64}=sigmas_ub ./ 2,
     an=.25, debuginfo::Bool=false,
@@ -402,8 +403,9 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
         betas[:, imax], wi[:, imax], mu[:, imax], sigmas[:, imax],
          maxiteration=3, an=an, sn=sn, debuginfo=debuginfo, ngh=ngh,
          tol=0.)
-
-    return(re[5])
+    modelC1 = MixtureModel(map((u, v) -> Normal(u, v), re[2], re[3]), re[1])
+    kl(modelC0, modelC1)*nF#+sum(pn(re[3], sn, an=an))
+    # return(re[5])
 end
 
 function loglikelihoodratioEM(X::Matrix{Float64},
@@ -435,6 +437,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     if C0 > 1
         trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
     end
+    modelC0 = MixtureModel(map((u, v) -> Normal(u, v), mu_init, sigmas_init), wi_init)
     if debuginfo
         println("ml_C0=", ml_C0)
     end
@@ -481,7 +484,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
 
             ml_tmp=loglikelihoodratioEM_ctau(X, Y, groupindex, ncomponent1,
                 betas0, wi_C1, whichtosplit, vtau[i],
-                mu_lb, mu_ub, sigmas_lb, sigmas_ub, ntrials=ntrials,
+                mu_lb, mu_ub, sigmas_lb, sigmas_ub, modelC0, ntrials=ntrials,
                 ngh=ngh, sn=sigmas0[ind], an=an, debuginfo=false,
                 gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, llN3=llN3, Xscratch=Xscratch, xb=xb,
                 tol=tol)
@@ -515,7 +518,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
 
              lrv[i, whichtosplit]=loglikelihoodratioEM_ctau(X, Y,
                 groupindex, ncomponent1, betas0, wi_C1, whichtosplit,
-                vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub,
+                vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub, modelC0,
                 ntrials=ntrials, ngh=ngh, sn=sigmas0[ind], an=an,
                 debuginfo=false, gammaM = gammaM, Wim=Wim,
                 llN=llN, llN2=llN2, xb=xb, tol=tol)
@@ -528,11 +531,11 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     if debuginfo
         println("lr=", lr)
     end
-    Tvalue = 2*(lr - ml_C0)
+    Tvalue = 2*lr#(lr - ml_C0)
     if C0 == 1
         pvalue = 1 - cdf(Chisq(2), Tvalue)
     else
-        pvalue = mean(trand .> 2*(lr - ml_C0))
+        pvalue = mean(trand .> Tvalue)
     end
     return(Tvalue, pvalue)
 end
