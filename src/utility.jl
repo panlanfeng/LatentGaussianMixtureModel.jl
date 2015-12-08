@@ -317,8 +317,8 @@ function marginallikelihoodFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
     llN1 = copy(llN)
     for ixM in 1:M
         for i in 1:n
-            lln[i]=rand(m0)
-            cf[i, ixM] = logpdf(m1, lln[i]) - logpdf(m0, lln[i])
+            lln[i]=rand(m1)
+            cf[i, ixM] = logpdf(m0, lln[i]) - logpdf(m1, lln[i])
             cf[i, ixM] = exp(cf[i, ixM])
         end
         relocate!(llN, lln, groupindex, N)
@@ -356,8 +356,9 @@ function marginallikelihoodFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
         for k in 1:M
             @inbounds lltmp+=cf[i, k] * Wim[i, k]
         end
-        ll+=log(lltmp) + ml1[i] - ml0[i]
+        ll+=-log(lltmp)
     end
+    ll+=sum(ml1) - sum(ml0)
     return(2*ll)
 end
 function kl(m0::Distribution, m1::Distribution; M::Int=100000)
