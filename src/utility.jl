@@ -298,33 +298,67 @@ function marginallikelihood(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, group
     n = maximum(groupindex)
     marginallikelihood(β, X, Y, groupindex, n, wi, mu, sigmas, ghx, ghw, zeros(N), zeros(n), zeros(N), zeros(n, M))
 end
-function marginallikelihoodFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, β::Array{Float64,1}; M::Int=5000)
+function marginallikelihoodFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, m0::Distribution, beta0::Array{Float64,1}, m1::Distribution, beta1::Array{Float64,1}; M::Int=5000)
     
     N,J=size(X)
     n = maximum(groupindex)
-    m = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
+    #m0 = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
+    #m1 = MixtureModel(map((u, v) -> Normal(u, v), mu1, sigmas1), wi1)
     ll =0.0
-    xb= X*β
+    ml0=zeros(n)
+    ml1 = zeros(n)
+    xb = X*beta0
+    xb1= X*beta1
     Wim = zeros(n, M)
+    Wim1 = zeros(n,M)
+    cf = zeros(n, M)
     lln = zeros(n)
     llN = zeros(N)
-    llN2 = copy(llN)
+    llN1 = copy(llN)
     for ixM in 1:M
         for i in 1:n
-            lln[i]=rand(m)
+            lln[i]=rand(m0)
+            cf[i, ixM] = logpdf(m1, lln[i]) - logpdf(m0, lln[i])
+            cf[i, ixM] = exp(cf[i, ixM])
         end
         relocate!(llN, lln, groupindex, N)
+        copy!(llN1, llN)
         Yeppp.add!(llN, llN, xb)
+        Yeppp.add!(llN1, llN1, xb1)
         negateiftrue!(llN, Y)
+        negateiftrue!(llN1, Y)
         log1pexp!(llN, llN, N)
+        log1pexp!(llN1, llN1, N)
         for i in 1:N
             @inbounds Wim[groupindex[i], ixM] -= llN[i]
+            @inbounds Wim1[groupindex[i], ixM] -= llN1[i]
         end
     end
     for i in 1:n
-        ll += logsumexp(Wim[i,:])
+        ml0[i] += logsumexp(Wim[i,:])
+        ml1[i] += logsumexp(Wim1[i,:])
     end
-    return(ll - n*log(M))
+    for i in 1:n
+        u = maximum(Wim[i, :])
+        for jcol in 1:M
+            @inbounds Wim[i, jcol] = Wim[i, jcol] - u
+        end
+    end
+    Yeppp.exp!(Wim, Wim)
+    for i in 1:n
+        u = sum(Wim[i, :])
+        for jcol in 1:M
+            @inbounds Wim[i, jcol] = Wim[i, jcol] / u
+        end
+    end
+    for i in 1:n
+        lltmp=0.0
+        for k in 1:M
+            @inbounds lltmp+=cf[i, k] * Wim[i, k]
+        end
+        ll+=log(lltmp) + ml1[i] - ml0[i]
+    end
+    return(2*ll)
 end
 function kl(m0::Distribution, m1::Distribution; M::Int=100000)
     dg = 0.0

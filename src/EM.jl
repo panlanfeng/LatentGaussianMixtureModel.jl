@@ -377,7 +377,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
              llN=llN, llN2=llN2, llN3=llN3,
              Xscratch=Xscratch, xb=xb,
              Qmaxiteration=2, wifixed=true, ngh=ngh,
-             dotest=true, epsilon=0.01, tol=tol,
+             dotest=false, epsilon=0.01, tol=tol,
              theta_ninitial=10)
     end
 
@@ -393,7 +393,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
             Wim=Wim, llN=llN, llN2=llN2, llN3=llN3,
             Xscratch=Xscratch, xb=xb,
             Qmaxiteration=5, wifixed=true, ngh=ngh,
-            dotest=true, tol=tol)
+            dotest=false, tol=tol)
     end
 
     mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
@@ -404,8 +404,8 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
          maxiteration=3, an=an, sn=sn, debuginfo=debuginfo, ngh=ngh,
          tol=0.)
     modelC1 = MixtureModel(map((u, v) -> Normal(u, v), re[2], re[3]), re[1])
-    kl(modelC0, modelC1)*nF#+sum(pn(re[3], sn, an=an))
-    # return(re[5])
+    return(re[5]), kl(modelC1, modelC0)*nF*2,
+    marginallikelihoodFI(X, Y, groupindex, modelC0, betas0, modelC1, re[4])
 end
 
 function loglikelihoodratioEM(X::Matrix{Float64},
@@ -432,8 +432,8 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
         latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
         sigmas_init, maxiteration=2000, an=an1,
-        sn=std(gamma_init).*ones(C0), ngh=ngh, dotest=true,
-        Qmaxiteration=5)
+        sn=std(gamma_init).*ones(C0), ngh=ngh, dotest=false,
+        Qmaxiteration=5, tol=.001)
     if C0 > 1
         trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
     end
@@ -460,6 +460,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     llN3 = zeros(N)
     Xscratch = copy(X)
     xb = zeros(N)
+    lr = 0.0; kl1 = 0.0; lr1=0.0
     if ctauparallel
         lr=@parallel (max) for irun in 1:(C0*length(vtau))
 
@@ -491,10 +492,12 @@ function loglikelihoodratioEM(X::Matrix{Float64},
             if debuginfo
                 println(whichtosplit, " ", vtau[i], "->", ml_tmp)
             end
-            ml_tmp
+            ml_tmp[3]
         end
     else
         lrv = zeros(length(vtau), C0)
+        kl_tmp=zeros(length(vtau), C0)
+        ll_tmp = zeros(length(vtau), C0)
         for whichtosplit in 1:C0, i in 1:length(vtau)
 
              #whichtosplit = mod1(irun, C0)
@@ -516,26 +519,31 @@ function loglikelihoodratioEM(X::Matrix{Float64},
              wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
              wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
 
-             lrv[i, whichtosplit]=loglikelihoodratioEM_ctau(X, Y,
+             lrv[i, whichtosplit], kl_tmp[i,whichtosplit], ll_tmp[i,whichtosplit] = loglikelihoodratioEM_ctau(X, Y,
                 groupindex, ncomponent1, betas0, wi_C1, whichtosplit,
                 vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub, modelC0,
                 ntrials=ntrials, ngh=ngh, sn=sigmas0[ind], an=an,
                 debuginfo=false, gammaM = gammaM, Wim=Wim,
                 llN=llN, llN2=llN2, xb=xb, tol=tol)
             if debuginfo
-                println(whichtosplit, " ", vtau[i], "->", lrv[i, whichtosplit])
+                println(whichtosplit, " ", vtau[i], "->",
+                lrv[i, whichtosplit], " ",
+                kl_tmp[i, whichtosplit], " ",
+                ll_tmp[i, whichtosplit])
             end
         end
         lr = maximum(lrv)
+        kl1=maximum(kl_tmp)
+        lr1 = maximum(ll_tmp)
     end
     if debuginfo
         println("lr=", lr)
     end
-    Tvalue = 2*lr#(lr - ml_C0)
+    Tvalue = 2*(lr - ml_C0)
     if C0 == 1
         pvalue = 1 - cdf(Chisq(2), Tvalue)
     else
         pvalue = mean(trand .> Tvalue)
     end
-    return(Tvalue, pvalue)
+    return(Tvalue, pvalue, kl1, lr1)
 end
