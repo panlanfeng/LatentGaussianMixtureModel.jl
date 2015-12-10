@@ -408,7 +408,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
 
     re=latentgmmEM(X, Y, groupindex, ncomponent1,
         betas[:, imax], wi[:, imax], mu[:, imax], sigmas[:, imax],
-         maxiteration=3, an=an, sn=sn, debuginfo=debuginfo, ngh=100,
+         maxiteration=3, an=an, sn=sn, debuginfo=debuginfo, ngh=ngh,
          tol=0.)
     modelC1 = MixtureModel(map((u, v) -> Normal(u, v), re[2], re[3]), re[1])
     return(re[5])
