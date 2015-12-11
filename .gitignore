@@ -3,3 +3,4 @@
 *.pbs
 BATCH_*
 teststat*.csv
+examples/notes
