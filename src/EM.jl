@@ -396,7 +396,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
             wi[:, i], mu[:, i], sigmas[:, i],
             whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw,
             mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=2000,
-            sn=sn, an=an, debuginfo=debuginfo, gammaM = gammaM,
+            sn=sn, an=an, gammaM = gammaM,
             Wim=Wim, llN=llN, llN2=llN2, llN3=llN3,
             Xscratch=Xscratch, xb=xb,
             Qmaxiteration=5, wifixed=true, ngh=ngh,
@@ -408,8 +408,9 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
 
     re=latentgmmEM(X, Y, groupindex, ncomponent1,
         betas[:, imax], wi[:, imax], mu[:, imax], sigmas[:, imax],
-         maxiteration=3, an=an, sn=sn, debuginfo=debuginfo, ngh=ngh,
+         maxiteration=3, an=an, sn=sn, debuginfo=false, ngh=ngh,
          tol=0.)
+    debuginfo && println("Trial:", re)
     modelC1 = MixtureModel(map((u, v) -> Normal(u, v), re[2], re[3]), re[1])
     return(re[5])
     #marginallikelihoodFI(X, Y, groupindex, modelC0, betas0, modelC1, re[4])
@@ -441,6 +442,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
         sigmas_init, maxiteration=2000, an=an1,
         sn=std(gamma_init).*ones(C0), ngh=100, dotest=false,
         Qmaxiteration=5, tol=.001)
+    debuginfo && println(wi_init, mu_init, sigmas_init, betas_init, ml_C0)
     if C0 > 1
         trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
     end
@@ -494,7 +496,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
                 betas0, wi_C1, whichtosplit, vtau[i],
                 mu_lb, mu_ub, sigmas_lb, sigmas_ub,
                 modelC0, ntrials=ntrials,
-                ngh=ngh, sn=sigmas0[ind], an=an, debuginfo=false,
+                ngh=ngh, sn=sigmas0[ind], an=an, debuginfo=debuginfo,
                 gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2,
                 llN3=llN3, Xscratch=Xscratch, xb=xb,
                 tol=tol)
@@ -532,7 +534,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
                 groupindex, ncomponent1, betas0, wi_C1, whichtosplit,
                 vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub, modelC0,
                 ntrials=ntrials, ngh=ngh, sn=sigmas0[ind], an=an,
-                debuginfo=false, gammaM = gammaM, Wim=Wim,
+                debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
                 llN=llN, llN2=llN2, xb=xb, tol=tol)
             if debuginfo
                 println(whichtosplit, " ", vtau[i], "->",

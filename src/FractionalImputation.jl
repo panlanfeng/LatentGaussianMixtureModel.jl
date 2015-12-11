@@ -162,6 +162,96 @@ function FIupdateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Fl
     end
 end
 
+function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
+    Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
+    minStepFac::Real, betadevtol::Real,
+    XWX::Matrix{Float64}, XWY::Vector{Float64},
+    Xscratch::Matrix{Float64},
+    gammaM::Matrix{Float64}, Wim::Matrix{Float64},
+    lln::Vector{Float64}, llN::Vector{Float64},
+    llN2::Vector{Float64}, llN3::Vector{Float64}, xb::Vector{Float64},
+    N::Int, J::Int, n::Int, C::Int, ngh::Int, Qmaxiteration::Int)
+    M = C*ngh
+    dev0 = negdeviance(β, X, Y, groupindex,
+    gammaM, Wim, lln, llN, llN2, xb, N, J, n, M)
+
+    for iterbeta in 1:Qmaxiteration
+        deltabeta!(XWY, XWX, X, Y, groupindex, β, Xscratch, gammaM, Wim,
+        llN, llN2, llN3, xb, N, J, n, M)
+        if maxabs(XWY ./ (abs(β)+0.001)) < 1e-5
+            break
+        end
+        f = 1.
+        dev = negdeviance(β .+ f .* XWY, X, Y, groupindex,
+        gammaM, Wim, lln, llN, llN2, xb, N, J, n, M)
+        while dev < dev0
+            f ./=2
+            f > minStepFac || error("step-halving failed at beta = $(β), deltabeta=$(XWY), dev=$(dev), dev0=$dev0, f=$f")
+            dev = negdeviance(β .+ f .* XWY, X, Y, groupindex,
+            gammaM, Wim, lln, llN, llN2, xb, N, J, n, M)
+        end
+        for j in 1:J
+            β[j] += f * XWY[j]
+        end
+
+        if dev - dev0 < betadevtol
+            break
+        end
+        dev0 = dev
+    end
+
+end
+function deltabeta!(XWY::Vector{Float64},
+    XWX::Matrix{Float64}, X::Matrix{Float64},
+    Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
+    β::Vector{Float64}, Xscratch::Matrix{Float64},
+    gammaM::Matrix{Float64}, Wim::Matrix{Float64},
+    llN::Vector{Float64},llN2::Vector{Float64},
+    llN3::Vector{Float64}, xb::Vector{Float64},
+    N::Int, J::Int, n::Int, M::Int)
+    A_mul_B!(xb, X, β)
+    fill!(XWX, 0.)
+    fill!(XWY, 0.)
+
+    for jcol in 1:M
+        relocate!(llN, gammaM[:, jcol], groupindex, N)
+        Yeppp.add!(llN, llN, xb)
+        logistic!(llN, llN, N)
+
+        @inbounds for i in 1:N
+            llN2[i] = llN[i]*(1.0 -llN[i]) #working weight
+            llN[i] = Y[i] ? 1.0 - llN[i] : -llN[i] #working response without denominator
+        end
+        relocate!(llN3, Wim[:, jcol], groupindex, N)
+        scale!(Xscratch, llN3, X)
+        Base.BLAS.gemv!('T', 1.0, Xscratch, llN, 1.0, XWY)
+        scale!(Xscratch, llN2, Xscratch)
+        Base.BLAS.gemm!('T', 'N', 1.0, Xscratch, X, 1.0, XWX)
+    end
+    A_ldiv_B!(cholfact!(XWX, :U), XWY)
+end
+function negdeviance(beta2::Vector{Float64}, X::Matrix{Float64},
+    Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
+    gammaM::Matrix{Float64}, Wim::Matrix{Float64},
+    lln::Vector{Float64}, llN::Vector{Float64},
+    llN2::Vector{Float64}, xb::Vector{Float64},
+    N::Int, J::Int, n::Int, M::Int)
+    dev = 0.
+    A_mul_B!(xb, X, beta2)
+    for jcol in 1:M
+        relocate!(llN, gammaM[:, jcol], groupindex, N)
+        Yeppp.add!(llN, llN, xb)
+        negateiftrue!(llN, Y)
+        log1pexp!(llN, llN, llN2, N)
+        fill!(lln, 0.0)
+        for i in 1:N
+            @inbounds lln[groupindex[i]] += llN[i]
+        end
+        dev += wsum(lln, Wim[:, jcol])
+    end
+    -dev
+end
+
 function FIupdateβ!(β::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,  gammaM::Matrix{Float64}, Wim::Matrix{Float64}, lln::Vector{Float64}, llN::Vector{Float64}, llN2::Vector{Float64}, xb::Vector{Float64}, N::Int, J::Int, n::Int, M::Int, Qmaxiteration::Int)
 
     opt = Opt(:LD_LBFGS, J)
@@ -213,7 +303,10 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
     debuginfo::Bool=false, Qmaxiteration::Int=2, whichtosplit::Int=1, tau::Real=.5, wifixed::Bool=false, dotest::Bool=true, thetamaxiteration::Int=10,
      mu_lb::Vector=fill(-Inf, ncomponent), mu_ub::Vector=fill(Inf, ncomponent),
      Wim::Matrix{Float64}=zeros(maximum(groupindex), M), lln::Vector{Float64}=zeros(maximum(groupindex)), llN::Vector{Float64}=zeros(length(Y)),
-    llN2::Vector{Float64}=zeros(length(Y)), xb::Vector{Float64}=zeros(length(Y)),
+    llN2::Vector{Float64}=zeros(length(Y)),
+    llN3::Vector{Float64}=zeros(length(Y)),
+    Xscratch::Matrix{Float64}=copy(X),
+    xb::Vector{Float64}=zeros(length(Y)),
      gammaM::Matrix{Float64}=zeros(maximum(groupindex), M), gammah::Matrix{Float64}=zeros(maximum(groupindex), M), epsilon::Float64=1e-5)
 
     # initialize theta
@@ -248,6 +341,8 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
         gammaM[i, jcol] = gammatmp * ratioinit + meaninit
         gammah[i, jcol] = log(ratioinit)-logpdf(proposingdist, gammatmp)
     end
+    XWX = zeros(J, J)
+    XWY = zeros(J)
     ll=0.0
     ll0=-Inf
     for iter_em in 1:maxiteration
@@ -273,7 +368,7 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
         end
         if !stopRule(β, beta_old, tol=tol/10)
             copy!(beta_old, β)
-            FIupdateβ!(β, X, Y, groupindex, gammaM, Wim, lln, llN, llN2, xb, N, J, n, M, Qmaxiteration)
+            FIupdateβ!(β, X, Y, groupindex, .001, .001, XWX, XWY, Xscratch, gammaM, Wim, lln, llN, llN2, llN3, xb, N, J, n, M, Qmaxiteration)
             if debuginfo
                 println("beta=", β)
             end
@@ -338,14 +433,11 @@ function loglikelihoodratioFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
     nF = maximum(groupindex)
     #M = ngh * ncomponent1
     an1 = 1/nF
-    gamma_init, betas_init, sigmas_tmp = maxposterior(X, Y, groupindex)
-    if C0 ==1
-        wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmFI(X, Y, groupindex, 1, betas_init, [1.0], [mean(gamma_init)], [std(gamma_init)], maxiteration=1000, an=an1, sn=std(gamma_init).*ones(C0), M=M, meaninit=mean(gamma_init), sigmasinit=std(gamma_init))
-    else C0 > 1
-        wi_init, mu_init, sigmas_init, betas_init, ml_C0= latentgmmFI(X, Y, groupindex, 1, betas_init, [1.0], [mean(gamma_init)], [std(gamma_init)], maxiteration=100, an=an1, sn=std(gamma_init).*ones(C0), M=M, meaninit=mean(gamma_init), sigmasinit=std(gamma_init))
-        gamma_init = predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
-        wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=an1)
-        wi_init, mu_init, sigmas_init, betas_init, ml_C0= latentgmmFI(X, Y, groupindex, C0, betas_init, wi_init, mu_init, sigmas_init, maxiteration=500, an=an1, sn=std(gamma_init).*ones(C0), M=M, meaninit=mean(gamma_init), sigmasinit=std(gamma_init))
+    wi_init, mu_init, sigmas_init, betas_init, ml_C0= latentgmmFI(X, Y, groupindex, 1, betas_init, [1.0], [mean(gamma_init)], [std(gamma_init)], maxiteration=100, an=an1, sn=std(gamma_init).*ones(C0), M=M, meaninit=mean(gamma_init), sigmasinit=std(gamma_init))
+    gamma_init = predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
+    wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=an1)
+    wi_init, mu_init, sigmas_init, betas_init, ml_C0= latentgmmFI(X, Y, groupindex, C0, betas_init, wi_init, mu_init, sigmas_init, maxiteration=500, an=an1, sn=std(gamma_init).*ones(C0), M=M, meaninit=mean(gamma_init), sigmasinit=std(gamma_init))
+    if C0 > 1
         trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
     end
 
@@ -389,18 +481,12 @@ function loglikelihoodratioFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
             wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
             wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
 
-            loglikelihoodratioFI_ctau(X, Y, groupindex, ncomponent1, betas0, wi_C1, whichtosplit, vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub, ntrials=ntrials, sn=sigmas0[ind], an=an, debuginfo=debuginfo, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, proposingdist=modelC0, M=M)
+            ml_tmp=loglikelihoodratioFI_ctau(X, Y, groupindex, ncomponent1, betas0, wi_C1, whichtosplit, vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub, ntrials=ntrials, sn=sigmas0[ind], an=an, debuginfo=debuginfo, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, proposingdist=modelC0, M=M)
+            if debuginfo
+                println(whichtosplit, " ", vtau[i], "->", ml_tmp)
+            end
+            ml_tmp
         end
-        if debuginfo
-            println(summarystats(trand))
-        end
-        Tvalue = 2*(lr - ml_C0)
-        if C0 == 1
-            pvalue = 1 - cdf(Chisq(2), Tvalue)
-        else
-            pvalue = mean(trand .> 2*(lr - ml_C0))
-        end
-        return [Tvalue, pvalue;]
     else
         lr = zeros(length(vtau), C0)
         for whichtosplit in 1:C0, i in 1:length(vtau)
@@ -424,15 +510,16 @@ function loglikelihoodratioFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, gro
 
              lr[i, whichtosplit]=loglikelihoodratioFI_ctau(X, Y, groupindex, ncomponent1, betas0, wi_C1, whichtosplit, vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub, ntrials=ntrials, sn=sigmas0[ind], an=an, debuginfo=debuginfo, gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2, xb=xb, proposingdist=modelC0, M=M)
          end
-         if debuginfo
-             println(summarystats(trand))
-         end
-         Tvalue = 2*(maximum(lr) - ml_C0)
-         if C0 == 1
-             pvalue = 1 - cdf(Chisq(2), Tvalue)
-         else
-             pvalue = mean(trand .> 2*(maximum(lr) - ml_C0))
-         end
-         return [Tvalue, pvalue;]
+         lr = maximum(lrv)
     end
+    if debuginfo
+        println("lr=", lr)
+    end
+    Tvalue = 2*(lr - ml_C0)
+    if C0 == 1
+        pvalue = 1 - cdf(Chisq(2), Tvalue)
+    else
+        pvalue = mean(trand .> Tvalue)
+    end
+    return(Tvalue, pvalue)
 end
