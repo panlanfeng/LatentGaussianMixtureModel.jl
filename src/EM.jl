@@ -450,8 +450,8 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     if debuginfo
         println("ml_C0=", ml_C0)
     end
-    mingamma = minimum(gamma_init)
-    maxgamma = maximum(gamma_init)
+    mingamma = minimum(gamma_init)-2.0
+    maxgamma = maximum(gamma_init)+2.0
 
     or = sortperm(mu_init)
     wi0 = wi_init[or]

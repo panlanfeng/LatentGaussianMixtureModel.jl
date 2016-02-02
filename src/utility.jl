@@ -413,6 +413,37 @@ function marginallikelihood(beta_new::Array{Float64,1}, X::Matrix{Float64}, Y::A
     ll - nF*log(pi)/2
 end
 
+function predictgamma(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi::Vector, mu::Vector, sigmas::Vector, β::Vector; ngh::Int=100)
+
+    ncomponent = length(wi)
+    n = maximum(groupindex)
+    M = ngh*ncomponent
+    N, J = size(X)
+
+    xb = zeros(N)
+    llN = zeros(N)
+    llN2 = zeros(N)
+    gammaM = zeros(M)
+    gammahat = zeros(n)
+    
+    ghx, ghw = gausshermite(ngh)
+    Wim = zeros(n, M)
+    for ix in 1:ngh, jcom in 1:ncomponent
+        ixM = ix+ngh*(jcom-1)
+        gammaM[ixM] = ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom]
+    end
+
+    A_mul_B!(xb, X, β)
+    integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, llN2, xb, N, J, n, ncomponent, ngh)
+    for i in 1:n
+        for j in 1:M
+            gammahat[i] += gammaM[j] * Wim[i,j]
+        end
+    end
+
+    return gammahat
+end
+
 function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, betas::Array{Float64,1}; ngh::Int=100, nrep::Int=10000, debuginfo::Bool=false)
 
     N,J = size(X)
