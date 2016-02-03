@@ -443,7 +443,48 @@ function predictgamma(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi:
 
     return gammahat
 end
+function FDR(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi::Vector, mu::Vector, sigmas::Vector, β::Vector, C0::IntegerVector; ngh::Int=100)
 
+    ncomponent = length(wi)
+    n = maximum(groupindex)
+    M = ngh*ncomponent
+    N, J = size(X)
+    if maximum(C0) > ncomponent || minimum(C0) < 1
+        error("C0 must be within 1 to number of components")
+    end
+
+    xb = zeros(N)
+    llN = zeros(N)
+    llN2 = zeros(N)
+    gammaM = zeros(M)
+    piposterior = zeros(n, ncomponent)
+    clFDR = zeros(n)
+    
+    ghx, ghw = gausshermite(ngh)
+    Wim = zeros(n, M)
+    for ix in 1:ngh, jcom in 1:ncomponent
+        ixM = ix+ngh*(jcom-1)
+        gammaM[ixM] = ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom]
+    end
+
+    A_mul_B!(xb, X, β)
+    integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, llN2, xb, N, J, n, ncomponent, ngh)
+    for i in 1:n
+        for jcom in 1:C
+            for ix in 1:ngh
+                ixM = ix+ngh*(jcom-1)
+                piposterior[i, jcom] += Wim[i,ixM]
+            end
+        end
+    end
+    for i in 1:n
+        for jcom in 1:C
+            clFDR[i] = sum(piposterior[i, C0])
+        end
+    end
+
+    return clFDR
+end
 function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, betas::Array{Float64,1}; ngh::Int=100, nrep::Int=10000, debuginfo::Bool=false)
 
     N,J = size(X)
