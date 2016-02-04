@@ -576,7 +576,7 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
     I_all = vcat(hcat(I_η, I_λη'), hcat(I_λη, I_λ))
     D, V = eig(I_all)
     tol2 = abs(D[1]) * 1e-14
-    D[abs(D).<tol2] = tol2
+    D[D.<tol2] = tol2
     I_all = V*diagm(D)*V'
     debuginfo && println(round(I_all, 6))
     I_λ_η = I_all[(J+3*C):(J+5*C-1), (J+3*C):(J+5*C-1)] - I_all[(J+3*C):(J+5*C-1), 1:(J+3*C-1)] * inv(I_all[1:(J+3*C-1), 1:(J+3*C-1)]) * I_all[1:(J+3*C-1),(J+3*C):(J+5*C-1) ]
