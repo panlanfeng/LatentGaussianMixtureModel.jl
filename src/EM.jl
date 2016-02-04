@@ -300,18 +300,19 @@ function latentgmmEM(X::Matrix{Float64},
         end
         updateθ!(wi, mu, sigmas, X, Y, groupindex,
         gammaM, Wim, Wm, sn, an, N, J, n, ncomponent, ngh)
-        if any(wi .< 1.0/ncomponent/(n+1))
+        if wifixed
             for kcom in 1:ncomponent
                 wi[kcom]=(wi[kcom]*n+1.0/ncomponent)/(n+1)
             end
-            #break
-        end
-        if wifixed
             wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
             wi[whichtosplit] = wi_tmp*tau
             wi[whichtosplit+1] = wi_tmp*(1-tau)
             Yeppp.max!(mu, mu, mu_lb)
             Yeppp.min!(mu, mu, mu_ub)
+        end
+        if any(wi .< 1e-8)
+            warn("Some wi is too small. Give up.")
+            break
         end
         if debuginfo
             println("wi=$wi")
@@ -425,7 +426,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     C1 = ncomponent1
     nF = maximum(groupindex)
     M = ngh * ncomponent1
-    an1 = 0.#1/nF
+    an1 = 1/nF
     #gamma_init, betas_init, sigmas_tmp = maxposterior(X, Y, groupindex)
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
     latentgmmEM(X, Y, groupindex, 1, [1.,1.],
@@ -457,7 +458,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     mu0 = mu_init[or]
     sigmas0 = sigmas_init[or]
     betas0 = betas_init
-    an = 0.#decidepenalty(wi0, mu0, sigmas0, nF)
+    an = decidepenalty(wi0, mu0, sigmas0, nF)
 
     N,J=size(X)
     gammaM = zeros(ngh*ncomponent1)
