@@ -8,6 +8,7 @@ using FastGaussQuadrature
 using Yeppp
 #import Yeppp: add!, exp!, log!
 import StatsBase: RealArray, RealVector, RealArray, IntegerArray, IntegerVector, IntegerMatrix, IntUnitRange
+import StatsFuns: logπ
 export gmm, predictgamma, latentgmm, latentgmm_ctau, latentgmmEM, latentgmmFI, marginallikelihood, loglikelihoodratio, loglikelihoodratio_ctau, loglikelihoodratioEM, maxposterior, decidepenalty
 include("arithmetic.jl")
 include("utility.jl")

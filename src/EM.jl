@@ -42,7 +42,7 @@ function integralweight!(Wim::Matrix{Float64},
             @inbounds Wim[i, jcol] = Wim[i, jcol] / u
         end
     end
-    return ll #- n*log(pi)/2
+    return ll - n*logπ/2
 end
 
 function updateθ!(wi::Vector{Float64}, mu::Vector{Float64},
