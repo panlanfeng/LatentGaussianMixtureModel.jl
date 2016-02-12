@@ -37,6 +37,9 @@ nF = maximum(groupindex)
 
 # read in the binary response Y and convert to Bool Vector
 #Not sure what Y looks like, so I list several possibilities here.
+
+# *Note*
+# Y true means survived, false means dead
 Y_raw = readcsv("Y.csv");
 Y = Array(Bool, N);
 for i in 1:N
@@ -50,33 +53,49 @@ end
 #Test if X, Y, groupindex are in the same length
 @assert length(Y) == length(groupindex) == N
 
-#do a single model fit
-C0=2 #number of components to try
-#initialize
 X = X .- mean(X, 1)
-gamma_init, betas_init, sigmas_tmp = maxposterior(X, Y, groupindex)
-wi_init, mu_init, sigmas_init, betas_init, ml_tmp = LatentGaussianMixtureModel.latentgmmEM(X, Y, groupindex, 1, betas_init, [1.0], [0.], [1.], maxiteration=100)
- gamma_init = LatentGaussianMixtureModel.predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init);
- 
-wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, ones(C0)/C0, quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]), ones(C0), an=1/nF)
-#Model fit
-#If there is error, set debuginfo=true to see more information
-
-wi, mu, sigmas, betas, ml_C0 = latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init, sigmas_init, maxiteration=1000, an=1/nF, debuginfo=false, tol=.001)
-#print the output
-println("The returned parameters are:")
-println(wi, mu, sigmas, betas, ml_C0)
-
-gammaprediction = LatentGaussianMixtureModel.predictgamma(X, Y, groupindex, wi, mu, sigmas, betas);
-writecsv("gammaprediction.csv", gammaprediction)
-#set the number of components We want to test
-C0=1 # Null hypothesis
-C1=2 # Alternative hypothesis
 
 
-#Return  2*loglikelihoodratio and the p value
+####-----------------------------
+## ** Part One: Hypothesis Test
+
+
 #The recommended ntrials=25. Setting it to some smaller number can save much time if we just want to test if the code is working.
 #If there is error, set debuginfo=true to see more information
-lr=loglikelihoodratioEM(X, Y, groupindex, C1, ntrials=10, debuginfo=false)
-println("The test statistic and p value are:")
-println(lr)
+
+#set the number of components We want to test
+# Null hypothesis: C = 1
+lr=EMtest(X, Y, groupindex, 1, ntrials=10, debuginfo=false)
+
+#If the reject C=1, further test C=2
+lr=EMtest(X, Y, groupindex, 2, ntrials=10, debuginfo=false)
+
+
+
+
+
+####-------------------------------------------------
+## **Part Two: Model Fitting**
+
+
+
+#After decide the number of components, try model fitting
+C=2
+#initialize
+wi_init, mu_init, sigmas_init, betas_init, ml_tmp = latentgmm(X, Y, groupindex, 1, [1., 1.], [1.0], [0.], [1.], maxiteration=100)
+gamma_init = predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init); 
+wi_init, mu_init, sigmas_init, ml_tmp = LatentGaussianMixtureModel.gmm(gamma_init, C)
+
+## Fitting
+wi, mu, sigmas, betas, ml_C = latentgmm(X, Y, groupindex, C, betas_init, wi_init, mu_init, sigmas_init, maxiteration=1000, an=1/nF, debuginfo=false, tol=.001)
+
+# Print the predicted gamma
+gammaprediction = predictgamma(X, Y, groupindex, wi, mu, sigmas, betas);
+#writecsv("gammaprediction.csv", gammaprediction)
+
+
+
+####-------------------------------------------------
+## Part Three: False Dicovery Rate
+# 
+FDR(X, Y, groupindex, wi, mu, sigmas, betas, [1;])
