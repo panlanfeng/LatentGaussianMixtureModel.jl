@@ -153,7 +153,7 @@ function negdeviance(beta2::Vector{Float64}, X::Matrix{Float64},
     -dev
 end
 
-function latentgmmEM(X::Matrix{Float64},
+function latentgmm(X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
     ncomponent::Int, β_init::Vector{Float64},
     wi_init::Vector{Float64}, mu_init::Vector{Float64},
@@ -263,15 +263,15 @@ function latentgmmEM(X::Matrix{Float64},
         if !dotest
             if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol)
                 if debuginfo
-                    println("latentgmmEM converged at $(iter_em)th iteration")
+                    println("latentgmm converged at $(iter_em)th iteration")
                 end
                 break
             end
         end
         if (iter_em == maxiteration) && (maxiteration > 50)
-            warn("latentgmmEM not converge! $(iter_em), $(taufixed),
+            warn("latentgmm not converge! $(iter_em), $(taufixed),
             $(ll), $(lldiff), $(wi), $(mu), $(sigmas), $(β)")
-            println("latentgmmEM not converge! $(iter_em), $(taufixed),
+            println("latentgmm not converge! $(iter_em), $(taufixed),
             $(ll), $(lldiff), $(wi), $(mu), $(sigmas), $(β)")
         end
     end
@@ -287,7 +287,7 @@ end
 
 
 """
-The interior step for loglikelihoodratio
+The interior step for `EMtest`
 """
 function latengmmrepeat(X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, C::Int,
@@ -321,7 +321,7 @@ function latengmmrepeat(X::Matrix{Float64},
         sigmas[:, i] = rand(C) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
 
         wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] =
-             latentgmmEM(X, Y, groupindex, C, betas0,
+             latentgmm(X, Y, groupindex, C, betas0,
              wi[:, i], mu[:, i], sigmas[:, i],
              whichtosplit=whichtosplit, tau=tau,
              ghx=ghx, ghw=ghw, mu_lb=mu_lb, mu_ub=mu_ub,
@@ -337,7 +337,7 @@ function latengmmrepeat(X::Matrix{Float64},
     for j in 1:ntrials
         i = mlperm[4*ntrials+1 - j] # start from largest ml
         wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] =
-            latentgmmEM(X, Y, groupindex, C, betas[:, i],
+            latentgmm(X, Y, groupindex, C, betas[:, i],
             wi[:, i], mu[:, i], sigmas[:, i],
             whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw,
             mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=2000,
@@ -351,7 +351,7 @@ function latengmmrepeat(X::Matrix{Float64},
     mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
     imax = mlperm[3*ntrials+imax]
 
-    re=latentgmmEM(X, Y, groupindex, C,
+    re=latentgmm(X, Y, groupindex, C,
         betas[:, imax], wi[:, imax], mu[:, imax], sigmas[:, imax],
          maxiteration=2, an=an, sn=sn, debuginfo=false, ngh=ngh,
          tol=0., pl=pl, ptau=ptau, whichtosplit=whichtosplit)
@@ -359,7 +359,7 @@ function latengmmrepeat(X::Matrix{Float64},
     return(re)
 end
 
-function loglikelihoodratioEM(X::Matrix{Float64},
+function EMtest(X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
     C0::Int; vtau::Vector{Float64}=[.5;],
     ntrials::Int=25, ngh::Int=100, debuginfo::Bool=false,
@@ -380,7 +380,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     
     #gamma_init, betas_init, sigmas_tmp = maxposterior(X, Y, groupindex)
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
-    latentgmmEM(X, Y, groupindex, 1, [1.,1.],
+    latentgmm(X, Y, groupindex, 1, [1.,1.],
     [1.0], [0.], [1.], maxiteration=100, an=an1, sn=ones(C0), tol=.005)
     gamma_init = predictgamma(X, Y, groupindex,
         wi_init, mu_init, sigmas_init, betas_init)
@@ -400,7 +400,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
        pl=false, ptau=false)
     
     # wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
-    #     latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
+    #     latentgmm(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
     #     sigmas_init, maxiteration=2000, an=an1,
     #     sn=std(gamma_init).*ones(C0), ngh=100, dotest=false, tol=.001,
     #     Qmaxiteration=5, pl=false, ptau=false)

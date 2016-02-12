@@ -9,7 +9,7 @@ using Yeppp
 #import Yeppp: add!, exp!, log!
 import StatsBase: RealArray, RealVector, RealArray, IntegerArray, IntegerVector, IntegerMatrix, IntUnitRange
 import StatsFuns: logπ
-export gmm, predictgamma, asymptoticdistribution, latentgmmEM, marginallikelihood, loglikelihoodratioEM, decidepenalty
+export gmm, predictgamma, asymptoticdistribution, latentgmm, marginallikelihood, EMtest, decidepenalty
 include("arithmetic.jl")
 include("utility.jl")
 #include("MCEM.jl")
