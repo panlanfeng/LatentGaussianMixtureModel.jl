@@ -44,7 +44,7 @@ import Yeppp
     Y = Bool[rand(Binomial(1, prob[i])) == 1 for i in 1:N];
     X = X .- mean(X, 1);
 
-    lr=LatentGaussianMixtureModel.loglikelihoodratioEM(X, Y, groupindex, Calternative, ntrials=ntrials, debuginfo=debuginfo, ctauparallel=false, ngh=100)
+    lr=LatentGaussianMixtureModel.loglikelihoodratioEM(X, Y, groupindex, Calternative-1, ntrials=ntrials, debuginfo=debuginfo, ctauparallel=false, ngh=100)
     println("Mission $b completed with lr=$lr")
     lr
 end
