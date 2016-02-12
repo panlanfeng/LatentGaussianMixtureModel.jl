@@ -175,7 +175,7 @@ function latentgmmEM(X::Matrix{Float64},
     xb::Vector{Float64}=zeros(length(Y)),
     gammaM::Vector{Float64}=zeros( ncomponent*ngh),
     dotest::Bool=false, epsilon::Real=1e-6,
-    updatebeta::Bool=true)
+    updatebeta::Bool=true, pl::Bool=true, ptau::Bool=false)
 
     # initialize theta
     length(wi_init) == length(mu_init) == length(sigmas_init) == ncomponent || error("The length of initial values should be $ncomponent")
@@ -198,15 +198,7 @@ function latentgmmEM(X::Matrix{Float64},
     end
     XWX = zeros(J, J)
     XWY = zeros(J)
-    #Xscratch=copy(X)
-    #llN3 = zeros(N)
-    #Wim = zeros(n, M)
-    #Wm = zeros(1, M)
-    #lln = zeros(n)
-    #llN = zeros(N)
-    #llN2 = zeros(N)
-    #xb = X * β
-    #gammaM = zeros(M)
+
     ll0=-Inf
     ll = 0.
     alreadystable = maxiteration <= 3
@@ -221,11 +213,11 @@ function latentgmmEM(X::Matrix{Float64},
         copy!(sigmas_old, sigmas)
 
         A_mul_B!(xb, X, β)
-        ll=integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, llN2, xb, N, J, n, ncomponent, ngh) + sum(pn(sigmas, sn, an=an))
+        ll=integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, llN2, xb, N, J, n, ncomponent, ngh)
         lldiff = ll - ll0
         ll0 = ll
-        if lldiff < 1e-3
-            alreadystable = true
+        if lldiff < 1e-4
+            #alreadystable = true
             Qmaxiteration = 2*Qmaxiteration
         end
         if dotest
@@ -269,7 +261,7 @@ function latentgmmEM(X::Matrix{Float64},
         end
 
         if !dotest
-            if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3)
+            if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol)
                 if debuginfo
                     println("latentgmmEM converged at $(iter_em)th iteration")
                 end
@@ -283,6 +275,13 @@ function latentgmmEM(X::Matrix{Float64},
             $(ll), $(lldiff), $(wi), $(mu), $(sigmas), $(β)")
         end
     end
+    if pl
+        ll += sum(pn(sigmas, sn, an=an))
+    end
+    if ptau
+        tau2 = wi[whichtosplit] / (wi[whichtosplit]+wi[whichtosplit+1])
+        ll += log(1 - abs(1 - 2*tau2))
+    end
     return(wi, mu, sigmas, β, ll)
 end
 
@@ -295,8 +294,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
     ncomponent1::Int,  betas0::Vector{Float64},
     wi_C1::Vector{Float64},  whichtosplit::Int64,
     tau::Float64, mu_lb::Vector{Float64}, mu_ub::Vector{Float64},
-    sigmas_lb::Vector{Float64}, sigmas_ub::Vector{Float64},
-    modelC0::Distribution;
+    sigmas_lb::Vector{Float64}, sigmas_ub::Vector{Float64};
     ntrials::Int=25, ngh::Int=100,
     sn::Vector{Float64}=sigmas_ub ./ 2,
     an=.25, debuginfo::Bool=false,
@@ -306,7 +304,8 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
     llN2::Vector = zeros(length(Y)),
     llN3::Vector{Float64}=zeros(length(Y)),
     Xscratch::Matrix{Float64}=copy(X),
-    xb::Vector=zeros(length(Y)), tol::Real=.005)
+    xb::Vector=zeros(length(Y)), tol::Real=.005, 
+    pl::Bool=false, ptau::Bool=true)
 
     nF = maximum(groupindex)
     tau = min(tau, 1-tau)
@@ -354,15 +353,15 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
 
     re=latentgmmEM(X, Y, groupindex, ncomponent1,
         betas[:, imax], wi[:, imax], mu[:, imax], sigmas[:, imax],
-         maxiteration=3, an=an, sn=sn, debuginfo=false, ngh=ngh,
-         tol=0.)
+         maxiteration=2, an=an, sn=sn, debuginfo=false, ngh=ngh,
+         tol=0., epsilon=0., pl=pl, ptau=ptau, whichtosplit=whichtosplit)
     debuginfo && println("Trial:", re)
     return(re[5])
 end
 
 function loglikelihoodratioEM(X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
-    ncomponent1::Int; vtau::Vector{Float64}=[.5,.3,.1;],
+    ncomponent1::Int; vtau::Vector{Float64}=[.5;],
     ntrials::Int=25, ngh::Int=100, debuginfo::Bool=false,
     ctauparallel=true, tol::Real=0.001)
 
@@ -385,7 +384,7 @@ function loglikelihoodratioEM(X::Matrix{Float64},
         latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
         sigmas_init, maxiteration=2000, an=an1,
         sn=std(gamma_init).*ones(C0), ngh=100, dotest=false, tol=.001,
-        Qmaxiteration=5)
+        Qmaxiteration=5, pl=false, ptau=false)
     debuginfo && println(wi_init, mu_init, sigmas_init, betas_init, ml_C0)
     if C0 > 1
         trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
@@ -394,8 +393,8 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     if debuginfo
         println("ml_C0=", ml_C0)
     end
-    mingamma = minimum(gamma_init)-2.0
-    maxgamma = maximum(gamma_init)+2.0
+    mingamma = minimum(gamma_init)
+    maxgamma = maximum(gamma_init)
 
     or = sortperm(mu_init)
     wi0 = wi_init[or]
@@ -439,11 +438,11 @@ function loglikelihoodratioEM(X::Matrix{Float64},
             ml_tmp=loglikelihoodratioEM_ctau(X, Y, groupindex, ncomponent1,
                 betas0, wi_C1, whichtosplit, vtau[i],
                 mu_lb, mu_ub, sigmas_lb, sigmas_ub,
-                modelC0, ntrials=ntrials,
+                ntrials=ntrials,
                 ngh=ngh, sn=sigmas0[ind], an=an, debuginfo=debuginfo,
                 gammaM = gammaM, Wim=Wim, llN=llN, llN2=llN2,
                 llN3=llN3, Xscratch=Xscratch, xb=xb,
-                tol=tol)
+                tol=tol, pl=false, ptau=true)
             if debuginfo
                 println(whichtosplit, " ", vtau[i], "->", ml_tmp)
             end
@@ -476,10 +475,11 @@ function loglikelihoodratioEM(X::Matrix{Float64},
 
              lrv[i, whichtosplit] = loglikelihoodratioEM_ctau(X, Y,
                 groupindex, ncomponent1, betas0, wi_C1, whichtosplit,
-                vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub, modelC0,
+                vtau[i], mu_lb, mu_ub, sigmas_lb, sigmas_ub,
                 ntrials=ntrials, ngh=ngh, sn=sigmas0[ind], an=an,
                 debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
-                llN=llN, llN2=llN2, xb=xb, tol=tol)
+                llN=llN, llN2=llN2, xb=xb, tol=tol, 
+                pl=false, ptau=true)
             if debuginfo
                 println(whichtosplit, " ", vtau[i], "->",
                 lrv[i, whichtosplit])

@@ -9,12 +9,12 @@ using Yeppp
 #import Yeppp: add!, exp!, log!
 import StatsBase: RealArray, RealVector, RealArray, IntegerArray, IntegerVector, IntegerMatrix, IntUnitRange
 import StatsFuns: logπ
-export gmm, predictgamma, latentgmm, latentgmm_ctau, latentgmmEM, latentgmmFI, marginallikelihood, loglikelihoodratio, loglikelihoodratio_ctau, loglikelihoodratioEM, maxposterior, decidepenalty
+export gmm, predictgamma, asymptoticdistribution, latentgmmEM, marginallikelihood, loglikelihoodratioEM, decidepenalty
 include("arithmetic.jl")
 include("utility.jl")
-include("MCEM.jl")
+#include("MCEM.jl")
 include("EM.jl")
-include("FractionalImputation.jl")
+#include("FractionalImputation.jl")
 # package code goes here
 
 end # module
