@@ -175,7 +175,7 @@ function latentgmmEM(X::Matrix{Float64},
     xb::Vector{Float64}=zeros(length(Y)),
     gammaM::Vector{Float64}=zeros( ncomponent*ngh),
     dotest::Bool=false, epsilon::Real=1e-6,
-    theta_ninitial::Int=0, updatebeta::Bool=true)
+    updatebeta::Bool=true)
 
     # initialize theta
     length(wi_init) == length(mu_init) == length(sigmas_init) == ncomponent || error("The length of initial values should be $ncomponent")
@@ -209,7 +209,8 @@ function latentgmmEM(X::Matrix{Float64},
     #gammaM = zeros(M)
     ll0=-Inf
     ll = 0.
-    for iter_em in 1:maxiteration+theta_ninitial
+    alreadystable = maxiteration <= 3
+    for iter_em in 1:maxiteration
         for ix in 1:ngh, jcom in 1:ncomponent
             ixM = ix+ngh*(jcom-1)
             gammaM[ixM] = ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom]
@@ -223,15 +224,19 @@ function latentgmmEM(X::Matrix{Float64},
         ll=integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, llN2, xb, N, J, n, ncomponent, ngh) + sum(pn(sigmas, sn, an=an))
         lldiff = ll - ll0
         ll0 = ll
+        if lldiff < 1e-3
+            alreadystable = true
+            Qmaxiteration = 2*Qmaxiteration
+        end
         if dotest
-            if (lldiff < epsilon) && (iter_em > 3+theta_ninitial)
+            if (lldiff < epsilon) && (iter_em > 3)
                 break
             end
         end
         if debuginfo
             println("At $(iter_em)th iteration:")
         end
-        if updatebeta && iter_em > theta_ninitial && (mod1(iter_em, 3) == 1 || iter_em <= 5)
+        if updatebeta && (mod1(iter_em, 3) == 1 || alreadystable)
             copy!(beta_old, β)
             updateβ!(β, X, Y, groupindex, .001, .001,
             XWX, XWY, Xscratch, gammaM, Wim, lln, llN, llN2, llN3,
@@ -253,7 +258,7 @@ function latentgmmEM(X::Matrix{Float64},
             Yeppp.min!(mu, mu, mu_ub)
         end
         if any(wi .< 1e-8)
-            warn("Some wi is too small. Give up.")
+            warn("Some elements of $wi are too small. Consider another starting value or reduce the number of components. Give up.")
             break
         end
         if debuginfo
@@ -264,14 +269,14 @@ function latentgmmEM(X::Matrix{Float64},
         end
 
         if !dotest
-            if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3+theta_ninitial)
+            if stopRule(vcat(β, wi, mu, sigmas), vcat(beta_old, wi_old, mu_old, sigmas_old), tol=tol) && (iter_em > 3)
                 if debuginfo
                     println("latentgmmEM converged at $(iter_em)th iteration")
                 end
                 break
             end
         end
-        if (iter_em == maxiteration) && (maxiteration > 15)
+        if (iter_em == maxiteration) && (maxiteration > 50)
             warn("latentgmmEM not converge! $(iter_em), $(wifixed),
             $(ll), $(lldiff), $(wi), $(mu), $(sigmas), $(β)")
             println("latentgmmEM not converge! $(iter_em), $(wifixed),
@@ -321,13 +326,12 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
              wi[:, i], mu[:, i], sigmas[:, i],
              whichtosplit=whichtosplit, tau=tau,
              ghx=ghx, ghw=ghw, mu_lb=mu_lb, mu_ub=mu_ub,
-             maxiteration=10, sn=sn, an=an,
+             maxiteration=16, sn=sn, an=an,
              gammaM = gammaM, Wim=Wim,
              llN=llN, llN2=llN2, llN3=llN3,
              Xscratch=Xscratch, xb=xb,
              Qmaxiteration=2, wifixed=true, ngh=ngh,
-             dotest=false, epsilon=0.01, tol=tol,
-             theta_ninitial=10)
+             dotest=false, tol=tol)
     end
 
     mlperm = sortperm(ml)
@@ -353,9 +357,7 @@ function loglikelihoodratioEM_ctau(X::Matrix{Float64},
          maxiteration=3, an=an, sn=sn, debuginfo=false, ngh=ngh,
          tol=0.)
     debuginfo && println("Trial:", re)
-    modelC1 = MixtureModel(map((u, v) -> Normal(u, v), re[2], re[3]), re[1])
     return(re[5])
-    #marginallikelihoodFI(X, Y, groupindex, modelC0, betas0, modelC1, re[4])
 end
 
 function loglikelihoodratioEM(X::Matrix{Float64},
@@ -378,17 +380,17 @@ function loglikelihoodratioEM(X::Matrix{Float64},
     wi_init, mu_init, sigmas_init, ml_tmp =
         gmm(gamma_init, C0, ones(C0)/C0,
         quantile(gamma_init, linspace(0, 1, C0+2)[2:end-1]),
-        ones(C0), an=an1)
+        ones(C0), an=1/nF)
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
         latentgmmEM(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
         sigmas_init, maxiteration=2000, an=an1,
-        sn=std(gamma_init).*ones(C0), ngh=100, dotest=true,
+        sn=std(gamma_init).*ones(C0), ngh=100, dotest=false, tol=.001,
         Qmaxiteration=5)
     debuginfo && println(wi_init, mu_init, sigmas_init, betas_init, ml_C0)
     if C0 > 1
         trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
     end
-    modelC0 = MixtureModel(map((u, v) -> Normal(u, v), mu_init, sigmas_init), wi_init)
+
     if debuginfo
         println("ml_C0=", ml_C0)
     end
