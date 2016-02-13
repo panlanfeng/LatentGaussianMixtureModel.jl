@@ -109,7 +109,7 @@ function gmm(x::RealVector{Float64}, ncomponent::Int,
     if ncomponent == 1
         mu = [mean(x)]
         sigmas = [std(x)]
-        ml = loglikelihood(Normal(mean(x), std(x), x)) 
+        ml = loglikelihood(Normal(mean(x), std(x)), x) 
         if pl
             ml += sum(pn(sigmas, sn, an=an)) 
         end
@@ -338,6 +338,9 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
     nF = maximum(groupindex)
     M = ngh
     C = length(wi)
+    if C == 1
+        return rand(Chisq(2), nrep)
+    end
     ghx, ghw = gausshermite(ngh)
     xb = zeros(N)
     A_mul_B!(xb, X, betas)
