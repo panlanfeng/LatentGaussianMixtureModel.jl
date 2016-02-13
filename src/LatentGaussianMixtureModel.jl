@@ -3,7 +3,6 @@ module LatentGaussianMixtureModel
 
 using Distributions
 using StatsBase, StatsFuns
-using NLopt
 using FastGaussQuadrature
 using Yeppp
 #import Yeppp: add!, exp!, log!
