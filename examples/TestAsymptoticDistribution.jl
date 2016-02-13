@@ -12,7 +12,7 @@ import Yeppp
 @everywhere function Brun(b::Integer, Ctrue::Integer, Calternative::Integer; debuginfo::Bool=false, ntrials::Int=25)
     nF = 282
     srand(100)
-    n_ij = round(Int64, rand(Poisson(5), 282).+rand(Exponential(95), 282))
+    n_ij = round(Int64, rand(Poisson(55), 282).+rand(Exponential(95), 282))
     N = sum(n_ij)
 
     groupindex = inverse_rle(1:nF, n_ij)
