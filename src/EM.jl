@@ -301,8 +301,8 @@ function latengmmrepeat(X::Matrix{Float64},
     ntrials::Int=25, ngh::Int=100,
     sn::Vector{Float64}=sigmas_ub ./ 2, an=.25, 
     debuginfo::Bool=false,
-    gammaM::Vector = zeros(maximum(groupindex), Mmax),
-    Wim::Matrix = zeros(maximum(groupindex), ngh*ncomponent),
+    gammaM::Vector = zeros(ngh*C),
+    Wim::Matrix = zeros(maximum(groupindex), ngh*C),
     llN::Vector=zeros(length(Y)),
     llN2::Vector = zeros(length(Y)),
     llN3::Vector{Float64}=zeros(length(Y)),
@@ -373,8 +373,6 @@ function EMtest(X::Matrix{Float64},
     M = ngh * C1
     an1 = 1/nF
     N,J=size(X)
-    gammaM = zeros(ngh*C0)
-    Wim = zeros(nF, ngh*C0)
     llN = zeros(N)
     llN2 = zeros(N)
     llN3 = zeros(N)
@@ -398,7 +396,7 @@ function EMtest(X::Matrix{Float64},
        taufixed=false,
        ntrials=ntrials, ngh=ngh, 
        sn=std(gamma_init).*ones(C0), an=an1,
-       debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
+       debuginfo=debuginfo, 
        llN=llN, llN2=llN2, xb=xb, tol=tol, 
        pl=false, ptau=false)
     
