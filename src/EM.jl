@@ -455,7 +455,7 @@ function EMtest(X::Matrix{Float64},
                sn=sigmas0[ind], an=an,
                debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
                llN=llN, llN2=llN2, xb=xb, tol=tol, 
-               pl=false, ptau=true)[5]
+               pl=false, ptau=false)[5]
             if debuginfo
                 println(whichtosplit, " ", vtau[i], "->", ml_tmp)
             end
@@ -494,7 +494,7 @@ function EMtest(X::Matrix{Float64},
                 sn=sigmas0[ind], an=an,
                 debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
                 llN=llN, llN2=llN2, xb=xb, tol=tol, 
-                pl=false, ptau=true)[5]
+                pl=false, ptau=false)[5]
             if debuginfo
                 println(whichtosplit, " ", vtau[i], "->",
                 lrv[i, whichtosplit])
