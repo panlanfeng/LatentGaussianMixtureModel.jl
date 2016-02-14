@@ -58,10 +58,19 @@ function updateθ!(wi::Vector{Float64}, mu::Vector{Float64},
     for kcom in 1:C
         ind = (1+ngh*(kcom-1)):ngh*kcom
         wi[kcom] = sum(Wm[ind])
+        if wi[kcom] .< 1.0/n
+            warn("Empty component detected. Auto increase its variance by factor 2. wi=$(wi), mu=$(mu), sigmas=$(sigmas)")
+            wi[kcom] = 1.0/n
+            sigmas[kcom] *= 2
+            continue
+        end
         mu[kcom] = wsum(gammaM[ind], Wm[ind]) / wi[kcom]
         sigmas[kcom] = sqrt((wsum((gammaM[ind] .- mu[kcom]).^2, Wm[ind]) + 2 * an * sn[kcom]^2/n) / (wi[kcom] + 2 * an/n))
     end
-
+    tmp = sum(wi)
+    for kcom in 1:C 
+        wi[kcom] /= tmp
+    end
 end
 function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
@@ -216,8 +225,8 @@ function latentgmm(X::Matrix{Float64},
         ll=integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, llN2, xb, N, J, n, ncomponent, ngh)
         lldiff = ll - ll0
         ll0 = ll
-        if lldiff < 1e-4
-            #alreadystable = true
+        if lldiff < 1e-3
+            alreadystable = true
             Qmaxiteration = 2*Qmaxiteration
         end
         if dotest
@@ -239,19 +248,13 @@ function latentgmm(X::Matrix{Float64},
         end
         updateθ!(wi, mu, sigmas, X, Y, groupindex,
         gammaM, Wim, Wm, sn, an, N, J, n, ncomponent, ngh)
+
         if taufixed
-            for kcom in 1:ncomponent
-                wi[kcom]=(wi[kcom]*n+1.0/ncomponent)/(n+1)
-            end
             wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
             wi[whichtosplit] = wi_tmp*tau
             wi[whichtosplit+1] = wi_tmp*(1-tau)
             Yeppp.max!(mu, mu, mu_lb)
             Yeppp.min!(mu, mu, mu_ub)
-        end
-        if any(wi .< 1e-8)
-            warn("Some elements of $wi are too small. Consider another starting value or reduce the number of components. Give up.")
-            break
         end
         if debuginfo
             println("wi=$wi")
