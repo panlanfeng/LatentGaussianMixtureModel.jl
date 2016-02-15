@@ -321,9 +321,13 @@ function latentgmmrepeat(X::Matrix{Float64},
     mu_ub = maxgamma .* ones(C)
     if taufixed && C>2
         for kcom in 1:(C-1)
-            mu_lb[kcom+1] = (mu_init[kcom+1]+mu_init[kcom]) / 2
-            mu_ub[kcom] = (mu_init[kcom+1]+mu_init[kcom]) / 2
+            tmp = (mu_init[kcom+1]*(wi_init[kcom+1])^.25 +mu_init[kcom]*(wi_init[kcom])^.25) / ((wi_init[kcom+1])^.25+(wi_init[kcom])^.25)
+            mu_lb[kcom+1] = tmp
+            mu_ub[kcom] = tmp
         end
+        mu_lb[whichtosplit+1]=mu_lb[whichtosplit]
+        mu_ub[whichtosplit]=mu_ub[whichtosplit+1]
+        debuginfo && println(mu_lb, mu_ub)
     end
     sigmas_lb = 0.25 .* sigmas_init
     sigmas_ub = 2 .* sigmas_init
@@ -332,6 +336,7 @@ function latentgmmrepeat(X::Matrix{Float64},
         tmp = wi_init[whichtosplit] + wi_init[whichtosplit+1]
         wi_init[whichtosplit] = tmp*tau
         wi_init[whichtosplit+1] = tmp*(1-tau)
+        mu_init[whichtosplit] -= 1e-3 
     end
 
     wi = repmat(wi_init, 1, 4*ntrials)
@@ -421,7 +426,10 @@ function EMtest(X::Matrix{Float64},
        debuginfo=debuginfo, 
        llN=llN, llN2=llN2, xb=xb, tol=tol, 
        pl=false, ptau=false)
-    
+       gamma_init = predictgamma(X, Y, groupindex,
+           wi_init, mu_init, sigmas_init, betas_init)
+       mingamma = minimum(gamma_init)
+       maxgamma = maximum(gamma_init)
     # wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
     #     latentgmm(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
     #     sigmas_init, maxiteration=2000, an=an1,
