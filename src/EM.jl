@@ -292,11 +292,13 @@ end
 """
 The interior step for `EMtest`
 """
-function latengmmrepeat(X::Matrix{Float64},
+function latentgmmrepeat(X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, C::Int,
-    betas0::Vector{Float64}, wi_C1::Vector{Float64},
-    mu_lb::Vector{Float64}, mu_ub::Vector{Float64},
-    sigmas_lb::Vector{Float64}, sigmas_ub::Vector{Float64}; 
+    wi_init::Vector{Float64},
+    mu_init::Vector{Float64}, 
+    sigmas_init::Vector{Float64}, 
+    betas_init::Vector{Float64}, 
+    gammarange::Tuple{Float64, Float64}; 
     taufixed::Bool=false, whichtosplit::Int64=1, tau::Float64=0.5,
     ntrials::Int=25, ngh::Int=100,
     sn::Vector{Float64}=sigmas_ub ./ 2, an=.25, 
@@ -310,21 +312,39 @@ function latengmmrepeat(X::Matrix{Float64},
     xb::Vector=zeros(length(Y)), tol::Real=.005, 
     pl::Bool=false, ptau::Bool=true)
 
-    nF = maximum(groupindex)
+    n = maximum(groupindex)
     tau = min(tau, 1-tau)
     ghx, ghw = gausshermite(ngh)
+    
+    mingamma, maxgamma = gammarange
+    mu_lb = mingamma .* ones(C)
+    mu_ub = maxgamma .* ones(C)
+    if taufixed && C>2
+        for kcom in 1:(C-1)
+            mu_lb[kcom+1] = (mu_init[kcom+1]+mu_init[kcom]) / 2
+            mu_ub[kcom] = (mu_init[kcom+1]+mu_init[kcom]) / 2
+        end
+    end
+    sigmas_lb = 0.25 .* sigmas_init
+    sigmas_ub = 2 .* sigmas_init
 
-    wi = repmat(wi_C1, 1, 4*ntrials)
-    mu = zeros(C, 4*ntrials)
-    sigmas = ones(C, 4*ntrials)
-    betas = repmat(betas0, 1, 4*ntrials)
+    if taufixed
+        tmp = wi_init[whichtosplit] + wi_init[whichtosplit+1]
+        wi_init[whichtosplit] = tmp*tau
+        wi_init[whichtosplit+1] = tmp*(1-tau)
+    end
+
+    wi = repmat(wi_init, 1, 4*ntrials)
+    mu = repmat(mu_init, 1, 4*ntrials)
+    sigmas = repmat(sigmas_init, 1, 4*ntrials)
+    betas = repmat(betas_init, 1, 4*ntrials)
     ml = -Inf .* ones(4*ntrials)
     for i in 1:4*ntrials
         mu[:, i] = rand(C) .* (mu_ub .- mu_lb) .+ mu_lb
         sigmas[:, i] = rand(C) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
 
         wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] =
-             latentgmm(X, Y, groupindex, C, betas0,
+             latentgmm(X, Y, groupindex, C, betas_init,
              wi[:, i], mu[:, i], sigmas[:, i],
              whichtosplit=whichtosplit, tau=tau,
              ghx=ghx, ghw=ghw, mu_lb=mu_lb, mu_ub=mu_ub,
@@ -333,7 +353,7 @@ function latengmmrepeat(X::Matrix{Float64},
              llN=llN, llN2=llN2, llN3=llN3,
              Xscratch=Xscratch, xb=xb,
              Qmaxiteration=2, taufixed=taufixed, ngh=ngh,
-             dotest=false, tol=tol)
+             dotest=false, tol=.005)
     end
 
     mlperm = sortperm(ml)
@@ -369,9 +389,9 @@ function EMtest(X::Matrix{Float64},
     ctauparallel=true, tol::Real=0.001)
     
     C1 = C0 + 1
-    nF = maximum(groupindex)
+    n = maximum(groupindex)
     M = ngh * C1
-    an1 = 1/nF
+    an1 = 1/n
     N,J=size(X)
     llN = zeros(N)
     llN2 = zeros(N)
@@ -385,14 +405,13 @@ function EMtest(X::Matrix{Float64},
     [1.0], [0.], [1.], maxiteration=100, an=an1, sn=ones(C0), tol=.005)
     gamma_init = predictgamma(X, Y, groupindex,
         wi_init, mu_init, sigmas_init, betas_init)
-    wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0)
+    wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, an=an1)
     mingamma = minimum(gamma_init)
     maxgamma = maximum(gamma_init)
 
-    wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latengmmrepeat(X, Y,
-       groupindex, C0, betas_init, wi_init,
-       ones(C0).*mingamma, ones(C0).*maxgamma, 
-       0.25 .* sigmas_init, 2.*sigmas_init,
+    wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmrepeat(X, Y,
+       groupindex, C0, wi_init, mu_init, sigmas_init, betas_init, 
+       (mingamma, maxgamma), 
        taufixed=false,
        ntrials=ntrials, ngh=ngh, 
        sn=std(gamma_init).*ones(C0), an=an1,
@@ -419,11 +438,11 @@ function EMtest(X::Matrix{Float64},
     mu0 = mu_init[or]
     sigmas0 = sigmas_init[or]
     betas0 = betas_init
-    an = decidepenalty(wi0, mu0, sigmas0, nF)
+    an = decidepenalty(wi0, mu0, sigmas0, n)
 
     N,J=size(X)
     gammaM = zeros(ngh*C1)
-    Wim = zeros(nF, ngh*C1)
+    Wim = zeros(n, ngh*C1)
     lr = 0.0
     if ctauparallel
         lr=@parallel (max) for irun in 1:(C0*length(vtau))
@@ -431,25 +450,14 @@ function EMtest(X::Matrix{Float64},
             whichtosplit = mod1(irun, C0)
             i = cld(irun, C0)
             ind = [1:whichtosplit, whichtosplit:C0;]
-            if C1==2
-                mu_lb = mingamma .* ones(2)
-                mu_ub = maxgamma .* ones(2)
-            elseif C1>2
-                mu_lb = [mingamma, (mu0[1:(C0-1)] .+ mu0[2:C0])./2;]
-                mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2, maxgamma;]
-                mu_lb = mu_lb[ind]
-                mu_ub = mu_ub[ind]
-            end
-            sigmas_lb = 0.25 .* sigmas0[ind]
-            sigmas_ub = 2 .* sigmas0[ind]
 
             wi_C1 = wi0[ind]
             wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
             wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
 
-            ml_tmp=latengmmrepeat(X, Y,
-               groupindex, C1, betas0, wi_C1,
-               mu_lb, mu_ub, sigmas_lb, sigmas_ub,
+            ml_tmp=latentgmmrepeat(X, Y,
+               groupindex, C1, wi_C1, mu0[ind], sigmas0[ind], betas0, 
+               (mingamma, maxgamma),
                taufixed=true, whichtosplit=whichtosplit, tau=vtau[i], 
                ntrials=ntrials, ngh=ngh, 
                sn=sigmas0[ind], an=an,
@@ -467,28 +475,14 @@ function EMtest(X::Matrix{Float64},
         ll_tmp = zeros(length(vtau), C0)
         for whichtosplit in 1:C0, i in 1:length(vtau)
 
-             #whichtosplit = mod1(irun, C0)
-             #i = cld(irun, C0)
              ind = [1:whichtosplit, whichtosplit:C0;]
-             if C1==2
-                 mu_lb = mingamma .* ones(2)
-                 mu_ub = maxgamma .* ones(2)
-             elseif C1>2
-                 mu_lb = [mingamma, (mu0[1:(C0-1)] .+ mu0[2:C0])./2;]
-                 mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2, maxgamma;]
-                 mu_lb = mu_lb[ind]
-                 mu_ub = mu_ub[ind]
-             end
-             sigmas_lb = 0.25 .* sigmas0[ind]
-             sigmas_ub = 2 .* sigmas0[ind]
-
              wi_C1 = wi0[ind]
              wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
              wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
 
-             lrv[i, whichtosplit] = latengmmrepeat(X, Y,
-                groupindex, C1, betas0, wi_C1,
-                mu_lb, mu_ub, sigmas_lb, sigmas_ub,
+             lrv[i, whichtosplit] = latentgmmrepeat(X, Y,
+                groupindex, C1, wi_C1, mu0[ind], sigmas0[ind], betas0,
+                (mingamma, maxgamma),
                 taufixed=true, whichtosplit=whichtosplit, tau=vtau[i], 
                 ntrials=ntrials, ngh=ngh, 
                 sn=sigmas0[ind], an=an,
