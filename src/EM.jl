@@ -340,8 +340,11 @@ function latentgmmrepeat(X::Matrix{Float64},
     betas = repmat(betas_init, 1, 4*ntrials)
     ml = -Inf .* ones(4*ntrials)
     for i in 1:4*ntrials
-        mu[:, i] = rand(C) .* (mu_ub .- mu_lb) .+ mu_lb
-        sigmas[:, i] = rand(C) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
+        #set the first initial value as mu_init, sigmas_init
+        if i >= 2
+            mu[:, i] = rand(C) .* (mu_ub .- mu_lb) .+ mu_lb
+            sigmas[:, i] = rand(C) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
+        end
 
         wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] =
              latentgmm(X, Y, groupindex, C, betas_init,
@@ -353,7 +356,7 @@ function latentgmmrepeat(X::Matrix{Float64},
              llN=llN, llN2=llN2, llN3=llN3,
              Xscratch=Xscratch, xb=xb,
              Qmaxiteration=2, taufixed=taufixed, ngh=ngh,
-             dotest=false, tol=.005)
+             dotest=false, tol=tol)
     end
 
     mlperm = sortperm(ml)
