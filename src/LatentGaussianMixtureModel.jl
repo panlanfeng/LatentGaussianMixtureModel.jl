@@ -5,7 +5,8 @@ using Distributions
 using StatsBase, StatsFuns
 using FastGaussQuadrature
 using Yeppp
-#import Yeppp: add!, exp!, log!
+using GaussianMixtureTest
+import GaussianMixtureTest: pn, decidepenalty
 import StatsBase: RealArray, RealVector, RealArray, IntegerArray, IntegerVector, IntegerMatrix, IntUnitRange
 import StatsFuns: logπ
 export gmm, predictgamma, asymptoticdistribution, latentgmm, marginallikelihood, EMtest, decidepenalty
