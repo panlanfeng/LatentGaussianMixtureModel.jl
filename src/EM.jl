@@ -60,15 +60,6 @@ function updateθ!(wi::Vector{Float64}, mu::Vector{Float64},
         wi[kcom] = sum(Wm[ind])
         mu[kcom] = wsum(gammaM[ind], Wm[ind]) / wi[kcom]
         sigmas[kcom] = sqrt((wsum((gammaM[ind] .- mu[kcom]).^2, Wm[ind]) + 2 * an * sn[kcom]^2/n) / (wi[kcom] + 2 * an/n))
-        if wi[kcom] .< 1.0/n/C
-            warn("Empty component detected. Auto increase its variance by factor 2. wi=$(wi), mu=$(mu), sigmas=$(sigmas)")
-            wi[kcom] = 1.0/n/C
-            sigmas[kcom] *= 2
-        end
-    end
-    tmp = sum(wi)
-    for kcom in 1:C 
-        wi[kcom] /= tmp
     end
 end
 function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
