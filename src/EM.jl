@@ -58,14 +58,13 @@ function updateθ!(wi::Vector{Float64}, mu::Vector{Float64},
     for kcom in 1:C
         ind = (1+ngh*(kcom-1)):ngh*kcom
         wi[kcom] = sum(Wm[ind])
-        if wi[kcom] .< 1.0/n
-            warn("Empty component detected. Auto increase its variance by factor 2. wi=$(wi), mu=$(mu), sigmas=$(sigmas)")
-            wi[kcom] = 1.0/n
-            sigmas[kcom] *= 2
-            continue
-        end
         mu[kcom] = wsum(gammaM[ind], Wm[ind]) / wi[kcom]
         sigmas[kcom] = sqrt((wsum((gammaM[ind] .- mu[kcom]).^2, Wm[ind]) + 2 * an * sn[kcom]^2/n) / (wi[kcom] + 2 * an/n))
+        if wi[kcom] .< 1.0/n/C
+            warn("Empty component detected. Auto increase its variance by factor 2. wi=$(wi), mu=$(mu), sigmas=$(sigmas)")
+            wi[kcom] = 1.0/n/C
+            sigmas[kcom] *= 2
+        end
     end
     tmp = sum(wi)
     for kcom in 1:C 
@@ -250,6 +249,9 @@ function latentgmm(X::Matrix{Float64},
         gammaM, Wim, Wm, sn, an, N, J, n, ncomponent, ngh)
 
         if taufixed
+            for kcom in 1:ncomponent
+                wi[kcom]=(wi[kcom]*n+1.0/ncomponent)/(n+1)
+            end
             wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
             wi[whichtosplit] = wi_tmp*tau
             wi[whichtosplit+1] = wi_tmp*(1-tau)
