@@ -294,7 +294,7 @@ function latentgmmrepeat(X::Matrix{Float64},
     gammarange::Tuple{Float64, Float64}; 
     taufixed::Bool=false, whichtosplit::Int64=1, tau::Float64=0.5,
     ntrials::Int=25, ngh::Int=100,
-    sn::Vector{Float64}=sigmas_ub ./ 2, an=.25, 
+    sn::Vector{Float64}=sigmas_init, an=.25, 
     debuginfo::Bool=false,
     gammaM::Vector = zeros(ngh*C),
     Wim::Matrix = zeros(maximum(groupindex), ngh*C),
@@ -407,11 +407,23 @@ function EMtest(X::Matrix{Float64},
     gamma_init = predictgamma(X, Y, groupindex,
         wi_init, mu_init, sigmas_init, betas_init)
     wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, an=an1)
-    mingamma = minimum(gamma_init)
-    maxgamma = maximum(gamma_init)
+    wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
+        latentgmm(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
+        sigmas_init, maxiteration=2000, an=an1,
+        sn=std(gamma_init).*ones(C0))
+    gamma_init = predictgamma(X, Y, groupindex,
+            wi_init, mu_init, sigmas_init, betas_init)
+    
+    or = sortperm(mu_init)
+    wi0 = wi_init[or]
+    mu0 = mu_init[or]
+    sigmas0 = sigmas_init[or]
+    betas0 = betas_init
+    mingamma = minimum(gamma_init) - std(gamma_init)
+    maxgamma = maximum(gamma_init) + std(gamma_init)
 
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmrepeat(X, Y,
-       groupindex, C0, wi_init, mu_init, sigmas_init, betas_init, 
+       groupindex, C0, wi0, mu0, sigmas0, betas0, 
        (mingamma, maxgamma), 
        taufixed=false,
        ntrials=ntrials, ngh=ngh, 
@@ -423,11 +435,6 @@ function EMtest(X::Matrix{Float64},
            wi_init, mu_init, sigmas_init, betas_init)
        mingamma = minimum(gamma_init)
        maxgamma = maximum(gamma_init)
-    # wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
-    #     latentgmm(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
-    #     sigmas_init, maxiteration=2000, an=an1,
-    #     sn=std(gamma_init).*ones(C0), ngh=100, dotest=false, tol=.001,
-    #     Qmaxiteration=5, pl=false, ptau=false)
 
     if C0 > 1
         trand=asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)
