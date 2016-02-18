@@ -320,7 +320,7 @@ function latentgmmrepeat(X::Matrix{Float64},
         end
         mu_lb[whichtosplit+1]=mu_lb[whichtosplit]
         mu_ub[whichtosplit]=mu_ub[whichtosplit+1]
-        debuginfo && println(mu_lb, mu_ub)
+        debuginfo && println("Bounds:", mu_lb, mu_ub)
     end
     sigmas_lb = 0.25 .* sigmas_init
     sigmas_ub = 2 .* sigmas_init
@@ -409,32 +409,27 @@ function EMtest(X::Matrix{Float64},
     wi_init, mu_init, sigmas_init, ml_tmp = gmm(gamma_init, C0, an=an1)
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
         latentgmm(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
-        sigmas_init, maxiteration=2000, an=an1,
-        sn=std(gamma_init).*ones(C0))
+        sigmas_init, maxiteration=2000, ngh=ngh,
+        an=an1, sn=std(gamma_init).*ones(C0), tol=tol,
+        pl=false, ptau=false)
     gamma_init = predictgamma(X, Y, groupindex,
             wi_init, mu_init, sigmas_init, betas_init)
-    
-    or = sortperm(mu_init)
-    wi0 = wi_init[or]
-    mu0 = mu_init[or]
-    sigmas0 = sigmas_init[or]
-    betas0 = betas_init
     mingamma = minimum(gamma_init) - std(gamma_init)
     maxgamma = maximum(gamma_init) + std(gamma_init)
 
-    wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmrepeat(X, Y,
-       groupindex, C0, wi0, mu0, sigmas0, betas0, 
-       (mingamma, maxgamma), 
-       taufixed=false,
-       ntrials=ntrials, ngh=ngh, 
-       sn=std(gamma_init).*ones(C0), an=an1,
-       debuginfo=debuginfo, 
-       llN=llN, llN2=llN2, xb=xb, tol=tol, 
-       pl=false, ptau=false)
-       gamma_init = predictgamma(X, Y, groupindex,
-           wi_init, mu_init, sigmas_init, betas_init)
-       mingamma = minimum(gamma_init)
-       maxgamma = maximum(gamma_init)
+    # wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmrepeat(X, Y,
+    #    groupindex, C0, wi0, mu0, sigmas0, betas0, 
+    #    (mingamma, maxgamma), 
+    #    taufixed=false,
+    #    ntrials=ntrials, ngh=ngh, 
+    #    sn=std(gamma_init).*ones(C0), an=an1,
+    #    debuginfo=debuginfo, 
+    #    llN=llN, llN2=llN2, xb=xb, tol=tol, 
+    #    pl=false, ptau=false)
+    #    gamma_init = predictgamma(X, Y, groupindex,
+    #        wi_init, mu_init, sigmas_init, betas_init)
+    #    mingamma = minimum(gamma_init) - std(gamma_init)
+    #    maxgamma = maximum(gamma_init) + std(gamma_init)
 
     if C0 > 1
         trand=asymptoticdistribution(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init)

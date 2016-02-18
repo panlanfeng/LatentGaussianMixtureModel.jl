@@ -1,10 +1,7 @@
 #find out the test statistic when m0=1
 import LatentGaussianMixtureModel
 import Distributions, StatsBase
-import Yeppp
-
-@everywhere using LatentGaussianMixtureModel
-@everywhere using Distributions, Yeppp, StatsBase
+@everywhere using Distributions, StatsBase
 
 
 #Brun calculate the statistic for one data set;
@@ -12,7 +9,7 @@ import Yeppp
 @everywhere function Brun(b::Integer, Ctrue::Integer, Calternative::Integer; debuginfo::Bool=false, ntrials::Int=25)
     nF = 282
     srand(100)
-    n_ij = round(Int64, rand(Poisson(55), 282).+rand(Exponential(95), 282))
+    n_ij = round(Int64, rand(Poisson(5), 282).+rand(Exponential(45), 282))
     N = sum(n_ij)
 
     groupindex = inverse_rle(1:nF, n_ij)
