@@ -87,7 +87,7 @@ function predictgamma(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi:
 
     return gammahat
 end
-function FDR(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi::Vector, mu::Vector, sigmas::Vector, β::Vector, C0::IntegerVector; ngh::Int=100)
+function FDR(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi::Vector, mu::Vector, sigmas::Vector, β::Vector, C0::IntegerVector; ngh::Int=100, alphalevel::Real=.05)
 
     ncomponent = length(wi)
     n = maximum(groupindex)
@@ -126,8 +126,14 @@ function FDR(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi::Vector, 
             clFDR[i] = sum(piposterior[i, C0])
         end
     end
-
-    return clFDR
+    order = sortperm(clFDR)
+    n0 = 0
+    for i in 1:n
+        if mean(clFDR[order[1:i]]) < alphalevel
+            n0 += 1
+        end
+    end
+    return clFDR, order[1:n0]
 end
 function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, betas::Array{Float64,1}; ngh::Int=100, nrep::Int=10000, debuginfo::Bool=false)
 
