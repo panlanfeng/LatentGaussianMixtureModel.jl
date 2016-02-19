@@ -4,3 +4,4 @@
 BATCH_*
 teststat*.csv
 examples/notes
+*.jld
