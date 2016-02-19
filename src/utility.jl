@@ -114,7 +114,7 @@ function FDR(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi::Vector, 
     A_mul_B!(xb, X, β)
     integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, llN2, xb, N, J, n, ncomponent, ngh)
     for i in 1:n
-        for jcom in 1:C
+        for jcom in 1:ncomponent
             for ix in 1:ngh
                 ixM = ix+ngh*(jcom-1)
                 piposterior[i, jcom] += Wim[i,ixM]
@@ -122,7 +122,7 @@ function FDR(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi::Vector, 
         end
     end
     for i in 1:n
-        for jcom in 1:C
+        for jcom in 1:ncomponent
             clFDR[i] = sum(piposterior[i, C0])
         end
     end
