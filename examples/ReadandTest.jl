@@ -32,7 +32,7 @@ for i in 1:N
     groupindex[i] = levelsdictionary[groupindex_raw[i]]
 end
 #after the convert, maximum value in groupindex should be the number of transplant centers
-nF = maximum(groupindex);
+n = maximum(groupindex);
 
 # read in the binary response Y and convert to Bool Vector
 #Not sure what Y looks like, so I list several possibilities here.
@@ -84,7 +84,7 @@ gamma_init = predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas
 wi_init, mu_init, sigmas_init, ml_tmp = LatentGaussianMixtureModel.gmm(gamma_init, C)
 
 ## Fitting
-wi, mu, sigmas, betas, ml_C = latentgmm(X, Y, groupindex, C, betas_init, wi_init, mu_init, sigmas_init, maxiteration=1000, an=1/nF, debuginfo=false, tol=.001)
+wi, mu, sigmas, betas, ml_C = latentgmm(X, Y, groupindex, C, betas_init, wi_init, mu_init, sigmas_init, maxiteration=1000, an=1/n, debuginfo=false, tol=.001)
 
 # Print the predicted gamma
 gammaprediction = predictgamma(X, Y, groupindex, wi, mu, sigmas, betas);
@@ -95,9 +95,9 @@ gammaprediction = predictgamma(X, Y, groupindex, wi, mu, sigmas, betas);
 ####-------------------------------------------------
 ## Part Three: False Dicovery Rate
 # 
-clFDR, rejectid = LatentGaussianMixtureModel.FDR(X, Y, groupindex, wi, mu, sigmas, betas, [1;])
-rprint("The rejected transplant centers are:", rejectid)
-
+clFDR, rejectid = LatentGaussianMixtureModel.FDR(X, Y, groupindex, wi, mu, sigmas, betas, [1;], alphalevel=0.05)
+println("The rejected transplant centers are:", rejectid)
+println("Their probabiity of belong to majority is:", round(clFDR[rejectid], 4))
 
 ####--------------------------------------
 ## How to save the current work
