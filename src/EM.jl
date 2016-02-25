@@ -402,7 +402,7 @@ function EMtest(X::Matrix{Float64},
     
     #gamma_init, betas_init, sigmas_tmp = maxposterior(X, Y, groupindex)
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
-    latentgmm(X, Y, groupindex, 1, [1.,1.],
+    latentgmm(X, Y, groupindex, 1, ones(J),
     [1.0], [0.], [1.], maxiteration=100, an=an1, sn=ones(C0), tol=.005)
     gamma_init = predictgamma(X, Y, groupindex,
         wi_init, mu_init, sigmas_init, betas_init)
