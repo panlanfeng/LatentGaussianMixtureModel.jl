@@ -95,7 +95,8 @@ gammaprediction = predictgamma(X, Y, groupindex, wi, mu, sigmas, betas);
 ####-------------------------------------------------
 ## Part Three: False Dicovery Rate
 # 
-clFDR, rejectid = LatentGaussianMixtureModel.FDR(X, Y, groupindex, wi, mu, sigmas, betas, [1;], alphalevel=0.05)
+CNull = findmax(wi)[2]
+clFDR, rejectid = LatentGaussianMixtureModel.FDR(X, Y, groupindex, wi, mu, sigmas, betas, [CNull;], alphalevel=0.05)
 println("The rejected transplant centers are:", rejectid)
 println("Their probabiity of belong to majority is:", round(clFDR[rejectid], 4))
 
