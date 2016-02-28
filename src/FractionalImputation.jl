@@ -36,87 +36,6 @@ function FIintegralweight!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::Abstract
     return(ll - n*log(M))
 end
 
-function completescore!(stheta::Array{Float64, 3}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, β::Vector{Float64}, gammaM::Matrix{Float64}, Wim::Matrix{Float64}, xb::Vector{Float64}, llN::Vector{Float64}, N::Int, J::Int, n::Int, C::Int, M::Int)
-
-    m = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
-    explogf = zeros(C)
-    fill!(stheta, 0.0)
-    for jcol in 1:M
-        relocate!(llN, gammaM[:, jcol], groupindex, N)
-        Yeppp.add!(llN, llN, xb)
-        negateiftrue!(llN, Y)
-        Yeppp.exp!(llN, llN)
-
-        #copy!(llN2, llN)
-        x1x!(llN)
-        negateiffalse!(llN, Y)
-
-        for i in 1:N
-            groupindexi = groupindex[i]
-            for j in 1:J
-                @inbounds stheta[groupindexi, jcol, j] += llN[i] * X[i,j] #* Wim[groupindexi, jcol]
-            end
-        end
-        # for i in 1:n
-        #     for kcom in 1:C
-        #         explogf[kcom] = exp(logpdf(m.components[kcom], gammaM[i, jcol]) - logpdf(m, gammaM[i, jcol]))
-        #     end
-        #
-        #     for kcom in 1:C-1
-        #         stheta[i, jcol, J+kcom] = explogf[kcom] - explogf[C]
-        #     end
-        #     for kcom in 1:C
-        #         stheta[i, jcol, J+C-1+2*kcom-1] = wi[kcom]*H1(gammaM[i, jcol], mu[kcom], sigmas[kcom]) * explogf[kcom]
-        #         stheta[i, jcol, J+C-1+2*kcom] = wi[kcom]*H2(gammaM[i, jcol], mu[kcom], sigmas[kcom]) * explogf[kcom]
-        #     end
-        # end
-
-    end
-end
-
-function calibrate!(Wim::Matrix{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, β::Vector{Float64}, gammaM::Matrix{Float64}, stheta::Array{Float64, 3}, xb::Vector, llN::Vector, N::Int, J::Int, n::Int, C::Int, M::Int, p::Int;)
-
-    # p = J+3*C-1
-    completescore!(stheta, X, Y, groupindex, wi, mu, sigmas, β, gammaM, Wim, xb, llN, N, J, n, C, M)
-
-    sbar = zeros(n, p)
-    midmat = zeros(p, p)
-    for i in 1:n, jcol in 1:M, j in 1:p
-        @inbounds sbar[i, j] += Wim[i, jcol] * stheta[i, jcol, j]
-    end
-    for i in 1:n, jcol in 1:M
-        for j in 1:p
-            stheta[i, jcol, j] -= sbar[i, j]
-        end
-        BLAS.syr!('U', Wim[i, jcol], stheta[i, jcol,:][:], midmat)
-    end
-
-    for i in 2:p, j in 1:i-1
-        midmat[i, j] = midmat[j, i]
-    end
-    coef =  inv(midmat) * sum(sbar, 1)[:]
-
-    for i in 1:n, jcol in 1:M
-        #Wim[i, jcol] -= Wim[i, jcol] * (dot(coef[:], stheta[i, jcol, :][:]))
-         Wim[i, jcol] = log(Wim[i, jcol]) - dot(coef, stheta[i, jcol, :][:])
-    end
-
-    for i in 1:n
-        u = maximum(Wim[i, :])
-        for jcol in 1:M
-            @inbounds Wim[i, jcol] = Wim[i, jcol] - u
-        end
-    end
-    Yeppp.exp!(Wim, Wim)
-    for i in 1:n
-        u = sum(Wim[i, :])
-        for jcol in 1:M
-            @inbounds Wim[i, jcol] = Wim[i, jcol] / u
-        end
-    end
-
-end
-
 function FIupdateθ!(wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, gammaM::Matrix{Float64}, Wim::Matrix{Float64}, wipool::Vector, mupool::Vector, sigmaspool::Vector, tmp_p::Vector, tmp_mu::Vector, wi_divide_sigmas::Vector, inv_2sigmas_sq::Vector, sn::Vector, an::Real, tau::Real, wifixed::Bool, tol::Real, mu_lb::Vector, mu_ub::Vector, whichtosplit::Int, N::Int, J::Int, n::Int, C::Int, M::Int, thetamaxiteration::Int)
 
     for iter in 1:thetamaxiteration
@@ -170,8 +89,8 @@ function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
     gammaM::Matrix{Float64}, Wim::Matrix{Float64},
     lln::Vector{Float64}, llN::Vector{Float64},
     llN2::Vector{Float64}, llN3::Vector{Float64}, xb::Vector{Float64},
-    N::Int, J::Int, n::Int, C::Int, ngh::Int, Qmaxiteration::Int)
-    M = C*ngh
+    N::Int, J::Int, n::Int, C::Int, M::Int, Qmaxiteration::Int)
+
     dev0 = negdeviance(β, X, Y, groupindex,
     gammaM, Wim, lln, llN, llN2, xb, N, J, n, M)
 
@@ -368,7 +287,8 @@ function latentgmmFI(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::
         end
         if !stopRule(β, beta_old, tol=tol/10)
             copy!(beta_old, β)
-            FIupdateβ!(β, X, Y, groupindex, .001, .001, XWX, XWY, Xscratch, gammaM, Wim, lln, llN, llN2, llN3, xb, N, J, n, M, Qmaxiteration)
+            updateβ!(β, X, Y, groupindex, .001, .001, XWX, XWY, Xscratch, gammaM, Wim, lln, llN, llN2, llN3, xb, N, J, n, ncomponent, M, Qmaxiteration)
+            #FIupdateβ!(β, X, Y, groupindex, gammaM, Wim, lln, llN, llN2, xb, N, J, n, M, Qmaxiteration)
             if debuginfo
                 println("beta=", β)
             end
