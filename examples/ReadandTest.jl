@@ -79,7 +79,7 @@ lr2=EMtest(X, Y, groupindex, 2, ntrials=25, debuginfo=true)
 #After decide the number of components, try model fitting
 C=2
 #initialize
-wi_init, mu_init, sigmas_init, betas_init, ml_tmp = latentgmm(X, Y, groupindex, 1, [1., 1.], [1.0], [0.], [1.], maxiteration=100);
+wi_init, mu_init, sigmas_init, betas_init, ml_tmp = latentgmm(X, Y, groupindex, 1, ones(J), [1.0], [0.], [1.], maxiteration=100);
 gamma_init = predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init); 
 wi_init, mu_init, sigmas_init, ml_tmp = LatentGaussianMixtureModel.gmm(gamma_init, C)
 
