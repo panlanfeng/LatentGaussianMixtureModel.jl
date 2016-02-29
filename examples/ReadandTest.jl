@@ -78,13 +78,9 @@ lr2=EMtest(X, Y, groupindex, 2, ntrials=25, debuginfo=true)
 
 #After decide the number of components, try model fitting
 C=2
-#initialize
-wi_init, mu_init, sigmas_init, betas_init, ml_tmp = latentgmm(X, Y, groupindex, 1, ones(J), [1.0], [0.], [1.], maxiteration=100);
-gamma_init = predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init); 
-wi_init, mu_init, sigmas_init, ml_tmp = LatentGaussianMixtureModel.gmm(gamma_init, C)
 
 ## Fitting
-wi, mu, sigmas, betas, ml_C = latentgmm(X, Y, groupindex, C, betas_init, wi_init, mu_init, sigmas_init, maxiteration=1000, an=1/n, debuginfo=false, tol=.001)
+wi, mu, sigmas, betas, ml_C = latentgmm(X, Y, groupindex, C; maxiteration=1000, an=1/n, debuginfo=false, tol=.001)
 
 # Print the predicted gamma
 gammaprediction = predictgamma(X, Y, groupindex, wi, mu, sigmas, betas);
@@ -123,7 +119,7 @@ import Distributions, StatsBase
 #Pkg.add("KernelEstimator")
 using RCall, KernelEstimator
 mhat = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
-xs = linspace(.5, 3.5, 400);
+xs = linspace(minimum(gammaprediction)-1., maximum(gammaprediction)+1, 400);
 denhat = pdf(mhat, xs);
 denpredict = kerneldensity(gammaprediction, xeval=xs)
 den1 = probs(mhat)[1].*pdf(mhat.components[1], xs);

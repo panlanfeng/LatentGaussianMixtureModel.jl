@@ -281,6 +281,17 @@ function latentgmm(X::Matrix{Float64},
     return(wi, mu, sigmas, β, ll)
 end
 
+function latentgmm(X::Matrix{Float64},
+    Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
+    ncomponent::Int; opts...)
+
+    wi_init, mu_init, sigmas_init, betas_init, ml_tmp = LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, 1, ones(size(X)[2]), [1.0], [0.], [1.];opts...)
+    gamma_init = LatentGaussianMixtureModel.predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init);
+    wi_init, mu_init, sigmas_init, ml_tmp = LatentGaussianMixtureModel.gmm(gamma_init, ncomponent)
+    #debuginfo && println("Initial:", wi_init, mu_init, sigmas_init, betas_init)
+    return LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, ncomponent, betas_init, wi_init, mu_init, sigmas_init; opts...)
+
+end
 
 """
 The interior step for `EMtest`
