@@ -252,5 +252,104 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
     T
     #sum(ll_nF) - nF*log(pi)/2
 end
+function confidenceinterval(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, betas::Array{Float64,1}; ngh::Int=100, debuginfo::Bool=false, confidencelevel::Real=0.9)
+
+    N,J = size(X)
+    nF = maximum(groupindex)
+    M = ngh
+    C = length(wi)
+    if C == 1
+        return rand(Chisq(2), nrep)
+    end
+    ghx, ghw = gausshermite(ngh)
+    xb = zeros(N)
+    A_mul_B!(xb, X, betas)
+    llvec = zeros(N)
+    llN2 = zeros(N)
+    ll_nF = zeros(nF, C)
+    sumlogmat = zeros(nF, ngh*C)
+    summat_beta = zeros(nF, ngh*C, J)
+    S_β = zeros(nF, J)
+    S_π = zeros(nF, C-1)
+    S_μσ = zeros(nF, 2*C)
+    
+    ml = zeros(nF)
+    xtmp = zeros(C*M)
+    for jcom in 1:C
+        for ix in 1:M
+            ixM = ix+M*(jcom-1)
+            xtmp[ixM] = ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom]
+            for i in 1:N
+                @inbounds llvec[i] = ifelse(Y[i], -xtmp[ixM] - xb[i], xtmp[ixM] + xb[i])
+            end
+
+            # Yeppp.exp!(llvec, llvec)
+            copy!(llN2, llvec)
+            logistic!(llN2)
+            negateiffalse!(llN2, Y)
+            for i in 1:N
+                for j in 1:J
+                    summat_beta[groupindex[i], ixM, j] += llN2[i] * X[i,j]
+                end
+            end
+            log1pexp!(llvec)
+
+            for i in 1:N
+                @inbounds sumlogmat[groupindex[i], ixM] -= llvec[i]
+            end
+            for i in 1:nF
+                sumlogmat[i, ixM] +=  log(ghw[ix])
+            end
+        end
+    end
+    for i in 1:nF
+        u = maximum(sumlogmat[i, :])
+        for jcol in 1:C*M
+            @inbounds sumlogmat[i, jcol] = sumlogmat[i, jcol] - u
+        end
+    end
+    for i in 1:nF
+        for kcom in 1:C
+            ll_nF[i, kcom] = sumexp(sumlogmat[i,(1+M*(kcom-1)):M*kcom])
+        end
+    end
+    for i in 1:nF
+        for jcom in 1:C
+            for ix in 1:M
+                sumlogmat[i, ix+M*(jcom-1)] += log(wi[jcom])
+            end
+        end
+        ml[i]=sumexp(sumlogmat[i, :])
+    end
+    for kcom in 1:(C-1)
+        S_π[:, kcom] = (ll_nF[:, kcom] .- ll_nF[:, C]) ./ ml
+    end
+    for i in 1:nF
+        for kcom in 1:C
+            ind = (1+M*(kcom-1)):M*kcom
+            S_μσ[i, 2*kcom-1] = sumexp(sumlogmat[i, ind], H1(xtmp[ind], mu[kcom], sigmas[kcom])) / ml[i]
+            S_μσ[i, 2*kcom] = sumexp(sumlogmat[i, ind], H2(xtmp[ind], mu[kcom], sigmas[kcom]))/ml[i]
+        end
+        for j in 1:J
+            S_β[i, j] = sumexp(sumlogmat[i,:], summat_beta[i, :, j])/ml[i]
+        end
+    end
+    S_η = hcat(S_β, S_π, S_μσ)
+    debuginfo && println(round(S_η[1:5,:], 5))
+    debuginfo && println(round(sum(S_η, 1)./sqrt(nF), 6))
+    I_η = S_η'*S_η./nF
+    if 1/cond(I_η) < eps(Float64)
+        warn("Information Matrix is singular!")
+        D, V = eig(I_η)
+        debuginfo && println(D)
+        tol2 = maximum(abs(D)) * 1e-14
+        D[D.<tol2] = tol2
+        I_η = V*diagm(D)*V'
+    end
+    shat = sqrt(diag(inv(I_η))./nF)
+    println("Parameter Standard Deviation: ", shat)
+    tmp = quantile(Normal(), 1-(1-confidencelevel) / 2 )
+    zip([betas, wi[1:(C-1)], mu, sigmas;] .- tmp.*shat, [betas, wi[1:(C-1)], mu, sigmas;] .+ tmp.*shat) |> collect
+end
 
 ####End of utility functions
