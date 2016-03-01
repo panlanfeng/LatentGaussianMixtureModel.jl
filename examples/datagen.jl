@@ -1,9 +1,9 @@
 import Distributions, StatsBase
-@everywhere function datagen(n::Int, Ctrue::Int, N::Int, J::Int, n_ij::Vector{Int64}; b::Int=round(Int,rand()*1000), adjustmean::Bool=false, showpower::Bool=false)
+@everywhere function datagen(n::Int, Ctrue::Int, N::Int, J::Int, n_ij::Vector{Int64}; b::Int=round(Int,rand()*1000), adjustmean::Bool=false, showpower::Bool=false, Xstd::Real=1.0)
 
     srand(200*b)
     groupindex = StatsBase.inverse_rle(1:n, n_ij)    
-    X = Distributions.rand(Distributions.Normal(), N, J) 
+    X = Distributions.rand(Distributions.Normal(0, Xstd), N, J) 
     betas_true=ones(J)
     if adjustmean
         mu_all = -log(1/0.81 - 1)
