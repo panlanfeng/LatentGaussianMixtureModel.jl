@@ -7,10 +7,10 @@ include(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples/datagen.jl"))
 @everywhere function Brun(b::Integer, Ctrue::Integer, Calternative::Integer; debuginfo::Bool=false, ntrials::Int=25)
     n = 282
     srand(100)
-    n_ij = round(Int64, Distributions.rand(Distributions.Poisson(5), n).+Distributions.rand(Distributions.Exponential(45), n))
+    n_ij = round(Int64, Distributions.rand(Distributions.Poisson(5), n).+Distributions.rand(Distributions.Exponential(95), n))
     N = sum(n_ij); J=2
 
-    X, Y, groupindex, wi_true, mu_true, sigmas_true, m, gamma_true = datagen(n, Ctrue, N, J, n_ij, b=b)
+    X, Y, groupindex, wi_true, mu_true, sigmas_true, betas_true, m, gamma_true = datagen(n, Ctrue, N, J, n_ij, b=b, adjustmean=false)
     
     lr=LatentGaussianMixtureModel.EMtest(X, Y, groupindex, Calternative-1, ntrials=ntrials, debuginfo=debuginfo, ctauparallel=false, ngh=100)
     println("Mission $b completed with lr=$lr")
