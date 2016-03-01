@@ -157,7 +157,7 @@ function latentgmm(X::Matrix{Float64},
     ncomponent::Int, β_init::Vector{Float64},
     wi_init::Vector{Float64}, mu_init::Vector{Float64},
     sigmas_init::Vector{Float64};
-    maxiteration::Int=100, tol::Real=.005,
+    maxiteration::Int=2000, tol::Real=.001,
     ngh::Int=100, ghx::Vector=zeros(ngh), ghw::Vector=zeros(ngh),
     sn::Vector{Float64}=sigmas_init, an::Float64=1.0/maximum(groupindex),
     debuginfo::Bool=false, Qmaxiteration::Int=5,
@@ -229,7 +229,7 @@ function latentgmm(X::Matrix{Float64},
         end
         if updatebeta && (mod1(iter_em, 3) == 1 || alreadystable)
             copy!(beta_old, β)
-            updateβ!(β, X, Y, groupindex, .001, .001,
+            updateβ!(β, X, Y, groupindex, .00001, .00001,
             XWX, XWY, Xscratch, gammaM, Wim, lln, llN, llN2, llN3,
             xb, N, J, n, ncomponent, ngh, Qmaxiteration)
             if debuginfo
@@ -285,9 +285,16 @@ function latentgmm(X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
     ncomponent::Int; opts...)
 
-    wi_init, mu_init, sigmas_init, betas_init, ml_tmp = LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, 1, ones(size(X)[2]), [1.0], [0.], [1.];opts...)
-    gamma_init = LatentGaussianMixtureModel.predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init);
-    wi_init, mu_init, sigmas_init, ml_tmp = LatentGaussianMixtureModel.gmm(gamma_init, ncomponent)
+    if ncomponent > 1
+        wi_init, mu_init, sigmas_init, betas_init, ml_tmp = LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, 1, ones(size(X)[2]), [1.0], [0.], [1.];opts...)
+        gamma_init = LatentGaussianMixtureModel.predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init);
+        wi_init, mu_init, sigmas_init, ml_tmp = LatentGaussianMixtureModel.gmm(gamma_init, ncomponent)
+    else
+        betas_init = ones(size(X)[2])
+        wi_init=[1.0;]
+        mu_init=[0.0;]
+        sigmas_init=[1.0;]
+    end
     #debuginfo && println("Initial:", wi_init, mu_init, sigmas_init, betas_init)
     return LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, ncomponent, betas_init, wi_init, mu_init, sigmas_init; opts...)
 
