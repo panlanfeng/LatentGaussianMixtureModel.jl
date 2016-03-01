@@ -1,5 +1,5 @@
 import Distributions, StatsBase
-@everywhere function datagen(n::Int, Ctrue::Int, N::Int, J::Int, n_ij::Vector{Int64}; b::Int=round(Int,rand()*1000), adjustmean::Bool=false)
+@everywhere function datagen(n::Int, Ctrue::Int, N::Int, J::Int, n_ij::Vector{Int64}; b::Int=round(Int,rand()*1000), adjustmean::Bool=false, showpower::Bool=false)
 
     srand(200*b)
     groupindex = StatsBase.inverse_rle(1:n, n_ij)    
@@ -20,7 +20,7 @@ import Distributions, StatsBase
             wi_true = [.2, .5, .3]
             sigmas_true = [.6, .4, .6]
         end
-    else
+    elseif !showpower
         mu_all = log(1/0.779 - 1)
         if Ctrue == 1
             mu_true = [mu_all]
@@ -32,6 +32,16 @@ import Distributions, StatsBase
             sigmas_true = [1.2, .8]
         elseif Ctrue == 3
             mu_true = [mu_all/3 - 4.0, mu_all/3 + 1.0, mu_all/3 + 4.0;]
+            wi_true = [.3, .4, .3]
+            sigmas_true = [1.2, .8, .9]
+        end
+    else
+        if Ctrue == 2
+            mu_true = [mu_all/2 - 1.0, mu_all/2 + 1.0] 
+            wi_true =  [.5, .5]
+            sigmas_true = [1.2, .8]
+        elseif Ctrue == 3
+            mu_true = [mu_all/3 - 1.0, mu_all/3 + 1.0, mu_all/3 + 3.0;]
             wi_true = [.3, .4, .3]
             sigmas_true = [1.2, .8, .9]
         end
