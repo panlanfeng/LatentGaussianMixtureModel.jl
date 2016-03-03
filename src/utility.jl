@@ -228,6 +228,7 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
     I_λ = S_λ'*S_λ./nF
     I_all = vcat(hcat(I_η, I_λη'), hcat(I_λη, I_λ))
     if 1/cond(I_all) < eps(Float64)
+        warn("Information Matrix is singular!")
         D, V = eig(I_all)
         debuginfo && println(D)
         tol2 = maximum(abs(D)) * 1e-14
