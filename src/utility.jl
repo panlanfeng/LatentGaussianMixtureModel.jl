@@ -348,7 +348,8 @@ function confidenceinterval(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, group
         I_η = V*diagm(D)*V'
     end
     shat = sqrt(diag(inv(I_η))./nF)
-    println("Parameter Standard Deviation: ", shat)
+    println("[beta, pi, mu, sigma]= ", [beta, pi, mu, sigma;])
+    println("Standard Deviation of [beta, pi, mu, sigma]: ", shat)
     tmp = quantile(Normal(), 1-(1-confidencelevel) / 2 )
     zip([betas, wi[1:(C-1)], mu, sigmas;] .- tmp.*shat, [betas, wi[1:(C-1)], mu, sigmas;] .+ tmp.*shat) |> collect
 end

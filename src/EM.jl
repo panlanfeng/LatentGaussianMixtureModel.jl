@@ -175,7 +175,7 @@ function latentgmm(X::Matrix{Float64},
     xb::Vector{Float64}=zeros(length(Y)),
     gammaM::Vector{Float64}=zeros( ncomponent*ngh),
     dotest::Bool=false, epsilon::Real=1e-6,
-    updatebeta::Bool=true, pl::Bool=true, ptau::Bool=false)
+    updatebeta::Bool=true, pl::Bool=true, ptau::Bool=false, bn::Real=3.0)
 
     # initialize theta
     length(wi_init) == length(mu_init) == length(sigmas_init) == ncomponent || error("The length of initial values should be $ncomponent")
@@ -239,10 +239,12 @@ function latentgmm(X::Matrix{Float64},
         end
         updateθ!(wi, mu, sigmas, X, Y, groupindex,
         gammaM, Wim, Wm, sn, an, N, J, n, ncomponent, ngh)
-        if taufixed
+        if bn > 0.0
             for kcom in 1:ncomponent
-                wi[kcom]=(wi[kcom]*n+1.0/ncomponent)/(n+1)
+                wi[kcom]=(wi[kcom]*n+bn/ncomponent)/(n+bn)
             end
+        end
+        if taufixed
             wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
             wi[whichtosplit] = wi_tmp*tau
             wi[whichtosplit+1] = wi_tmp*(1-tau)
@@ -323,7 +325,7 @@ function latentgmmrepeat(X::Matrix{Float64},
     llN3::Vector{Float64}=zeros(length(Y)),
     Xscratch::Matrix{Float64}=copy(X),
     xb::Vector=zeros(length(Y)), tol::Real=.005, 
-    pl::Bool=false, ptau::Bool=false)
+    pl::Bool=false, ptau::Bool=false, bn::Real=3.0)
 
     n = maximum(groupindex)
     tau = min(tau, 1-tau)
@@ -348,7 +350,7 @@ function latentgmmrepeat(X::Matrix{Float64},
              llN=llN, llN2=llN2, llN3=llN3,
              Xscratch=Xscratch, xb=xb,
              Qmaxiteration=2, taufixed=taufixed, ngh=ngh,
-             dotest=false, tol=tol)
+             dotest=false, tol=tol, bn=bn)
     end
 
     mlperm = sortperm(ml)
@@ -363,7 +365,7 @@ function latentgmmrepeat(X::Matrix{Float64},
             Wim=Wim, llN=llN, llN2=llN2, llN3=llN3,
             Xscratch=Xscratch, xb=xb,
             Qmaxiteration=5, taufixed=taufixed, ngh=ngh,
-            dotest=false, tol=tol)
+            dotest=false, tol=tol, bn=bn)
     end
 
     mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
@@ -372,7 +374,7 @@ function latentgmmrepeat(X::Matrix{Float64},
     re=latentgmm(X, Y, groupindex, C,
         betas[:, imax], wi[:, imax], mu[:, imax], sigmas[:, imax],
          maxiteration=2, an=an, sn=sn, debuginfo=false, ngh=ngh,
-         tol=0., pl=pl, ptau=ptau, whichtosplit=whichtosplit)
+         tol=0., pl=pl, ptau=ptau, whichtosplit=whichtosplit, bn=bn)
     debuginfo && println("Trial:", re)
     return(re)
 end
