@@ -34,6 +34,18 @@ import Yeppp
         wi_true = [.3, .4, .3]
         sigmas_true = [1.2, .8, .9]
     end
+    if Ctrue == Calternative
+        if Ctrue == 2
+            mu_all = log(1/0.779-1)
+            mu_true = [mu_all/2 - 1.0, mu_all/2 + 1.0;] 
+            wi_true = [0.5, 0.5;]
+            sigmas_true = [1.2, 0.8;]
+        elseif Ctrue == 3
+            mu_true = [log(1/0.779 - 1) - 1.0, log(1/0.779 - 1) + 1.0, log(1/0.779 - 1) + 2.0;]
+            wi_true = [.3, .4, .3]
+            sigmas_true = [1.2, .8, .9]
+        end
+    end
     
     #Randomly data generation based on the setting on datagen.jl
     srand(b * 100)
