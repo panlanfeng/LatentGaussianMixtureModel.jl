@@ -3,8 +3,8 @@ import Distributions, StatsBase
 
     srand(200*b)
     groupindex = StatsBase.inverse_rle(1:n, n_ij)    
-    X = Distributions.rand(Distributions.Normal(0, Xstd), N, J) 
-    betas_true=ones(J)
+    X = rand(TDist(8), N, 2) .* [14.71 4.47] ./ std(TDist(8))
+    betas_true=[0.0274, 0.00878]
     if adjustmean
         mu_all = -log(1/0.81 - 1)
         if Ctrue == 1
@@ -23,15 +23,15 @@ import Distributions, StatsBase
     elseif !showpower
         mu_all = log(1/0.779 - 1)
         if Ctrue == 1
-            mu_true = [mu_all]
+            mu_true = [-1.54]
             wi_true = [1.0]
-            sigmas_true = [1.2]
+            sigmas_true = [0.3493]
         elseif Ctrue == 2
-            mu_true = [mu_all/2 - 2.0, mu_all/2 + 2.0] 
+            mu_true = [mu_all - 2.0, mu_all + 2.0] 
             wi_true =  [.5, .5]
             sigmas_true = [1.2, .8]
         elseif Ctrue == 3
-            mu_true = [mu_all/3 - 4.0, mu_all/3 + 1.0, mu_all/3 + 4.0;]
+            mu_true = [mu_all - 4.0, mu_all + 1.0, mu_all + 4.0;]
             wi_true = [.3, .4, .3]
             sigmas_true = [1.2, .8, .9]
         end
