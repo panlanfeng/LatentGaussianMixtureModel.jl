@@ -25,9 +25,10 @@ import Yeppp
         wi_true = [1.0]
         sigmas_true = [0.3493]
     elseif Ctrue == 2
-        mu_true = [-2.0858,-1.4879]
-        wi_true = [0.0828,0.9172]
-        sigmas_true = [0.6735,0.2931]
+        mu_all = log(1/0.779-1)
+        mu_true = [mu_all - 2.0, mu_all + 2.0;] 
+        wi_true = [0.5, 0.5;]
+        sigmas_true = [1.2, 0.8;]
     elseif Ctrue == 3
         mu_true = [log(1/0.779 - 1) - 4.0, log(1/0.779 - 1) + 1.0, log(1/0.779 - 1) + 4.0;]
         wi_true = [.3, .4, .3]
