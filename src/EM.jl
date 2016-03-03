@@ -285,11 +285,29 @@ function latentgmm(X::Matrix{Float64},
     return(wi, mu, sigmas, β, ll)
 end
 
+function latentgmm(X::Matrix{Float64},
+    Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
+    ncomponent::Int; opts...)
+
+    if ncomponent > 1
+        wi_init, mu_init, sigmas_init, betas_init, ml_tmp = LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, 1, ones(size(X)[2]), [1.0], [0.], [1.])
+        gamma_init = LatentGaussianMixtureModel.predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init);
+        wi_init, mu_init, sigmas_init, ml_tmp = LatentGaussianMixtureModel.gmm(gamma_init, ncomponent)
+    else
+        betas_init = ones(size(X)[2])
+        wi_init=[1.0;]
+        mu_init=[0.0;]
+        sigmas_init=[1.0;]
+    end
+    #debuginfo && println("Initial:", wi_init, mu_init, sigmas_init, betas_init)
+    return LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, ncomponent, betas_init, wi_init, mu_init, sigmas_init; opts...)
+
+end
 
 """
 The interior step for `EMtest`
 """
-function latengmmrepeat(X::Matrix{Float64},
+function latentgmmrepeat(X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, C::Int,
     betas0::Vector{Float64}, wi_C1::Vector{Float64},
     mu_lb::Vector{Float64}, mu_ub::Vector{Float64},
@@ -298,16 +316,16 @@ function latengmmrepeat(X::Matrix{Float64},
     ntrials::Int=25, ngh::Int=100,
     sn::Vector{Float64}=sigmas_ub ./ 2, an=.25, 
     debuginfo::Bool=false,
-    gammaM::Vector = zeros(maximum(groupindex), Mmax),
-    Wim::Matrix = zeros(maximum(groupindex), ngh*ncomponent),
+    gammaM::Vector = zeros(ngh*C),
+    Wim::Matrix = zeros(maximum(groupindex), ngh*C),
     llN::Vector=zeros(length(Y)),
     llN2::Vector = zeros(length(Y)),
     llN3::Vector{Float64}=zeros(length(Y)),
     Xscratch::Matrix{Float64}=copy(X),
     xb::Vector=zeros(length(Y)), tol::Real=.005, 
-    pl::Bool=false, ptau::Bool=true)
+    pl::Bool=false, ptau::Bool=false)
 
-    nF = maximum(groupindex)
+    n = maximum(groupindex)
     tau = min(tau, 1-tau)
     ghx, ghw = gausshermite(ngh)
 
@@ -366,12 +384,10 @@ function EMtest(X::Matrix{Float64},
     ctauparallel=true, tol::Real=0.001)
     
     C1 = C0 + 1
-    nF = maximum(groupindex)
+    n = maximum(groupindex)
     M = ngh * C1
-    an1 = 1/nF
+    an1 = 1/n
     N,J=size(X)
-    gammaM = zeros(ngh*C0)
-    Wim = zeros(nF, ngh*C0)
     llN = zeros(N)
     llN2 = zeros(N)
     llN3 = zeros(N)
@@ -380,7 +396,7 @@ function EMtest(X::Matrix{Float64},
     
     #gamma_init, betas_init, sigmas_tmp = maxposterior(X, Y, groupindex)
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
-    latentgmm(X, Y, groupindex, 1, [1.,1.],
+    latentgmm(X, Y, groupindex, 1, ones(J),
     [1.0], [0.], [1.], maxiteration=100, an=an1, sn=ones(C0), tol=.005)
     gamma_init = predictgamma(X, Y, groupindex,
         wi_init, mu_init, sigmas_init, betas_init)
@@ -388,14 +404,14 @@ function EMtest(X::Matrix{Float64},
     mingamma = minimum(gamma_init)
     maxgamma = maximum(gamma_init)
 
-    wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latengmmrepeat(X, Y,
+    wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmrepeat(X, Y,
        groupindex, C0, betas_init, wi_init,
        ones(C0).*mingamma, ones(C0).*maxgamma, 
        0.25 .* sigmas_init, 2.*sigmas_init,
        taufixed=false,
        ntrials=ntrials, ngh=ngh, 
        sn=std(gamma_init).*ones(C0), an=an1,
-       debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
+       debuginfo=debuginfo,
        llN=llN, llN2=llN2, xb=xb, tol=tol, 
        pl=false, ptau=false)
     
@@ -418,11 +434,11 @@ function EMtest(X::Matrix{Float64},
     mu0 = mu_init[or]
     sigmas0 = sigmas_init[or]
     betas0 = betas_init
-    an = decidepenalty(wi0, mu0, sigmas0, nF)
+    an = decidepenalty(wi0, mu0, sigmas0, n)
 
     N,J=size(X)
     gammaM = zeros(ngh*C1)
-    Wim = zeros(nF, ngh*C1)
+    Wim = zeros(n, ngh*C1)
     lr = 0.0
     if ctauparallel
         lr=@parallel (max) for irun in 1:(C0*length(vtau))
@@ -446,7 +462,7 @@ function EMtest(X::Matrix{Float64},
             wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
             wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
 
-            ml_tmp=latengmmrepeat(X, Y,
+            ml_tmp=latentgmmrepeat(X, Y,
                groupindex, C1, betas0, wi_C1,
                mu_lb, mu_ub, sigmas_lb, sigmas_ub,
                taufixed=true, whichtosplit=whichtosplit, tau=vtau[i], 
@@ -454,7 +470,7 @@ function EMtest(X::Matrix{Float64},
                sn=sigmas0[ind], an=an,
                debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
                llN=llN, llN2=llN2, xb=xb, tol=tol, 
-               pl=false, ptau=true)[5]
+               pl=false, ptau=false)[5]
             if debuginfo
                 println(whichtosplit, " ", vtau[i], "->", ml_tmp)
             end
@@ -485,7 +501,7 @@ function EMtest(X::Matrix{Float64},
              wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
              wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
 
-             lrv[i, whichtosplit] = latengmmrepeat(X, Y,
+             lrv[i, whichtosplit] = latentgmmrepeat(X, Y,
                 groupindex, C1, betas0, wi_C1,
                 mu_lb, mu_ub, sigmas_lb, sigmas_ub,
                 taufixed=true, whichtosplit=whichtosplit, tau=vtau[i], 
@@ -493,7 +509,7 @@ function EMtest(X::Matrix{Float64},
                 sn=sigmas0[ind], an=an,
                 debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
                 llN=llN, llN2=llN2, xb=xb, tol=tol, 
-                pl=false, ptau=true)[5]
+                pl=false, ptau=false)[5]
             if debuginfo
                 println(whichtosplit, " ", vtau[i], "->",
                 lrv[i, whichtosplit])
