@@ -4,7 +4,6 @@
 #run the following after successfully installed Julia. You only need to do the following once.
 # Pkg.init()
 # Pkg.clone("where/you/put/thepackage/LatentGaussianMixtureModel")
-# Pkg.checkout("FastGaussQuadrature")
 
 # To run on the real data, change to the directory where the data is stored
 #cd("C:/latentgmmdata/")
@@ -12,14 +11,14 @@
 #cd(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples"))
 
 #adding all available cpu cores, utilizing the parallel computing
-addprocs(CPU_CORES-1)
+addprocs(2)
 
 #LatentGaussianMixtureModel is our package
 import LatentGaussianMixtureModel
-import Distributions, StatsBase, Yeppp
+import Distributions, StatsBase
 
 @everywhere using LatentGaussianMixtureModel
-@everywhere using Distributions, Yeppp, StatsBase
+@everywhere using Distributions, StatsBase
 
 #Read in the patients covariates X
 X = readcsv("X.csv");
@@ -33,7 +32,7 @@ for i in 1:N
     groupindex[i] = levelsdictionary[groupindex_raw[i]]
 end
 #after the convert, maximum value in groupindex should be the number of transplant centers
-nF = maximum(groupindex)
+n = maximum(groupindex);
 
 # read in the binary response Y and convert to Bool Vector
 #Not sure what Y looks like, so I list several possibilities here.
@@ -53,7 +52,7 @@ end
 #Test if X, Y, groupindex are in the same length
 @assert length(Y) == length(groupindex) == N
 
-X = X .- mean(X, 1)
+X = X .- mean(X, 1);
 
 
 ####-----------------------------
@@ -65,12 +64,10 @@ X = X .- mean(X, 1)
 
 #set the number of components We want to test
 # Null hypothesis: C = 1
-lr=EMtest(X, Y, groupindex, 1, ntrials=10, debuginfo=false)
+lr1=EMtest(X, Y, groupindex, 1, ntrials=25, debuginfo=false)
 
 #If the reject C=1, further test C=2
-lr=EMtest(X, Y, groupindex, 2, ntrials=10, debuginfo=false)
-
-
+lr2=EMtest(X, Y, groupindex, 2, ntrials=25, debuginfo=true)
 
 
 
@@ -81,13 +78,9 @@ lr=EMtest(X, Y, groupindex, 2, ntrials=10, debuginfo=false)
 
 #After decide the number of components, try model fitting
 C=2
-#initialize
-wi_init, mu_init, sigmas_init, betas_init, ml_tmp = latentgmm(X, Y, groupindex, 1, [1., 1.], [1.0], [0.], [1.], maxiteration=100)
-gamma_init = predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init); 
-wi_init, mu_init, sigmas_init, ml_tmp = LatentGaussianMixtureModel.gmm(gamma_init, C)
 
 ## Fitting
-wi, mu, sigmas, betas, ml_C = latentgmm(X, Y, groupindex, C, betas_init, wi_init, mu_init, sigmas_init, maxiteration=1000, an=1/nF, debuginfo=false, tol=.001)
+wi, mu, sigmas, betas, ml_C = latentgmm(X, Y, groupindex, C; maxiteration=1000, an=1/n, debuginfo=false, tol=.001)
 
 # Print the predicted gamma
 gammaprediction = predictgamma(X, Y, groupindex, wi, mu, sigmas, betas);
@@ -98,4 +91,52 @@ gammaprediction = predictgamma(X, Y, groupindex, wi, mu, sigmas, betas);
 ####-------------------------------------------------
 ## Part Three: False Dicovery Rate
 # 
-FDR(X, Y, groupindex, wi, mu, sigmas, betas, [1;])
+CNull = findmax(wi)[2]
+clFDR, rejectid = LatentGaussianMixtureModel.FDR(X, Y, groupindex, wi, mu, sigmas, betas, [CNull;], alphalevel=0.05)
+println("The rejected transplant centers are:", rejectid)
+println("Their probabiity of belong to majority is:", round(clFDR[rejectid], 4))
+
+####--------------------------------------
+## How to save the current work
+
+using JLD
+save("saveall.jld", "wi", wi, "mu", mu, "sigmas", sigmas, "betas", betas, "X", X, "Y", Y ,"groupindex", groupindex, "lr1", lr1, "lr2", lr2, "gammaprediction", gammaprediction, "clFDR", clFDR, "rejectid", rejectid)
+
+
+##To load do
+##Warning! Please load all the packages first before laod the jld file.
+#Or some of the data may not be able to recover.
+using JLD
+import LatentGaussianMixtureModel
+import Distributions, StatsBase
+
+@everywhere using LatentGaussianMixtureModel
+@everywhere using Distributions, StatsBase
+@load "saveall.jld"
+
+############----------------------
+## Plot a graph
+#Pkg.add("KernelEstimator")
+using RCall, KernelEstimator
+mhat = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
+xs = linspace(minimum(gammaprediction)-1., maximum(gammaprediction)+1, 400);
+denhat = pdf(mhat, xs);
+denpredict = kerneldensity(gammaprediction, xeval=xs)
+den1 = probs(mhat)[1].*pdf(mhat.components[1], xs);
+den2 =  probs(mhat)[2] .* pdf(mhat.components[2], xs);
+
+##Send the data to R
+@rput gammaprediction xs denhat den1 den2 denpredict
+
+# regular R code inside the triple quotes.
+rprint("""
+pdf("denhat_mpm.pdf", width=10, height=6)
+plot(xs, denhat, lwd=3, type="l", ylim=c(0, 1.7), xlab=expression(gamma), ylab="")
+lines(xs, den1, lwd=1.5, lty=3, col=c(256,256,256,.8))
+lines(xs, den2, lwd=1.5, lty=3, col=c(256,256,256,.8))
+rug(gammaprediction)
+lines(xs, denpredict, lty=4, lwd=2, col="blue")
+legend("topright",c("Mixture Density", "Kernel Density", "Individual Component"), lty=c(1,4, 3), lwd=c(3, 2, 1.5))
+dev.off()
+NULL
+""")
