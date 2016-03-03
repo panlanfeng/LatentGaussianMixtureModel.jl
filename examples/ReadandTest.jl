@@ -92,7 +92,7 @@ wi, mu, sigmas, betas, ml_C = LatentGaussianMixtureModel.latentgmmrepeat(X, Y,
    groupindex, C, betas, wi,
    ones(C).*mingamma, ones(C).*maxgamma, 
    0.25 .* sigmas, 2.*sigmas,
-   ntrials=5, an=1/n, sn=std(gammaprediction).*ones(C))
+   ntrials=5, an=1/n, bn=3.0, sn=std(gammaprediction).*ones(C))
 ###-----------------
 
 
