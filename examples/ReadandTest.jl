@@ -15,10 +15,10 @@ addprocs(2)
 
 #LatentGaussianMixtureModel is our package
 import LatentGaussianMixtureModel
-import Distributions, StatsBase
+import Distributions, StatsBase, GaussianMixtureTest
 
 @everywhere using LatentGaussianMixtureModel
-@everywhere using Distributions, StatsBase
+@everywhere using Distributions, StatsBase, GaussianMixtureTest
 
 #Read in the patients covariates X
 X = readcsv("X.csv");
@@ -64,10 +64,10 @@ X = X .- mean(X, 1);
 
 #set the number of components We want to test
 # Null hypothesis: C = 1
-lr1=EMtest(X, Y, groupindex, 1, ntrials=25, vtau=[.5, .3, .1;], debuginfo=false)
+lr1=LatentGaussianMixtureModel.EMtest(X, Y, groupindex, 1, ntrials=25, vtau=[.5, .3, .1;], debuginfo=false)
 
 #If the reject C=1, further test C=2
-lr2=EMtest(X, Y, groupindex, 2, ntrials=25, debuginfo=true)
+lr2=LatentGaussianMixtureModel.EMtest(X, Y, groupindex, 2, ntrials=25, debuginfo=true)
 
 
 
@@ -80,24 +80,26 @@ lr2=EMtest(X, Y, groupindex, 2, ntrials=25, debuginfo=true)
 C=2
 
 ## Fitting
-wi, mu, sigmas, betas, ml_C = latentgmm(X, Y, groupindex, C; maxiteration=1000, an=1/n, debuginfo=false, tol=.001, bn=3.0)
+wi, mu, sigmas, betas, ml_C = LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, C; maxiteration=1000, an=1/n, debuginfo=false, tol=.001, bn=3.0)
 
 
 ###------------
 ##Only if we need to try multiple initial values
-gammaprediction = predictgamma(X, Y, groupindex, wi, mu, sigmas, betas);
+wi0, mu0, sigmas0, betas0, ml_C0 = LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, 1; maxiteration=1000, an=1/n, debuginfo=false, tol=.001, bn=3.0)
+gammaprediction = LatentGaussianMixtureModel.predictgamma(X, Y, groupindex, wi0, mu0, sigmas0, betas0);
+wi0, mu0, sigmas0, ml_tmp = gmm(gammaprediction, C)
 mingamma = minimum(gammaprediction)
 maxgamma = maximum(gammaprediction)
 wi, mu, sigmas, betas, ml_C = LatentGaussianMixtureModel.latentgmmrepeat(X, Y,
-   groupindex, C, betas, wi,
+   groupindex, C, betas0, wi0,
    ones(C).*mingamma, ones(C).*maxgamma, 
-   0.25 .* sigmas, 2.*sigmas,
+   0.25 .* sigmas0, 2.*sigmas0,
    ntrials=5, an=1/n, bn=3.0, sn=std(gammaprediction).*ones(C))
 ###-----------------
 
 
 # Print the predicted gamma
-gammaprediction = predictgamma(X, Y, groupindex, wi, mu, sigmas, betas);
+gammaprediction = LatentGaussianMixtureModel.predictgamma(X, Y, groupindex, wi, mu, sigmas, betas);
 #writecsv("gammaprediction.csv", gammaprediction)
 LatentGaussianMixtureModel.confidenceinterval(X, Y, groupindex, wi, mu, sigmas, betas, confidencelevel=0.90)
 
