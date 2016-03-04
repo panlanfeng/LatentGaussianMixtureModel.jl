@@ -17,7 +17,7 @@ addprocs(2)
 import LatentGaussianMixtureModel
 import Distributions, StatsBase, GaussianMixtureTest
 
-@everywhere using LatentGaussianMixtureModel
+#@everywhere using LatentGaussianMixtureModel
 @everywhere using Distributions, StatsBase, GaussianMixtureTest
 
 #Read in the patients covariates X
