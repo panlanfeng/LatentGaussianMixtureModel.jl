@@ -239,6 +239,8 @@ function latentgmm(X::Matrix{Float64},
         end
         updateθ!(wi, mu, sigmas, X, Y, groupindex,
         gammaM, Wim, Wm, sn, an, N, J, n, ncomponent, ngh)
+        Yeppp.max!(mu, mu, mu_lb)
+        Yeppp.min!(mu, mu, mu_ub)
         if bn > 0.0
             for kcom in 1:ncomponent
                 wi[kcom]=(wi[kcom]*n+bn/ncomponent)/(n+bn)
@@ -248,8 +250,6 @@ function latentgmm(X::Matrix{Float64},
             wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
             wi[whichtosplit] = wi_tmp*tau
             wi[whichtosplit+1] = wi_tmp*(1-tau)
-            Yeppp.max!(mu, mu, mu_lb)
-            Yeppp.min!(mu, mu, mu_ub)
         end
         if any(wi .< 1e-8)
             warn("Some elements of $wi are too small. Consider another starting value or reduce the number of components. Give up.")
@@ -294,15 +294,19 @@ function latentgmm(X::Matrix{Float64},
     if ncomponent > 1
         wi_init, mu_init, sigmas_init, betas_init, ml_tmp = LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, 1, ones(size(X)[2]), [1.0], [0.], [1.])
         gamma_init = LatentGaussianMixtureModel.predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init);
+        mingamma = minimum(gamma_init)
+        maxgamma = maximum(gamma_init)
         wi_init, mu_init, sigmas_init, ml_tmp = LatentGaussianMixtureModel.gmm(gamma_init, ncomponent)
     else
         betas_init = ones(size(X)[2])
         wi_init=[1.0;]
         mu_init=[0.0;]
         sigmas_init=[1.0;]
+        mingamma = -Inf
+        maxgamma = Inf
     end
     #debuginfo && println("Initial:", wi_init, mu_init, sigmas_init, betas_init)
-    return LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, ncomponent, betas_init, wi_init, mu_init, sigmas_init; opts...)
+    return LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, ncomponent, betas_init, wi_init, mu_init, sigmas_init; mu_lb=ones(ncomponent).* mingamma, mu_ub=ones(ncomponent).* maxgamma, opts...)
 
 end
 
@@ -374,6 +378,7 @@ function latentgmmrepeat(X::Matrix{Float64},
     re=latentgmm(X, Y, groupindex, C,
         betas[:, imax], wi[:, imax], mu[:, imax], sigmas[:, imax],
          maxiteration=2, an=an, sn=sn, debuginfo=false, ngh=ngh,
+         mu_lb=mu_lb, mu_ub=mu_ub,
          tol=0., pl=pl, ptau=ptau, whichtosplit=whichtosplit, bn=bn)
     debuginfo && println("Trial:", re)
     return(re)
