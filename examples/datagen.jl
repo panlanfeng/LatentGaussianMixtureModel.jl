@@ -36,14 +36,15 @@ import Distributions, StatsBase
             sigmas_true = [1.2, .8, .9]
         end
     else
+        mu_all = log(1/0.779 - 1)
         if Ctrue == 2
-            mu_true = [mu_all/2 - 1.0, mu_all/2 + 1.0] 
-            wi_true =  [.5, .5]
+            mu_true = [mu_all - 0.5, mu_all + 0.5] 
+            wi_true =  [.6, .4]
             sigmas_true = [1.2, .8]
         elseif Ctrue == 3
-            mu_true = [mu_all/3 - 1.0, mu_all/3 + 1.0, mu_all/3 + 3.0;]
+            mu_true = [mu_all - 1.0, mu_all + 1.0, mu_all + 3.0;]
             wi_true = [.3, .4, .3]
-            sigmas_true = [1.2, .8, .9]
+            sigmas_true = [.7, .8, .9]
         end
     end
 
