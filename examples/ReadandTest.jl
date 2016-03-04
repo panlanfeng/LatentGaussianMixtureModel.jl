@@ -64,10 +64,10 @@ X = X .- mean(X, 1);
 
 #set the number of components We want to test
 # Null hypothesis: C = 1
-lr1=LatentGaussianMixtureModel.EMtest(X, Y, groupindex, 1, ntrials=25, vtau=[.5, .3, .1;], debuginfo=false)
+lr1=LatentGaussianMixtureModel.EMtest(X, Y, groupindex, 1, ntrials=5, vtau=[.5, .3, .1;], debuginfo=true)
 
 #If the reject C=1, further test C=2
-lr2=LatentGaussianMixtureModel.EMtest(X, Y, groupindex, 2, ntrials=25, debuginfo=true)
+lr2=LatentGaussianMixtureModel.EMtest(X, Y, groupindex, 2, ntrials=5, debuginfo=true)
 
 
 
@@ -135,7 +135,7 @@ import Distributions, StatsBase
 #Pkg.add("KernelEstimator")
 using RCall, KernelEstimator
 mhat = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
-xs = linspace(minimum(gammaprediction)-1., maximum(gammaprediction)+1, 400);
+xs = linspace(minimum(gammaprediction)-0.5, maximum(gammaprediction)+0.5, 400);
 denhat = pdf(mhat, xs);
 denpredict = kerneldensity(gammaprediction, xeval=xs)
 den1 = probs(mhat)[1].*pdf(mhat.components[1], xs);
@@ -147,12 +147,12 @@ den2 =  probs(mhat)[2] .* pdf(mhat.components[2], xs);
 # regular R code inside the triple quotes.
 rprint("""
 pdf("denhat_mpm.pdf", width=10, height=6)
-plot(xs, denhat, lwd=3, type="l", ylim=c(0, 1.7), xlab=expression(gamma), ylab="")
-lines(xs, den1, lwd=1.5, lty=3, col=c(256,256,256,.8))
-lines(xs, den2, lwd=1.5, lty=3, col=c(256,256,256,.8))
+plot(xs, denhat, lwd=4, type="l", ylim=c(0, .2+max(c(denpredict, denhat))), xlab=expression(gamma), ylab="")
+lines(xs, den1, lwd=2.5, lty=3, col=c(256,256,256,.8))
+lines(xs, den2, lwd=2.5, lty=3, col=c(256,256,256,.8))
 rug(gammaprediction)
-lines(xs, denpredict, lty=4, lwd=2, col="blue")
-legend("topright",c("Mixture Density", "Kernel Density", "Individual Component"), lty=c(1,4, 3), lwd=c(3, 2, 1.5))
+lines(xs, denpredict, lty=4, lwd=3, col="blue")
+legend("topright",c("Estimated Density", "Kernel Density of Predictors", "Individual Components"), lty=c(1,4, 3), lwd=c(3, 2, 1.5))
 dev.off()
 NULL
 """)
