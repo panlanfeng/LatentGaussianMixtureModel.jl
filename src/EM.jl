@@ -175,7 +175,7 @@ function latentgmm(X::Matrix{Float64},
     xb::Vector{Float64}=zeros(length(Y)),
     gammaM::Vector{Float64}=zeros( ncomponent*ngh),
     dotest::Bool=false, epsilon::Real=1e-6,
-    updatebeta::Bool=true, pl::Bool=true, ptau::Bool=false, bn::Real=3.0)
+    updatebeta::Bool=true, pl::Bool=true, ptau::Bool=false, bn::Real=1.0)
 
     # initialize theta
     length(wi_init) == length(mu_init) == length(sigmas_init) == ncomponent || error("The length of initial values should be $ncomponent")
