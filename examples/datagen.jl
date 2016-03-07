@@ -20,7 +20,18 @@ import Distributions, StatsBase
             wi_true = [.2, .5, .3]
             sigmas_true = [.6, .4, .6]
         end
-    elseif !showpower
+    elseif showpower
+        mu_all = log(1/0.779 - 1)
+        if Ctrue == 2
+            mu_true = [mu_all - 0.5, mu_all + 0.5] 
+            wi_true =  [.6, .4]
+            sigmas_true = [1.2, .8]
+        elseif Ctrue == 3
+            mu_true = [mu_all - 4.0, mu_all + 1.0, mu_all + 4.0;]
+            wi_true = [.3, .4, .3]
+            sigmas_true = [1.2, .8, .9]
+        end
+    else
         mu_all = log(1/0.779 - 1)
         if Ctrue == 1
             mu_true = [-1.54]
@@ -33,17 +44,6 @@ import Distributions, StatsBase
         elseif Ctrue == 3
             mu_true = [mu_all - 4.0, mu_all + 1.0, mu_all + 4.0;]
             wi_true = [.3, .4, .3]
-            sigmas_true = [1.2, .8, .9]
-        end
-    else
-        mu_all = log(1/0.779 - 1)
-        if Ctrue == 2
-            mu_true = [mu_all - 0.5, mu_all + 0.5] 
-            wi_true =  [.6, .4]
-            sigmas_true = [1.2, .8]
-        elseif Ctrue == 3
-            mu_true = [mu_all - 2, mu_all + 0., mu_all + 3.0;]
-            wi_true = [.3, .2, .5]
             sigmas_true = [1.2, .8, .9]
         end
     end

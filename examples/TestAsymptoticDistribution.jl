@@ -9,7 +9,7 @@ import Yeppp
 
 #Brun calculate the statistic for one data set;
 #b is the the random number seed, from 1 to 100
-@everywhere function Brun(b::Integer, Ctrue::Integer, Calternative::Integer; debuginfo::Bool=false, ntrials::Int=25)
+@everywhere function Brun(b::Integer, Ctrue::Integer, Calternative::Integer; debuginfo::Bool=false, ntrials::Int=5)
     nF = 282
     srand(100)
     n_ij = round(Int64, rand(Poisson(55), 282).+rand(Exponential(95), 282))
@@ -41,9 +41,9 @@ import Yeppp
             wi_true =  [.6, .4]
             sigmas_true = [1.2, .8]
         elseif Ctrue == 3
-            mu_true = [mu_all - 1.0, mu_all + 1.0, mu_all + 3.0;]
+            mu_true = [mu_all - 4., mu_all + 0., mu_all + 4.0;]
             wi_true = [.3, .4, .3]
-            sigmas_true = [.7, .8, .9]
+            sigmas_true = [1.2, .8, .9]
         end
     end
     
