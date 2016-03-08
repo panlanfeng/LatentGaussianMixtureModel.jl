@@ -34,9 +34,9 @@ import Distributions, StatsBase
     else
         mu_all = log(1/0.779 - 1)
         if Ctrue == 1
-            mu_true = [-1.54]
+            mu_true = [mu_all]
             wi_true = [1.0]
-            sigmas_true = [0.3493]
+            sigmas_true = [0.5]
         elseif Ctrue == 2
             mu_true = [mu_all - 2.0, mu_all + 2.0] 
             wi_true =  [.5, .5]
