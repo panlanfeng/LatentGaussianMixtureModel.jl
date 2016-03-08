@@ -41,7 +41,7 @@ import Yeppp
             wi_true =  [.6, .4]
             sigmas_true = [1.2, .8]
         elseif Ctrue == 3
-            mu_true = [[mu_all - 2.0, mu_all + 1.0, mu_all + 3.5;]
+            mu_true = [mu_all - 2.0, mu_all + 1.0, mu_all + 3.5;]
             wi_true = [.3, .4, .3]
             sigmas_true = [1.2, .8, .9]
         end
