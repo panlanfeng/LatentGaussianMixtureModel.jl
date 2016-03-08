@@ -23,7 +23,7 @@ import Distributions, StatsBase
     elseif showpower
         mu_all = log(1/0.779 - 1)
         if Ctrue == 2
-            mu_true = [mu_all - 0.5, mu_all + 0.5] 
+            mu_true = [mu_all - 1.0, mu_all + 0.8] 
             wi_true =  [.6, .4]
             sigmas_true = [1.2, .8]
         elseif Ctrue == 3
