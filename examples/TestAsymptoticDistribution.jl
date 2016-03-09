@@ -18,8 +18,8 @@ import Yeppp
     groupindex = inverse_rle(1:nF, n_ij)
     J=2  #42 #beta dimension
     srand(200*b)
-    X = rand(TDist(8), N, 2) .* [14.71 4.47] ./ std(TDist(8))
-    betas_true=[0.0274, 0.00878]
+    X = rand(Distributions.Normal(), N, 2)
+    betas_true=ones(J)
     if Ctrue == 1
         mu_true = [log(1/0.779-1)]
         wi_true = [1.0]
