@@ -239,14 +239,15 @@ function latentgmm(X::Matrix{Float64},
         end
         updateθ!(wi, mu, sigmas, X, Y, groupindex,
         gammaM, Wim, Wm, sn, an, N, J, n, ncomponent, ngh)
-        Yeppp.max!(mu, mu, mu_lb)
-        Yeppp.min!(mu, mu, mu_ub)
+
         if bn > 0.0
             for kcom in 1:ncomponent
                 wi[kcom]=(wi[kcom]*n+bn/ncomponent)/(n+bn)
             end
         end
         if taufixed
+            Yeppp.max!(mu, mu, mu_lb)
+            Yeppp.min!(mu, mu, mu_ub)
             wi_tmp = wi[whichtosplit]+wi[whichtosplit+1]
             wi[whichtosplit] = wi_tmp*tau
             wi[whichtosplit+1] = wi_tmp*(1-tau)
