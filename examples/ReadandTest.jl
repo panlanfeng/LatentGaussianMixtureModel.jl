@@ -80,22 +80,29 @@ lr2=LatentGaussianMixtureModel.EMtest(X, Y, groupindex, 2, ntrials=5, debuginfo=
 C=2
 
 ## Fitting
-wi, mu, sigmas, betas, ml_C = LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, C; maxiteration=1000, an=1/n, debuginfo=false, tol=.001, bn=3.0)
+wi, mu, sigmas, betas, ml_C = LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, C; maxiteration=1000, an=1/n, debuginfo=false, tol=.001)
 
 
 ###------------
 ##Only if we need to try multiple initial values
-wi0, mu0, sigmas0, betas0, ml_C0 = LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, 1; maxiteration=1000, an=1/n, debuginfo=false, tol=.001, bn=3.0)
+wi0, mu0, sigmas0, betas0, ml_C0 = LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, 1; maxiteration=1000, an=1/n, debuginfo=false, tol=.001)
 gammaprediction = LatentGaussianMixtureModel.predictgamma(X, Y, groupindex, wi0, mu0, sigmas0, betas0);
-wi0, mu0, sigmas0, ml_tmp = gmm(gammaprediction, C)
 mingamma = minimum(gammaprediction)
 maxgamma = maximum(gammaprediction)
+wi0, mu0, sigmas0, ml_tmp = gmm(gammaprediction, C)
 wi, mu, sigmas, betas, ml_C = LatentGaussianMixtureModel.latentgmmrepeat(X, Y,
    groupindex, C, betas0, wi0,
    ones(C).*mingamma, ones(C).*maxgamma, 
    0.25 .* sigmas0, 2.*sigmas0,
-   ntrials=5, an=1/n, bn=3.0, sn=std(gammaprediction).*ones(C))
+   ntrials=5, an=1/n, sn=std(gammaprediction).*ones(C))
 ###-----------------
+
+## If you want to specify your own initial values
+#[0.7, .3] is the weight pi
+#[-1.0, -0.1] is the means mu
+#[0.4, 0.3] is the standard deviation sigma
+wi, mu, sigmas, betas, ml_C = LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, 2, ones(J), [0.7, 0.3], [-1.0, -0.1], [0.4, 0.3]; maxiteration=1000, an=1/n, debuginfo=false, tol=.001)
+
 
 
 # Print the predicted gamma
@@ -135,7 +142,7 @@ import Distributions, StatsBase
 #Pkg.add("KernelEstimator")
 using RCall, KernelEstimator
 mhat = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
-xs = linspace(minimum(gammaprediction)-0.5, maximum(gammaprediction)+0.5, 400);
+xs = linspace(minimum(gammaprediction)-0.5, maximum(gammaprediction)+1., 400);
 denhat = pdf(mhat, xs);
 denpredict = kerneldensity(gammaprediction, xeval=xs)
 den1 = probs(mhat)[1].*pdf(mhat.components[1], xs);
@@ -146,13 +153,13 @@ den2 =  probs(mhat)[2] .* pdf(mhat.components[2], xs);
 
 # regular R code inside the triple quotes.
 rprint("""
-pdf("denhat_mpm.pdf", width=10, height=6)
-plot(xs, denhat, lwd=4, type="l", ylim=c(0, .2+max(c(denpredict, denhat))), xlab=expression(gamma), ylab="")
-lines(xs, den1, lwd=2.5, lty=3, col=c(256,256,256,.8))
-lines(xs, den2, lwd=2.5, lty=3, col=c(256,256,256,.8))
-rug(gammaprediction)
-lines(xs, denpredict, lty=4, lwd=3, col="blue")
-legend("topright",c("Estimated Density", "Kernel Density of Predictors", "Individual Components"), lty=c(1,4, 3), lwd=c(3, 2, 1.5))
-dev.off()
+#pdf("denhat_mpm.pdf", width=10, height=6.18)
+plot(xs, denhat, lwd=4, type="l", ylim=c(0,0.4), xlab=expression(gamma), ylab="")
+lines(xs, den1, lwd=3, lty=2, col="blue")
+lines(xs, den2, lwd=3, lty=2, col="red")
+#rug(gammaprediction)
+#lines(xs, denpredict, lty=4, lwd=3, col="blue")
+legend("topright",c("Estimated Density", "Component 1", "Component 2"), lty=c(1,2,2), lwd=c(4, 3, 3), col=c("black", "blue", "red"))
+#dev.off()
 NULL
 """)
