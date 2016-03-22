@@ -253,7 +253,7 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
     T
     #sum(ll_nF) - nF*log(pi)/2
 end
-function confidenceinterval(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, betas::Array{Float64,1}; ngh::Int=100, debuginfo::Bool=false, confidencelevel::Real=0.95)
+function vcov(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, betas::Array{Float64,1}; ngh::Int=100, debuginfo::Bool=false)
 
     N,J = size(X)
     nF = maximum(groupindex)
@@ -347,13 +347,13 @@ function confidenceinterval(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, group
         D[D.<tol2] = tol2
         I_η = V*diagm(D)*V'
     end
-    shat = sqrt(diag(inv(I_η))./nF)
-    println("[beta, pi, mu, sigma]= ", [betas, wi, mu, sigmas;])
-    println("Standard Deviation of [beta, pi, mu, sigma]: ", shat)
-    p=cdf(Normal(), betas./shat[1:length(betas)])
-    println("The p values of beta:", 2*min(p, 1.- p))
-    tmp = quantile(Normal(), 1-(1-confidencelevel) / 2 )
-    zip([betas, wi[1:(C-1)], mu, sigmas;] .- tmp.*shat, [betas, wi[1:(C-1)], mu, sigmas;] .+ tmp.*shat) |> collect
+    inv(I_η)[1:J,1:J]./nF
+end
+function coefpvalue(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, betas::Array{Float64,1}; ngh::Int=100, debuginfo::Bool=false)
+    m = vcov(X, Y, groupindex, wi, mu, sigmas, betas, ngh=ngh, debuginfo=debuginfo)
+    shat = sqrt(diag(m))
+    p=cdf(Normal(), betas./shat[1:length(betas)])    
+    2*min(p, 1.- p)
 end
 
 ####End of utility functions

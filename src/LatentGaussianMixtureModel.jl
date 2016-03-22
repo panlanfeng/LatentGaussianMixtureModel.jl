@@ -9,7 +9,7 @@ using Yeppp
 import GaussianMixtureTest: gmm, pn, decidepenalty
 import StatsBase: RealArray, RealVector, RealArray, IntegerArray, IntegerVector, IntegerMatrix, IntUnitRange
 import StatsFuns: logπ
-export predictgamma, asymptoticdistribution, latentgmm, marginallikelihood, EMtest, FDR
+export predictgamma, asymptoticdistribution, latentgmm, marginallikelihood, EMtest, FDR, coefpvalue, vcov
 include("arithmetic.jl")
 include("utility.jl")
 #include("MCEM.jl")
