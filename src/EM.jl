@@ -306,9 +306,23 @@ function latentgmm(X::Matrix{Float64},
         mingamma = -Inf
         maxgamma = Inf
     end
-    #debuginfo && println("Initial:", wi_init, mu_init, sigmas_init, betas_init)
     return LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, ncomponent, betas_init, wi_init, mu_init, sigmas_init; mu_lb=ones(ncomponent).* mingamma, mu_ub=ones(ncomponent).* maxgamma, opts...)
+end
 
+function latentgmmrepeat(X::Matrix{Float64},
+    Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
+    ncomponent::Int; opts...)
+
+    wi_init, mu_init, sigmas_init, betas_init, ml_tmp = LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, 1, ones(size(X)[2]), [1.0], [0.], [1.])
+    gamma_init = LatentGaussianMixtureModel.predictgamma(X, Y, groupindex, wi_init, mu_init, sigmas_init, betas_init);
+    mingamma = minimum(gamma_init) - 3*std(gamma_init)
+    maxgamma = maximum(gamma_init) + 3*std(gamma_init)
+
+    wi_init, mu_init, sigmas_init, ml_tmp = LatentGaussianMixtureModel.gmm(gamma_init, ncomponent)
+    return latentgmmrepeat(X, Y,
+           groupindex, ncomponent, betas_init, wi_init,
+           ones(ncomponent).*mingamma, ones(ncomponent).*maxgamma, 
+           0.25 .* sigmas_init, 2.*sigmas_init; opts...)
 end
 
 """
