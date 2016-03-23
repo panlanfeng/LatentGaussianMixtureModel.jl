@@ -85,16 +85,7 @@ wi, mu, sigmas, betas, ml_C = LatentGaussianMixtureModel.latentgmm(X, Y, groupin
 
 ###------------
 ##Only if we need to try multiple initial values
-wi0, mu0, sigmas0, betas0, ml_C0 = LatentGaussianMixtureModel.latentgmm(X, Y, groupindex, 1; maxiteration=1000, an=1/n, debuginfo=false, tol=.001)
-gammaprediction = LatentGaussianMixtureModel.predictgamma(X, Y, groupindex, wi0, mu0, sigmas0, betas0);
-mingamma = minimum(gammaprediction)
-maxgamma = maximum(gammaprediction)
-wi0, mu0, sigmas0, ml_tmp = gmm(gammaprediction, C)
-wi, mu, sigmas, betas, ml_C = LatentGaussianMixtureModel.latentgmmrepeat(X, Y,
-   groupindex, C, betas0, wi0,
-   ones(C).*mingamma, ones(C).*maxgamma, 
-   0.25 .* sigmas0, 2.*sigmas0,
-   ntrials=5, an=1/n, sn=std(gammaprediction).*ones(C))
+wi, mu, sigmas, betas, ml_C = LatentGaussianMixtureModel.latentgmmrepeat(X, Y, groupindex, C, ntrials=5)
 ###-----------------
 
 ## If you want to specify your own initial values
@@ -108,7 +99,7 @@ wi, mu, sigmas, betas, ml_C = LatentGaussianMixtureModel.latentgmm(X, Y, groupin
 # Print the predicted gamma
 gammaprediction = LatentGaussianMixtureModel.predictgamma(X, Y, groupindex, wi, mu, sigmas, betas);
 #writecsv("gammaprediction.csv", gammaprediction)
-LatentGaussianMixtureModel.confidenceinterval(X, Y, groupindex, wi, mu, sigmas, betas, confidencelevel=0.90)
+p=LatentGaussianMixtureModel.coefpvalue(X, Y, groupindex, wi, mu, sigmas, betas)
 
 
 ####-------------------------------------------------
@@ -154,7 +145,7 @@ den2 =  probs(mhat)[2] .* pdf(mhat.components[2], xs);
 # regular R code inside the triple quotes.
 rprint("""
 #pdf("denhat_mpm.pdf", width=10, height=6.18)
-plot(xs, denhat, lwd=4, type="l", ylim=c(0,0.4), xlab=expression(gamma), ylab="")
+plot(xs, denhat, lwd=4, type="l", xlab=expression(gamma), ylab="")
 lines(xs, den1, lwd=3, lty=2, col="blue")
 lines(xs, den2, lwd=3, lty=2, col="red")
 #rug(gammaprediction)
