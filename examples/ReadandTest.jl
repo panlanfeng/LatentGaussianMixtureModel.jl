@@ -1,31 +1,33 @@
 #Read in the file and run latentgmm
 #Lanfeng Pan, Oct 21, 2015
 
-#run the following after successfully installed Julia. You only need to do the following once.
-# Pkg.init()
-# Pkg.clone("where/you/put/thepackage/LatentGaussianMixtureModel")
-
-# To run on the real data, change to the directory where the data is stored
-#cd("C:/latentgmmdata/")
-#for example go to the simulated data folder
-#cd(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "examples"))
+#change this variable to the latest package folder path
+codepath = "C:\\Users\\liyanmin\\Desktop\\LatentGaussianMixtureModel\\LatentGaussianMixtureModel_20160311_1417_v020\\LatentGaussianMixtureModel_20160311_1417_v020"
+#change this to the new folder name if there is a new version of data
+datapath = "data"
 
 #adding all available cpu cores, utilizing the parallel computing
 addprocs(2)
 
-#LatentGaussianMixtureModel is our package
-import LatentGaussianMixtureModel
-import Distributions, StatsBase, GaussianMixtureTest
+cd(codepath)
+#This line loads all the functions
+include(joinpath(codepath, "src","LatentGaussianMixtureModel.jl"))
+println("The loaded package version is", LatentGaussianMixtureModel.PKGVERSION)
 
-#@everywhere using LatentGaussianMixtureModel
+#LatentGaussianMixtureModel is our package
+#import LatentGaussianMixtureModel
+import Distributions, StatsBase, GaussianMixtureTest
 @everywhere using Distributions, StatsBase, GaussianMixtureTest
 
 #Read in the patients covariates X
-X = readcsv("X.csv");
+
+X = readcsv(joinpath(codepath, datapath, "X.csv"));
+groupindex_raw = readcsv(joinpath(codepath, datapath, "groupindex.csv"));
+Y_raw = readcsv(joinpath(codepath, datapath, "Y.csv"));
+
 N, J = size(X)
 
 #read in the groupindex for transplant center and convert to integer vector 
-groupindex_raw = readcsv("groupindex.csv");
 levelsdictionary = levelsmap(groupindex_raw);
 groupindex  = ones(Int64, N);
 for i in 1:N
@@ -39,7 +41,6 @@ n = maximum(groupindex);
 
 # *Note*
 # Y true means survived, false means dead
-Y_raw = readcsv("Y.csv");
 Y = Array(Bool, N);
 for i in 1:N
     if Y_raw[i] in ["Yes","YES","y", "Y", 1, "1", 1.0, "1.0", "true", "TRUE", "True"]
@@ -114,19 +115,15 @@ println("Their probabiity of belong to majority is:", round(clFDR[rejectid], 4))
 ## How to save the current work
 
 using JLD
-save("saveall.jld", "wi", wi, "mu", mu, "sigmas", sigmas, "betas", betas, "X", X, "Y", Y ,"groupindex", groupindex, "lr1", lr1, "lr2", lr2, "gammaprediction", gammaprediction, "clFDR", clFDR, "rejectid", rejectid)
+save(joinpath(codepath, datapath, "saveall.jld"), "wi", wi, "mu", mu, "sigmas", sigmas, "betas", betas, "X", X, "Y", Y ,"groupindex", groupindex, "lr1", lr1, "lr2", lr2, "gammaprediction", gammaprediction, "clFDR", clFDR, "rejectid", rejectid, "PKGVERSION", LatentGaussianMixtureModel.PKGVERSION)
 
 
-##To load do
 ##Warning! Please load all the packages first before laod the jld file.
 #Or some of the data may not be able to recover.
 using JLD
-import LatentGaussianMixtureModel
 import Distributions, StatsBase
-
-@everywhere using LatentGaussianMixtureModel
 @everywhere using Distributions, StatsBase
-@load "saveall.jld"
+@load joinpath(codepath, datapath, "saveall.jld")
 
 ############----------------------
 ## Plot a graph
