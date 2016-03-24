@@ -1,17 +1,15 @@
 #Read in the file and run latentgmm
 #Lanfeng Pan, Oct 21, 2015
 
-#change this variable to the latest package folder path
-codepath = "C:\\Users\\liyanmin\\Desktop\\LatentGaussianMixtureModel\\LatentGaussianMixtureModel_20160311_1417_v020\\LatentGaussianMixtureModel_20160311_1417_v020"
-#change this to the new folder name if there is a new version of data
-datapath = "data"
+#change the path to the new folder if there is new version of data
+datapath = "C:\\Users\\liyanmin\\Desktop\\LatentGaussianMixtureModel\\LatentGaussianMixtureModel_20160311_1417_v020\\LatentGaussianMixtureModel_20160311_1417_v020\\data"
 
 #adding all available cpu cores, utilizing the parallel computing
 addprocs(2)
 
-cd(codepath)
-#This line loads all the functions
-include(joinpath(codepath, "src","LatentGaussianMixtureModel.jl"))
+#These lines loads all the functions
+Pkg.update()
+import LatentGaussianMixtureModel
 println("The loaded package version is", LatentGaussianMixtureModel.PKGVERSION)
 
 #LatentGaussianMixtureModel is our package
@@ -21,9 +19,9 @@ import Distributions, StatsBase, GaussianMixtureTest
 
 #Read in the patients covariates X
 
-X = readcsv(joinpath(codepath, datapath, "X.csv"));
-groupindex_raw = readcsv(joinpath(codepath, datapath, "groupindex.csv"));
-Y_raw = readcsv(joinpath(codepath, datapath, "Y.csv"));
+X = readcsv(joinpath(datapath, "X.csv"));
+groupindex_raw = readcsv(joinpath(datapath, "groupindex.csv"));
+Y_raw = readcsv(joinpath(datapath, "Y.csv"));
 
 N, J = size(X)
 
@@ -115,7 +113,7 @@ println("Their probabiity of belong to majority is:", round(clFDR[rejectid], 4))
 ## How to save the current work
 
 using JLD
-save(joinpath(codepath, datapath, "saveall.jld"), "wi", wi, "mu", mu, "sigmas", sigmas, "betas", betas, "X", X, "Y", Y ,"groupindex", groupindex, "lr1", lr1, "lr2", lr2, "gammaprediction", gammaprediction, "clFDR", clFDR, "rejectid", rejectid, "PKGVERSION", LatentGaussianMixtureModel.PKGVERSION)
+save(joinpath(datapath, "saveall.jld"), "wi", wi, "mu", mu, "sigmas", sigmas, "betas", betas, "X", X, "Y", Y ,"groupindex", groupindex, "lr1", lr1, "lr2", lr2, "gammaprediction", gammaprediction, "clFDR", clFDR, "rejectid", rejectid, "PKGVERSION", LatentGaussianMixtureModel.PKGVERSION)
 
 
 ##Warning! Please load all the packages first before laod the jld file.
@@ -123,7 +121,7 @@ save(joinpath(codepath, datapath, "saveall.jld"), "wi", wi, "mu", mu, "sigmas", 
 using JLD
 import Distributions, StatsBase
 @everywhere using Distributions, StatsBase
-@load joinpath(codepath, datapath, "saveall.jld")
+@load joinpath(datapath, "saveall.jld")
 
 ############----------------------
 ## Plot a graph
