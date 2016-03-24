@@ -113,7 +113,7 @@ println("Their probabiity of belong to majority is:", round(clFDR[rejectid], 4))
 ## How to save the current work
 
 using JLD
-save(joinpath(datapath, "saveall.jld"), "wi", wi, "mu", mu, "sigmas", sigmas, "betas", betas, "X", X, "Y", Y ,"groupindex", groupindex, "lr1", lr1, "lr2", lr2, "gammaprediction", gammaprediction, "clFDR", clFDR, "rejectid", rejectid, "PKGVERSION", LatentGaussianMixtureModel.PKGVERSION)
+save(joinpath(datapath, "saveall_$(LatentGaussianMixtureModel.PKGVERSION).jld"), "wi", wi, "mu", mu, "sigmas", sigmas, "betas", betas, "X", X, "Y", Y ,"groupindex", groupindex, "lr1", lr1, "lr2", lr2, "gammaprediction", gammaprediction, "clFDR", clFDR, "rejectid", rejectid, "PKGVERSION", LatentGaussianMixtureModel.PKGVERSION)
 
 
 ##Warning! Please load all the packages first before laod the jld file.
@@ -121,7 +121,7 @@ save(joinpath(datapath, "saveall.jld"), "wi", wi, "mu", mu, "sigmas", sigmas, "b
 using JLD
 import Distributions, StatsBase
 @everywhere using Distributions, StatsBase
-@load joinpath(datapath, "saveall.jld")
+@load joinpath(datapath, "saveall_$(LatentGaussianMixtureModel.PKGVERSION).jld")
 
 ############----------------------
 ## Plot a graph
