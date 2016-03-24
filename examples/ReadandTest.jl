@@ -2,7 +2,7 @@
 #Lanfeng Pan, Oct 21, 2015
 
 #change the path to the new folder if there is new version of data
-datapath = "C:\\Users\\liyanmin\\Desktop\\LatentGaussianMixtureModel\\LatentGaussianMixtureModel_20160311_1417_v020\\LatentGaussianMixtureModel_20160311_1417_v020\\data"
+datapath = "C:\\Users\\liyanmin\\Desktop\\LatentGaussianMixtureModel\\LatentGaussianMixtureModel_20160323_2251_v022\\LatentGaussianMixtureModel_20160323_2251_v022\\data"
 
 #adding all available cpu cores, utilizing the parallel computing
 addprocs(2)
