@@ -259,9 +259,6 @@ function vcov(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::Integer
     nF = maximum(groupindex)
     M = ngh
     C = length(wi)
-    if C == 1
-        return rand(Chisq(2), nrep)
-    end
     ghx, ghw = gausshermite(ngh)
     xb = zeros(N)
     A_mul_B!(xb, X, betas)
