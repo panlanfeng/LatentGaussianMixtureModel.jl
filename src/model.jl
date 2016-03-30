@@ -3,7 +3,7 @@ using StatsBase: StatsBase, StatisticalModel, RegressionModel
 type LGMModel <: RegressionModel
     X::Matrix{Float64}
     Y::Vector{Bool}
-    groupindex::Vector{Int}
+    groupindex::Vector{UInt32}
     ncomponent::Int
     p::Vector{Float64}
     μ::Vector{Float64}
@@ -19,6 +19,7 @@ type LGMModel <: RegressionModel
     σ_ub::Vector
     Wim::Matrix{Float64}
     Wm::Matrix{Float64}
+    gammaprediction::Vector{Float64}
     lln::Vector{Float64}
     llN::Vector{Float64}
     llN2::Vector{Float64}
@@ -36,22 +37,23 @@ type LGMModel <: RegressionModel
     tau::Real
     fit::Bool
 
-    function LGMModel(X::Matrix{Float64}, Y::Vector{Bool}, groupindex::Vector{Int}, ncomponent::Int;
+    function LGMModel(X::Matrix{Float64}, Y::Vector{Bool}, groupindex::Vector{UInt32}, ncomponent::Int;
         ngh::Int=100,
         taufixed::Bool=false, whichtosplit=1, tau=.5,
         sn=ones(ncomponent), an=1.0/maximum(groupindex))
         
         n = maximum(groupindex)
         N, J = size(X)
-        Wim::Matrix{Float64}=zeros(n, ncomponent*ngh)
-        Wm::Matrix{Float64}=zeros(1, ncomponent*ngh)
-        lln::Vector{Float64}=zeros(n)
-        llN::Vector{Float64}=zeros(N)
-        llN2::Vector{Float64}=zeros(N)
-        llN3::Vector{Float64}=zeros(N)
-        Xscratch::Matrix{Float64}=copy(X)
+        Wim=zeros(n, ncomponent*ngh)
+        Wm=zeros(1, ncomponent*ngh)
+        gammaprediction = zeros(n)
+        lln=zeros(n)
+        llN=zeros(N)
+        llN2=zeros(N)
+        llN3=zeros(N)
+        Xscratch=copy(X)
         xb::Vector{Float64}=zeros(N)
-        gammaM::Vector{Float64}=zeros(ncomponent*ngh)
+        gammaM=zeros(ncomponent*ngh)
         XWX = zeros(J, J)
         XWY = zeros(J)
         ghx, ghw = gausshermite(ngh)
@@ -65,31 +67,50 @@ type LGMModel <: RegressionModel
         σ_lb = .25 .* σ
         σ_ub = 2.0 .* σ
         
-        new(X, Y, groupindex, ncomponent, p, μ, σ, β, n, ngh, ghx, ghw, μ_lb, μ_ub, σ_lb, σ_ub, Wim, Wm, lln, llN, llN2, llN3, Xscratch, xb, gammaM, XWX, XWY, ll, sn, an, taufixed, whichtosplit, tau, false)
+        new(X, Y, groupindex, ncomponent, p, μ, σ, β, n, ngh, ghx, ghw, μ_lb, μ_ub, σ_lb, σ_ub, Wim, Wm, gammaprediction, lln, llN, llN2, llN3, Xscratch, xb, gammaM, XWX, XWY, ll, sn, an, taufixed, whichtosplit, tau, false)
     end
 end
 function initialize!(m::LGMModel)
-    if m.ncomponent > 1
-        m0 = LGMModel(X, Y, groupindex, 1)
-        latentgmm!(m0)
-        gammaprediction = predictgamma(m0);
-        m.p, m.μ, m.σ, ml_tmp = gmm(gammaprediction, m.ncomponent)
-        m.β = m0.β
-        # mingamma = minimum(gammaprediction) - 3 * std(gammaprediction)
-        # maxgamma = maximum(gammaprediction) + 3 * std(gammaprediction)
-        # fill!(m.μ_lb, mingamma)
-        # fill!(m.μ_ub, maxgamma)
-        # fill!(m.σ_lb, .25 .* m.σ)
-        # fill!(m.σ_ub, 2.0 .* m.σ)
+    
+    m0 = LGMModel(m.X, m.Y, m.groupindex, 1)
+    fit!(m0)
+    predictgamma!(m0);
+    m.p, m.μ, m.σ, ml_tmp = gmm(m0.gammaprediction, m.ncomponent)
+    m.β = m0.β
+    or = sortperm(m.μ)
+    m.p = m.p[or]
+    m.μ = m.μ[or]
+    m.σ = m.σ[or]
+
+    mingamma = minimum(m0.gammaprediction) - 3 * std(m0.gammaprediction)
+    maxgamma = maximum(m0.gammaprediction) + 3 * std(m0.gammaprediction)
+    fill!(m.μ_lb, mingamma)
+    fill!(m.μ_ub, maxgamma)
+    copy!(m.σ_lb, .25 .* m.σ)
+    copy!(m.σ_ub, 2.0 .* m.σ)
+    m
+end
+const valid_opts = [:maxiteration, :tol, :debuginfo, :Qmaxiteration, :dotest, :epsilon, :updatebeta, :bn, :pl, :ptau]
+const valid_opt_types = [Int, Real, Bool, Int, Bool, Real, Bool, Real, Bool, Bool]
+const deprecated_opts = Dict()
+function val_opts(opts)
+    d = Dict{Symbol,Union{Bool,NTuple{2,Integer},Char,Integer}}()
+    for (opt_name, opt_val) in opts
+        !in(opt_name, valid_opts) && throw(ArgumentError("unknown option $opt_name"))
+        opt_typ = valid_opt_types[findfirst(valid_opts, opt_name)]
+        !isa(opt_val, opt_typ) && throw(ArgumentError("$opt_name should be of type $opt_typ, got $(typeof(opt_val))"))
+        d[opt_name] = opt_val
+        haskey(deprecated_opts, opt_name) && warn("$opt_name is deprecated, use $(deprecated_opts[opt_name]) instead")
     end
+    d
 end
 function StatsBase.fit!(m::LGMModel;
-    maxiteration::Int=100, tol::Real=.005,
+    maxiteration::Int=100, tol::Real=.001,
     debuginfo::Bool=false, Qmaxiteration::Int=5,
     dotest::Bool=false, epsilon::Real=1e-6,
     updatebeta::Bool=true, bn::Real=1e-4,
-    pl::Bool=true, ptau::Bool=false)
-
+    pl::Bool=false, ptau::Bool=false)
+    
     m.fit && return m
     N, J = size(m.X)
     n = m.n
@@ -108,6 +129,9 @@ function StatsBase.fit!(m::LGMModel;
         alreadystable = true
     end
     for iter_em in 1:maxiteration
+        if any(isnan(m.β)) || any(isnan(m.p))
+            error("NaN in paramters!")
+        end
         for ix in 1:ngh, jcom in 1:ncomponent
             ixM = ix+ngh*(jcom-1)
             m.gammaM[ixM] = m.ghx[ix]*m.σ[jcom]*sqrt(2)+m.μ[jcom]
@@ -172,7 +196,7 @@ function StatsBase.fit!(m::LGMModel;
             end
         end
         if (iter_em == maxiteration) && (maxiteration > 50)
-            warn("Fail to converge with $(iter_em) iterations. The taufixed is $(taufixed).")
+            warn("Fail to converge with $(iter_em) iterations. The taufixed is $(m.taufixed).")
             println("Current parameters are
             $(m.p), $(m.μ), $(m.σ), $(m.β).")
             println(" Current likelihood is $(m.ll). The likelihood increase from last iteration is $(lldiff).")
@@ -189,14 +213,97 @@ function StatsBase.fit!(m::LGMModel;
     return(m)
 end
 
-function predictgamma(m::LGMModel)
+function multipefit!(m::LGMModel, ntrials::Int=25; kwargs...)
+    pm = repmat(m.p, 1, ntrials)
+    μm = repmat(m.μ, 1, ntrials)
+    σm = repmat(m.σ, 1, ntrials)
+    βm = repmat(m.β, 1, ntrials)
+    ml = -Inf .* ones(ntrials)
+    
+    for im in 1:ntrials
+        m.p = rand(Dirichlet(m.ncomponent, 1.0))
+        m.μ = rand(m.ncomponent) .* (m.μ_ub .- m.μ_lb) .+ m.μ_lb
+        m.σ = rand(m.ncomponent) .* (m.σ_ub .- m.σ_lb) .+ m.σ_lb
+        m.fit=false
+        
+        fit!(m; kwargs...)
+        pm[:, im] = m.p
+        μm[:, im] = m.μ
+        σm[:, im] = m.σ
+        βm[:, im] = m.β
+        ml[im] = m.ll
+    end
+    mlmax, imax = findmax(ml)
+    or = sortperm(μm[:, imax])
+    m.p = pm[or, imax]
+    m.μ = μm[or, imax]
+    m.σ = σm[or, imax]
+    m.β = βm[:, imax]
+    m.ll = mlmax
+    return m
+end
+
+function EMtest(m::LGMModel, ntrials::Int=25, vtau::Vector{Float64}=[0.5;]; kwargs...)
+    C0 = m.ncomponent
+    C1 = C0 + 1
+    n = m.n
+    debuginfo = get(val_opts(kwargs), :debuginfo, false)
+    
+    initialize!(m)
+    multipefit!(m, ntrials; kwargs...)
+    C0 > 1 && (trand=asymptoticdistribution(m))
+    debuginfo && println("loglikelihood of C0:", m.ll)
+    
+    ranef!(m)
+    mingamma = minimum(m.gammaprediction) - 3 * std(m.gammaprediction)
+    maxgamma = maximum(m.gammaprediction) + 3 * std(m.gammaprediction)
+    an = decidepenalty(m.p, m.μ, m.σ, n)
+    m1 = LGMModel(m.X, m.Y, m.groupindex, C1, taufixed=true, an=an)
+    lrv = zeros(length(vtau), C0)
+    for whichtosplit in 1:C0, i in 1:length(vtau)
+        ind = [1:whichtosplit, whichtosplit:C0;]
+        if C1==2
+            fill!(m1.μ_lb, mingamma)
+            fill!(m1.μ_ub, maxgamma)
+        elseif C1>2
+            mu_lb = [mingamma, (m.μ[1:(C0-1)] .+ m.μ[2:C0])./2;]
+            mu_ub = [(m.μ[1:(C0-1)] .+ m.μ[2:C0])./2, maxgamma;]
+            copy!(m1.μ_lb, mu_lb[ind])
+            copy!(m1.μ_ub, mu_ub[ind])
+        end
+        m1.σ_lb = 0.25 .* m.σ[ind]
+        m1.σ_ub = 2 .* m.σ[ind]
+        m1.whichtosplit = whichtosplit
+        m1.tau = vtau[i]
+        m1.sn = m.σ[ind]
+        m1.β = m.β
+        
+        multipefit!(m1, ntrials; kwargs...)
+        m1.fit=false       
+        fit!(m1, maxiteration=2)
+        debuginfo && println(whichtosplit, " ", vtau[i], "->", m1.ll)
+        lrv[i, whichtosplit] = m1.ll
+    end
+    lr = maximum(lrv)
+    if debuginfo
+        println("lr=", lr)
+    end
+    Tvalue = 2*(lr - m.ll)
+    if C0 == 1
+        pvalue = 1 - cdf(Chisq(2), Tvalue)
+    else
+        pvalue = mean(trand .> Tvalue)
+    end
+    return(Tvalue, pvalue)
+end
+
+function predictgamma!(m::LGMModel)
     ncomponent = m.ncomponent
     n = m.n
     ngh = m.ngh
     M = ngh*ncomponent
     N, J = size(m.X)
 
-    gammahat = zeros(n)
     for ix in 1:ngh, jcom in 1:ncomponent
         ixM = ix+ngh*(jcom-1)
         m.gammaM[ixM] = m.ghx[ix]*m.σ[jcom]*sqrt(2)+m.μ[jcom]
@@ -205,16 +312,16 @@ function predictgamma(m::LGMModel)
     integralweight!(m.Wim, m.X, m.Y, m.groupindex, m.gammaM, m.p, m.ghw, m.llN, m.llN2, m.xb, N, J, n, ncomponent, ngh)
     for i in 1:n
         for j in 1:M
-            gammahat[i] += m.gammaM[j] * m.Wim[i,j]
+            m.gammaprediction[i] += m.gammaM[j] * m.Wim[i,j]
         end
     end
-    return gammahat
+    return m.gammaprediction
 end
 
 nobs(m::LGMModel) = m.n
 model_response(m::LGMModel) = m.Y
 coef(m::LGMModel) = m.β
-ranef(m::LGMModel) = predictgamma(m)
+ranef!(m::LGMModel) = predictgamma!(m)
 #deviance(m::LGMModel) = -2*loglikelihood(m)
 function stderr(m::LGMModel)
     vc = vcov(m)
@@ -274,7 +381,7 @@ function infomatrix(m::LGMModel; debuginfo::Bool=false, includelambda::Bool=true
             logistic!(m.llN2)
             negateiffalse!(m.llN2, m.Y)
             for i in 1:N
-                @inbounds ind = m.groupindex[i]::Int
+                @inbounds ind = m.groupindex[i]::UInt32
                 for j in 1:J 
                     @inbounds summat_beta[ind, ixM, j] += m.llN2[i] * m.X[i,j]
                 end
@@ -414,11 +521,12 @@ function latentgmm(f::Formula, fr::AbstractDataFrame, ncomponent::Int; kwargs...
         throw(ArgumentError("$f has no random-effects terms"))
     end
     # groupindex =  sort!([remat(e,mf.df) for e in retrms]; by = nlevs, rev = true) #or remat(retrms[1], mf.df).f
-    groupindex = convert(Vector{Int}, getindex(mf.df, retrms[1].args[3]))
+    groupindex = convert(Vector{UInt32}, getindex(mf.df, retrms[1].args[3]))
     m = LGMModel(X, Y, groupindex, ncomponent; kwargs...)
     return m
 end
 
+##m0 is not a subset of m by `!naindicator`; m0 should resulted in a consistent estimator
 function imputeY!(m::LGMModel, m0::LGMModel, naindicator::Vector{Bool}, nMI::Int=10; kwargs...)
     
     # naindicator = isnan(m.Y)
@@ -435,6 +543,7 @@ function imputeY!(m::LGMModel, m0::LGMModel, naindicator::Vector{Bool}, nMI::Int
     
     for im in 1:nMI
         m.Y[naindicator]=Bool[rand(Binomial(1, missingμ[i])) == 1 for i in eachindex(missingμ)];
+        m.fit=false
         fit!(m; kwargs...)
         pm[:, im] = m.p
         μm[:, im] = m.μ
