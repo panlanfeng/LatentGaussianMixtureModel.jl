@@ -133,6 +133,12 @@ function FDR(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi::Vector, 
             n0 += 1
         end
     end
+    if n0 == 0 
+        println("Nothing is rejected")
+    else
+        println("The rejected groups are: ", order[1:n0])
+        println("with FDR values: ", round(clFDR[order[1:n0]], 4))
+    end
     return clFDR, order[1:n0]
 end
 function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, betas::Array{Float64,1}; ngh::Int=100, nrep::Int=10000, debuginfo::Bool=false)

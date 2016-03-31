@@ -13,6 +13,21 @@ Optional keywords arguments:
  - `sn` is the standard deviation to used in penalty function 
  - `an` is the penalty factor
 
+The following methods are available:
+
+  - `nobs` returns the number of random effect levels
+  - `model_response` returns the response `Y`
+  - `coef` returns the fixed effects `β`
+  - `ranef!` return the predict random effects
+  - `stderr` gives the standard error of fixed effects
+  - `confint` calculates the confidence interval
+  - `coeftable` prints the fixed effects and their p values
+  - `loglikelihood` calculates the log marginal likelihood
+  - `vcov` returns the covariance matrix of fixed effects
+  -  `asymptoticdistribution` returns the simulated asymptotic distribution of the restricted likelihood ratio test
+  - `predict` computes the probability of `Y` being 1 at given new data
+  - `FDR` detect the "outstanding" random effects while controlling the False  Discovery Rate.
+
 """
 type LGMModel <: RegressionModel
     X::Matrix{Float64}
@@ -332,6 +347,8 @@ function EMtest(m::LGMModel, ntrials::Int=25, vtau::Vector{Float64}=[0.5;]; kwar
     else
         pvalue = mean(trand .> Tvalue)
     end
+    println("The Test Statistic is ", Tvalue)
+    println("The p vlaue of the test is ", pvalue)
     return(Tvalue, pvalue)
 end
 
@@ -619,5 +636,12 @@ function FDR(m::LGMModel, C0::IntegerVector=[findmax(m.p)[2];]; alphalevel::Real
             n0 += 1
         end
     end
+    if n0 == 0 
+        println("Nothing is rejected")
+    else
+        println("The rejected groups are: ", order[1:n0])
+        println("with FDR values: ", round(clFDR[order[1:n0]], 4))
+    end
+    
     return clFDR, order[1:n0]
 end
