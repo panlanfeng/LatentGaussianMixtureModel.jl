@@ -13,7 +13,7 @@ export predictgamma, asymptoticdistribution, latentgmm, marginallikelihood, EMte
 
 
 import StatsBase: coef, coeftable, confint, deviance, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response, RegressionModel
-export coef, coeftable, confint, deviance, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, fit!, model_response, ranef!, multipefit!, infomatrix
+export coef, coeftable, confint, deviance, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, fit!, model_response, ranef!, multipefit!, infomatrix, ranefmixture
 import Base.show
 using DataFrames
 

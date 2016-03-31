@@ -99,7 +99,7 @@ function initialize!(m::LGMModel)
     
     m0 = LGMModel(m.X, m.Y, m.groupindex, 1)
     fit!(m0)
-    predictgamma!(m0);
+    ranef!(m0);
     m.p, m.μ, m.σ, ml_tmp = gmm(m0.gammaprediction, m.ncomponent)
     m.β = m0.β
     or = sortperm(m.μ)
@@ -335,7 +335,7 @@ function EMtest(m::LGMModel, ntrials::Int=25, vtau::Vector{Float64}=[0.5;]; kwar
     return(Tvalue, pvalue)
 end
 
-function predictgamma!(m::LGMModel)
+function ranef!(m::LGMModel)
     ncomponent = m.ncomponent
     n = m.n
     ngh = m.ngh
@@ -359,7 +359,7 @@ end
 nobs(m::LGMModel) = m.n
 model_response(m::LGMModel) = m.Y
 coef(m::LGMModel) = m.β
-ranef!(m::LGMModel) = predictgamma!(m)
+ranefmixture(m::LGMModel) = MixtureModel(map((u, v) -> Normal(u, v), m.μ, m.σ), m.p)
 #deviance(m::LGMModel) = -2*loglikelihood(m)
 function stderr(m::LGMModel)
     vc = vcov(m)
