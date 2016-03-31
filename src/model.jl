@@ -84,6 +84,17 @@ type LGMModel <: RegressionModel
         new(X, Y, groupindex, ncomponent, p, μ, σ, β, n, ngh, ghx, ghw, μ_lb, μ_ub, σ_lb, σ_ub, Wim, Wm, gammaprediction, lln, llN, llN2, llN3, Xscratch, xb, gammaM, XWX, XWY, ll, sn, an, taufixed, whichtosplit, tau, false)
     end
 end
+function show(io::IO, obj::LGMModel)
+    if !obj.fit
+        warn("Model has not been fit")
+        return nothing
+    end
+    
+    println(io, "$(typeof(obj)):\n\nFixed Coefficients:\n", coeftable(obj))
+    println(io, "Random Effects:\n\n", MixtureModel(map((u, v) -> Normal(u, v), obj.μ, obj.σ), obj.p))
+    println(io, "Number of random effect levels:", obj.n)
+    println(io, "Log likelihood is: ", obj.ll)
+end
 function initialize!(m::LGMModel)
     
     m0 = LGMModel(m.X, m.Y, m.groupindex, 1)
