@@ -62,8 +62,8 @@ type LGMModel <: RegressionModel
         σ = ones(ncomponent)
         β = randn(J)
         ll = -Inf
-        μ_lb=fill(-Inf, ncomponent)
-        μ_ub=fill(Inf, ncomponent)
+        μ_lb = μ .- 10
+        μ_ub = μ .+ 10
         σ_lb = .25 .* σ
         σ_ub = 2.0 .* σ
         
@@ -105,7 +105,7 @@ function val_opts(opts)
     d
 end
 function StatsBase.fit!(m::LGMModel;
-    maxiteration::Int=100, tol::Real=.001,
+    maxiteration::Int=2000, tol::Real=.001,
     debuginfo::Bool=false, Qmaxiteration::Int=5,
     dotest::Bool=false, epsilon::Real=1e-6,
     updatebeta::Bool=true, bn::Real=1e-4,
@@ -280,7 +280,7 @@ function EMtest(m::LGMModel, ntrials::Int=25, vtau::Vector{Float64}=[0.5;]; kwar
         
         multipefit!(m1, ntrials; kwargs...)
         m1.fit=false       
-        fit!(m1, maxiteration=2)
+        fit!(m1, maxiteration=2, tol=0.0)
         debuginfo && println(whichtosplit, " ", vtau[i], "->", m1.ll)
         lrv[i, whichtosplit] = m1.ll
     end
@@ -489,7 +489,7 @@ function asymptoticdistribution(m::LGMModel; debuginfo::Bool=false, nrep::Int=10
     T
 end
 
-function predict(m::LGMModel, newX::Matrix{Float64}, newgroup::Vector{Int})
+function predict(m::LGMModel, newX::Matrix{Float64}, newgroup::Vector{UInt32})
     !m.fit && warn("The model is not fitted!")
     N, J = size(m.X)
     N2, J2 = size(newX)
@@ -497,13 +497,13 @@ function predict(m::LGMModel, newX::Matrix{Float64}, newgroup::Vector{Int})
     newxb = zeros(N2)
     newgamma = zeros(N2)
     A_mul_B!(newxb, newX, m.β)
-    gammaprediction = ranef(m)
+    ranef!(m)
     overallmean = sum(m.μ .* m.p)
     for i in eachindex(newgroup)
         if newgroup[i] > m.n
             newgamma[i] = overallmean
         else
-            newgamma[i] = gammaprediction[newgroup[i]]
+            newgamma[i] = m.gammaprediction[newgroup[i]]
         end
     end
     for i in 1:N2
