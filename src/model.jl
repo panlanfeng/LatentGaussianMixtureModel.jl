@@ -1,5 +1,19 @@
-using StatsBase: StatsBase, StatisticalModel, RegressionModel
 
+"""
+    LGMModel(X, Y, groupindex, ncomponent)
+
+Constructing an modelling object.
+Optional keywords arguments:
+
+ - `X` and `Y` are the covariates and response. 
+ - `groupindex` is the random effect groups, should be an interger vector
+ - `ncomponent` is the number of components to try
+ - `ngh` means the number of points used in Gaussian-Hermite quadrature approximation in calculating the marginal log likelihood.
+ - `taufixed` specifies if fixing the ratio of `p[whichtosplit]` and `p[whichtosplit+1])` to be `tau/(1-tau)`
+ - `sn` is the standard deviation to used in penalty function 
+ - `an` is the penalty factor
+
+"""
 type LGMModel <: RegressionModel
     X::Matrix{Float64}
     Y::Vector{Bool}
@@ -104,6 +118,19 @@ function val_opts(opts)
     end
     d
 end
+
+"""
+    fit!(m)
+
+Fits the model.
+
+ - `maxiteration` is the maximum MCEM iterations allowed. `tol` means the stopping criteria. `initial_iteration` is the number of initial iterations using smaller `Mmax`. Initial iterations are used to save time in the first few iterations when the parameters are still far from the truth
+ - `tol` the stoppting criteria
+ - `debuginfo` is the switch to print more information to help debug
+ - `Qmaxiteration` the number of iterations used in Iteratively Reweighted Least Squares, for updating β
+ - `bn` the penalty weight on component prior
+ - `pl` and `ptau` should the penalty on σ and `tau` be included in loglikelihood
+"""
 function StatsBase.fit!(m::LGMModel;
     maxiteration::Int=2000, tol::Real=.001,
     debuginfo::Bool=false, Qmaxiteration::Int=5,
@@ -511,7 +538,12 @@ function predict(m::LGMModel, newX::Matrix{Float64}, newgroup::Vector{UInt32})
     end
     logistic!(newxb)
 end
+""" 
+    latentgmm(Y~x1+x2+(1|groupindex), fr, ncomponent)
 
+ - `fr` is a `DataFrame` containing the field `Y`, `x1`, `x2` and `groupindex`
+  - `ncomponent` is the number of components in random effects.
+"""
 function latentgmm(f::Formula, fr::AbstractDataFrame, ncomponent::Int; kwargs...)
     mf = ModelFrame(f,fr)
     X = ModelMatrix(mf).m
@@ -526,35 +558,55 @@ function latentgmm(f::Formula, fr::AbstractDataFrame, ncomponent::Int; kwargs...
     return m
 end
 
-##m0 is not a subset of m by `!naindicator`; m0 should resulted in a consistent estimator
-function imputeY!(m::LGMModel, m0::LGMModel, naindicator::Vector{Bool}, nMI::Int=10; kwargs...)
+"""
+    FDR(m, CNull)
+
+ - `CNull` is a vector of numbers, indicating which components should be viewd as "null"; then the elements with smallest density ratio f_{null}/f_{alternative} will be rejected
+ - `alphalevel` is the False Discovery Rate
+"""
+function FDR(m::LGMModel, C0::IntegerVector=[findmax(m.p)[2];]; alphalevel::Real=.05)
+    !m.fit && warn("The model is not yet fitted!")
+    n = m.n
+    X, Y, groupindex, ncomponent = m.X, m.Y, m.groupindex, m.ncomponent
+    ghw, ghx = m.ghw, m.ghx
+    gammaM = m.gammaM
+    Wim = m.Wim
+    ngh = m.ngh
+    M = m.ngh*ncomponent
+    N, J = size(m.X)
+    if maximum(C0) > ncomponent || minimum(C0) < 1
+        error("C0 must be within 1 to number of components")
+    end
+
+    piposterior = zeros(n, ncomponent)
+    clFDR = zeros(n)
     
-    # naindicator = isnan(m.Y)
-    missingμ = predict(m0, m.X[naindicator,:], m.groupindex[naindicator])
-    m.p = m0.p
-    m.μ = m0.μ
-    m.σ = m0.σ
-    m.β = m0.β
-    pm = repmat(m0.p, 1, nMI)
-    μm = repmat(m0.μ, 1, nMI)
-    σm = repmat(m0.σ, 1, nMI)
-    βm = repmat(m0.β, 1, nMI)
-    ml = -Inf .* ones(nMI)
-    
-    for im in 1:nMI
-        m.Y[naindicator]=Bool[rand(Binomial(1, missingμ[i])) == 1 for i in eachindex(missingμ)];
-        m.fit=false
-        fit!(m; kwargs...)
-        pm[:, im] = m.p
-        μm[:, im] = m.μ
-        σm[:, im] = m.σ
-        βm[:, im] = m.β
-        ml[im] = m.ll
-    end    
-    m.p = mean(pm, 2)[:]
-    m.μ = mean(μm, 2)[:]
-    m.σ = mean(σm, 2)[:]
-    m.β = mean(βm, 2)[:]
-    m.ll = mean(ml)
-    m
+    for ix in 1:ngh, jcom in 1:ncomponent
+        ixM = ix+ngh*(jcom-1)
+        m.gammaM[ixM] = ghx[ix]*m.σ[jcom]*sqrt(2)+m.μ[jcom]
+    end
+
+    A_mul_B!(m.xb, m.X, m.β)
+    integralweight!(Wim, X, Y, groupindex, gammaM, m.p, ghw, m.llN, m.llN2, m.xb, N, J, n, ncomponent, ngh)
+    for i in 1:n
+        for jcom in 1:ncomponent
+            for ix in 1:ngh
+                ixM = ix+ngh*(jcom-1)
+                piposterior[i, jcom] += Wim[i,ixM]
+            end
+        end
+    end
+    for i in 1:n
+        for jcom in 1:ncomponent
+            clFDR[i] = sum(piposterior[i, C0])
+        end
+    end
+    order = sortperm(clFDR)
+    n0 = 0
+    for i in 1:n
+        if mean(clFDR[order[1:i]]) < alphalevel
+            n0 += 1
+        end
+    end
+    return clFDR, order[1:n0]
 end
