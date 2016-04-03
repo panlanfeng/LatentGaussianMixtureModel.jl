@@ -13,7 +13,7 @@ export predictgamma, asymptoticdistribution, latentgmm, marginallikelihood, EMte
 
 
 import StatsBase: coef, coeftable, confint, deviance, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response, RegressionModel
-export coef, coeftable, confint, deviance, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, fit!, model_response, ranef!, multipefit!, infomatrix, ranefmixture
+export coef, coeftable, confint, deviance, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, fit!, model_response, ranef!, multipefit!, infomatrix, ranefmixture, detect
 import Base.show
 using DataFrames
 
@@ -26,6 +26,6 @@ include("utility.jl")
 include("EM.jl")
 #include("FractionalImputation.jl")
 
-PKGVERSION="v0.3.1"
+PKGVERSION=v"0.3.1"
 export PKGVERSION
 end # module

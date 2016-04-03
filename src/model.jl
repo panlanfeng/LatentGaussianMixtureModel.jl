@@ -128,6 +128,7 @@ function initialize!(m::LGMModel)
     fill!(m.μ_ub, maxgamma)
     copy!(m.σ_lb, .25 .* m.σ)
     copy!(m.σ_ub, 2.0 .* m.σ)
+    m.sn = ones(m.ncomponent) .* std(m0.gammaprediction)
     m
 end
 const valid_opts = [:maxiteration, :tol, :debuginfo, :Qmaxiteration, :dotest, :epsilon, :updatebeta, :bn, :pl, :ptau]
@@ -164,7 +165,7 @@ function StatsBase.fit!(m::LGMModel;
     updatebeta::Bool=true, bn::Real=1e-4,
     pl::Bool=false, ptau::Bool=false)
     
-    m.fit && return m
+    m.fit && warn("The model is already fit") && return m
     N, J = size(m.X)
     n = m.n
     ncomponent = m.ncomponent
@@ -226,6 +227,7 @@ function StatsBase.fit!(m::LGMModel;
                 m.p[kcom]=(m.p[kcom]*n+bn/ncomponent)/(n+bn)
             end
         end
+
         if m.taufixed
             Yeppp.max!(m.μ, m.μ, m.μ_lb)
             Yeppp.min!(m.μ, m.μ, m.μ_ub)
@@ -365,6 +367,7 @@ function ranef!(m::LGMModel)
     end
     A_mul_B!(m.xb, m.X, m.β)
     integralweight!(m.Wim, m.X, m.Y, m.groupindex, m.gammaM, m.p, m.ghw, m.llN, m.llN2, m.xb, N, J, n, ncomponent, ngh)
+    fill!(m.gammaprediction, 0.0)
     for i in 1:n
         for j in 1:M
             m.gammaprediction[i] += m.gammaM[j] * m.Wim[i,j]
@@ -592,7 +595,7 @@ end
  - `CNull` is a vector of numbers, indicating which components should be viewd as "null"; then the elements with smallest density ratio f_{null}/f_{alternative} will be rejected
  - `alphalevel` is the False Discovery Rate
 """
-function FDR(m::LGMModel, C0::IntegerVector=[findmax(m.p)[2];]; alphalevel::Real=.05)
+function FDR(m::LGMModel, C0::IntegerVector=[findmax(m.p)[2];])
     !m.fit && warn("The model is not yet fitted!")
     n = m.n
     X, Y, groupindex, ncomponent = m.X, m.Y, m.groupindex, m.ncomponent
@@ -626,22 +629,26 @@ function FDR(m::LGMModel, C0::IntegerVector=[findmax(m.p)[2];]; alphalevel::Real
     end
     for i in 1:n
         for jcom in 1:ncomponent
-            clFDR[i] = sum(piposterior[i, C0])
+            clFDR[i] = sum(piposterior[i, C0])/sum(m.p[C0])
         end
     end
-    order = sortperm(clFDR)
-    n0 = 0
-    for i in 1:n
-        if mean(clFDR[order[1:i]]) < alphalevel
-            n0 += 1
-        end
-    end
-    if n0 == 0 
-        println("Nothing is rejected")
-    else
-        println("The rejected groups are: ", order[1:n0])
-        println("with FDR values: ", round(clFDR[order[1:n0]], 4))
-    end
+    return clFDR
+end
+
+function detect(m::LGMModel, C0::IntegerVector=[findmax(m.p)[2];]; alphalevel::Real=.05)
     
-    return clFDR, order[1:n0]
+    clFDR = FDR(m, C0)
+    order = sortperm(clFDR)
+    n0 = sum(clFDR .< alphalevel)
+    ranef!(m)
+    ids = order[1:n0]
+    ni = ones(Int, n0)
+    yr = zeros(n0)
+    for i in eachindex(ids)
+        ni[i] = sum(m.groupindex .== ids[i])
+        yr[i] = 1 - mean(m.Y[m.groupindex .== ids[i]])
+    end
+    return(CoefTable(hcat(round(clFDR[ids], 4), round(m.gammaprediction[ids],4), ni, round(yr, 4)),
+              ["FDR", "γ Prediction","Sample Size", "Survival Rate"],
+              ["#$i" for i = ids], 4) )    
 end
