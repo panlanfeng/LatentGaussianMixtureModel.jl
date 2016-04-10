@@ -33,6 +33,6 @@ include("utility.jl")
 include("EM.jl")
 #include("FractionalImputation.jl")
 
-PKGVERSION=v"0.3.1"
+PKGVERSION=v"0.4.0"
 export PKGVERSION
 end # module
