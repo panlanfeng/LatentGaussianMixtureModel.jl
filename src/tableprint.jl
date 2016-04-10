@@ -104,4 +104,13 @@ function latexprint(io::IO, ct::ModelTable; tableenvir::ASCIIString = "tabular",
     @printf(io, "\n\\end{%s}", tableenvir)
 end
 
-latexprint(ct::ModelTable; kwargs...) = latexprint(STDIN, ct; kwargs...)
+latexprint(ct; kwargs...) = latexprint(STDIN, ct; kwargs...)
+
+function latexprint(io::IO, m::MixtureModel; rounding::Int = 3)
+    p = round(probs(m), rounding)
+    μ = Float64[round(m.components[i].μ, rounding) for i in eachindex(p)]
+    σ = Float64[round(m.components[i].σ, rounding) for i in eachindex(p)]
+    println(io, "\\[")
+    println(io, join( [string(p[i]) * " Normal(" * string(μ[i]) * ", " * string(σ[i]) * "^2)" for i in eachindex(p)], " + "))
+    println(io, "\\]")
+end
