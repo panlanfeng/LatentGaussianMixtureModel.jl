@@ -106,8 +106,9 @@ function show(io::IO, obj::LGMModel)
     end
     
     println(io, "$(typeof(obj)):\n\nFixed Coefficients:\n", coeftable(obj))
-    println(io, "Random Effects:\n\n", MixtureModel(map((u, v) -> Normal(u, v), obj.μ, obj.σ), obj.p))
-    println(io, "Number of random effect levels:", obj.n)
+    println(io, "Random Effects:")
+    latexprint(io, ranefmixture(obj), surrounding=false)
+    println(io, "\nNumber of random effect levels: ", obj.n)
     println(io, "Log likelihood is: ", obj.ll)
 end
 function initialize!(m::LGMModel)
@@ -652,7 +653,7 @@ function detect(m::LGMModel, C0::IntegerVector=[findmax(m.p)[2];]; alphalevel::R
         ni[i] = sum(m.groupindex .== ids[i])
         yr[i] = 1 - mean(m.Y[m.groupindex .== ids[i]])
     end
-    return(ModelTable(hcat(round(clFDR[ids], 4), round(m.gammaprediction[ids],4), ni, round(yr, 4)),
+    ModelTable(hcat(round(clFDR[ids], 4), round(m.gammaprediction[ids],4), ni, round(yr, 4)),
               ["FDR", "γ Prediction","Sample Size", "Survival Rate"],
-              ["#$i" for i = ids], 0, [3]) )    
+              ["#$i" for i = ids], 0, [3])
 end

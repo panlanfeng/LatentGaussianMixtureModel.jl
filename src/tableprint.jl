@@ -106,11 +106,11 @@ end
 
 latexprint(ct; kwargs...) = latexprint(STDIN, ct; kwargs...)
 
-function latexprint(io::IO, m::MixtureModel; rounding::Int = 3)
+function latexprint(io::IO, m::MixtureModel; rounding::Int = 3, surrounding::Bool=false)
     p = round(probs(m), rounding)
     μ = Float64[round(m.components[i].μ, rounding) for i in eachindex(p)]
     σ = Float64[round(m.components[i].σ, rounding) for i in eachindex(p)]
-    println(io, "\\[")
+    surrounding && println(io, "\\[")
     println(io, join( [string(p[i]) * " Normal(" * string(μ[i]) * ", " * string(σ[i]) * "^2)" for i in eachindex(p)], " + "))
-    println(io, "\\]")
+    surrounding && println(io, "\\]")
 end
