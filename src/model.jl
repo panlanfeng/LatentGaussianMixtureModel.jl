@@ -398,7 +398,7 @@ function coeftable(m::LGMModel)
     cc = coef(m)
     se = stderr(m)
     zz = cc ./ se
-    CoefTable(hcat(cc,se,zz,2.0 * ccdf(Normal(), abs(zz))),
+    ModelTable(hcat(cc,se,zz,2.0 * ccdf(Normal(), abs(zz))),
               ["Estimate","Std.Error","z value", "Pr(>|z|)"],
               ["x$i" for i = 1:size(m.X, 2)], 4)
 end
@@ -652,7 +652,7 @@ function detect(m::LGMModel, C0::IntegerVector=[findmax(m.p)[2];]; alphalevel::R
         ni[i] = sum(m.groupindex .== ids[i])
         yr[i] = 1 - mean(m.Y[m.groupindex .== ids[i]])
     end
-    return(CoefTable(hcat(round(clFDR[ids], 4), round(m.gammaprediction[ids],4), ni, round(yr, 4)),
+    return(ModelTable(hcat(round(clFDR[ids], 4), round(m.gammaprediction[ids],4), ni, round(yr, 4)),
               ["FDR", "γ Prediction","Sample Size", "Survival Rate"],
-              ["#$i" for i = ids], 4) )    
+              ["#$i" for i = ids], 0, [3]) )    
 end

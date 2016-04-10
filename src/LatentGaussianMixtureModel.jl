@@ -12,13 +12,14 @@ import StatsFuns: logπ
 export predictgamma, asymptoticdistribution, latentgmm, marginallikelihood, EMtest, FDR, coefpvalue, vcov
 
 
-import StatsBase: coef, coeftable, confint, deviance, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response, RegressionModel
-export coef, coeftable, confint, deviance, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, fit!, model_response, ranef!, multipefit!, infomatrix, ranefmixture, detect
+import StatsBase: coef, confint, deviance, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response, RegressionModel
+export coef, confint, deviance, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, fit!, model_response, ranef!, multipefit!, infomatrix, ranefmixture, detect, ModelTable, latexprint
 import Base.show
 using DataFrames
 
+include("tableprint.jl")
 include("model.jl")
-export LGMModel, imputeY!
+export LGMModel
 #include("MCEM.jl")
 
 include("arithmetic.jl")
