@@ -2,7 +2,7 @@
 #Lanfeng Pan, Oct 21, 2015
 
 #change the path to the new folder if there is new version of data
-datapath = "C:\\Users\\liyanmin\\Desktop\\LatentGaussianMixtureModel\\LatentGaussianMixtureModel_20160323_2251_v022\\LatentGaussianMixtureModel_20160323_2251_v022\\data"
+datapath = Pkg.dir("LatentGaussianMixtureModel", "examples")
 
 #adding all available cpu cores, utilizing the parallel computing
 addprocs(2)
@@ -37,8 +37,6 @@ n = maximum(groupindex);
 # read in the binary response Y and convert to Bool Vector
 #Not sure what Y looks like, so I list several possibilities here.
 
-# *Note*
-# Y true means survived, false means dead
 Y = Array(Bool, N);
 for i in 1:N
     if Y_raw[i] in ["Yes","YES","y", "Y", 1, "1", 1.0, "1.0", "true", "TRUE", "True"]
