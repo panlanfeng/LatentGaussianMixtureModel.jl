@@ -15,7 +15,7 @@ import StatsBase: coef, confint, deviance, loglikelihood, nobs, stderr, vcov, pr
 
 export LGMModel, ModelTable,
     initialize!, latentgmm, EMtest, asymptoticdistribution,
-    ranefmixture, infomatrix, multipefit!, ranef!,
+    ranefmixture, infomatrix, multiplefit!, ranef!,
     FDR, detect, latexprint,
     fit!, coef, confint, deviance, loglikelihood, nobs, stderr, vcov, predict, model_response, coeftable
     

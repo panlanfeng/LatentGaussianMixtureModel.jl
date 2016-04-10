@@ -273,7 +273,7 @@ function StatsBase.fit!(m::LGMModel;
     return(m)
 end
 
-function multipefit!(m::LGMModel, ntrials::Int=25; kwargs...)
+function multiplefit!(m::LGMModel, ntrials::Int=25; kwargs...)
     pm = repmat(m.p, 1, ntrials)
     μm = repmat(m.μ, 1, ntrials)
     σm = repmat(m.σ, 1, ntrials)
@@ -310,7 +310,7 @@ function EMtest(m::LGMModel, ntrials::Int=25, vtau::Vector{Float64}=[0.5;]; kwar
     debuginfo = get(val_opts(kwargs), :debuginfo, false)
     
     initialize!(m)
-    multipefit!(m, ntrials; kwargs...)
+    multiplefit!(m, ntrials; kwargs...)
     C0 > 1 && (trand=asymptoticdistribution(m))
     debuginfo && println("loglikelihood of C0:", m.ll)
     
@@ -338,7 +338,7 @@ function EMtest(m::LGMModel, ntrials::Int=25, vtau::Vector{Float64}=[0.5;]; kwar
         m1.sn = m.σ[ind]
         m1.β = m.β
         
-        multipefit!(m1, ntrials; kwargs...)
+        multiplefit!(m1, ntrials; kwargs...)
         m1.fit=false       
         fit!(m1, maxiteration=2, tol=0.0)
         debuginfo && println(whichtosplit, " ", vtau[i], "->", m1.ll)
