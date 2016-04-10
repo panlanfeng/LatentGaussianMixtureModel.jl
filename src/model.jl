@@ -155,17 +155,17 @@ Fits the model.
  - `tol` the stoppting criteria
  - `debuginfo` is the switch to print more information to help debug
  - `Qmaxiteration` the number of iterations used in Iteratively Reweighted Least Squares, for updating β
- - `bn` the penalty weight on component prior
+ - `bn` the prespecified minimum requirement on component prior
  - `pl` and `ptau` should the penalty on σ and `tau` be included in loglikelihood
 """
 function StatsBase.fit!(m::LGMModel;
     maxiteration::Int=2000, tol::Real=.001,
     debuginfo::Bool=false, Qmaxiteration::Int=5,
     dotest::Bool=false, epsilon::Real=1e-6,
-    updatebeta::Bool=true, bn::Real=1e-4,
+    updatebeta::Bool=true, bn::Real=0.01,
     pl::Bool=false, ptau::Bool=false)
     
-    m.fit && warn("The model is already fit") && return m
+    m.fit && warn("The model is already fit") && return(m)
     N, J = size(m.X)
     n = m.n
     ncomponent = m.ncomponent
@@ -222,10 +222,14 @@ function StatsBase.fit!(m::LGMModel;
         updateθ!(m.p, m.μ, m.σ, m.X, m.Y, m.groupindex,
         m.gammaM, m.Wim, m.Wm, m.sn, m.an, N, J, n, ncomponent, ngh)
 
-        if bn > 0.0
-            for kcom in 1:ncomponent
-                m.p[kcom]=(m.p[kcom]*n+bn/ncomponent)/(n+bn)
+        for kcom in 1:ncomponent
+            if m.p[kcom] < bn
+                m.p[kcom] = bn
             end
+        end
+        tmpsum = sum(m.p)
+        for kcom in 1:ncomponent
+            m.p[kcom] = m.p[kcom] / tmpsum
         end
 
         if m.taufixed
