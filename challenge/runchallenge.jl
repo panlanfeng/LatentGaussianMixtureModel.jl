@@ -10,6 +10,6 @@ groupindex_raw=readcsv(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "challeng
 @everywhere groupindex = @fetchfrom 1 groupindex_raw
 
 teststat = pmap((b) -> Brun(b, X, groupindex), 1:parse(Int, args[1]))
-writecsv("teststat$(Ctrue)$(Calternative).csv", teststat)
-run(`sed -i "s/(//g" teststat$(Ctrue)$(Calternative).csv`)
-run(`sed -i "s/)//g" teststat$(Ctrue)$(Calternative).csv`)
+writecsv("teststat.csv", teststat)
+run(`sed -i "s/(//g" teststat.csv`)
+run(`sed -i "s/)//g" teststat.csv`)
