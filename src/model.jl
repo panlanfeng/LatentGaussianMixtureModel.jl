@@ -5,12 +5,12 @@
 Constructing an modelling object.
 Optional keywords arguments:
 
- - `X` and `Y` are the covariates and response. 
+ - `X` and `Y` are the covariates and response.
  - `groupindex` is the random effect groups, should be an interger vector
  - `ncomponent` is the number of components to try
  - `ngh` means the number of points used in Gaussian-Hermite quadrature approximation in calculating the marginal log likelihood.
  - `taufixed` specifies if fixing the ratio of `p[whichtosplit]` and `p[whichtosplit+1])` to be `tau/(1-tau)`
- - `sn` is the standard deviation to used in penalty function 
+ - `sn` is the standard deviation to used in penalty function
  - `an` is the penalty factor
 
 The following methods are available:
@@ -70,7 +70,7 @@ type LGMModel <: RegressionModel
         ngh::Int=100,
         taufixed::Bool=false, whichtosplit=1, tau=.5,
         sn=ones(ncomponent), an=1.0/maximum(groupindex))
-        
+
         n = maximum(groupindex)
         N, J = size(X)
         Wim=zeros(n, ncomponent*ngh)
@@ -95,7 +95,7 @@ type LGMModel <: RegressionModel
         μ_ub = μ .+ 10
         σ_lb = .25 .* σ
         σ_ub = 2.0 .* σ
-        
+
         new(X, Y, groupindex, ncomponent, p, μ, σ, β, n, ngh, ghx, ghw, μ_lb, μ_ub, σ_lb, σ_ub, Wim, Wm, gammaprediction, lln, llN, llN2, llN3, Xscratch, xb, gammaM, XWX, XWY, ll, sn, an, taufixed, whichtosplit, tau, false)
     end
 end
@@ -104,7 +104,7 @@ function show(io::IO, obj::LGMModel)
         warn("Model has not been fit")
         return nothing
     end
-    
+
     println(io, "$(typeof(obj)):\n\nFixed Coefficients:\n", coeftable(obj))
     println(io, "Random Effects:")
     latexprint(io, ranefmixture(obj), surrounding=false)
@@ -112,7 +112,7 @@ function show(io::IO, obj::LGMModel)
     println(io, "Log likelihood is: ", obj.ll)
 end
 function initialize!(m::LGMModel)
-    
+
     m0 = LGMModel(m.X, m.Y, m.groupindex, 1)
     fit!(m0)
     ranef!(m0);
@@ -165,7 +165,7 @@ function StatsBase.fit!(m::LGMModel;
     dotest::Bool=false, epsilon::Real=1e-6,
     updatebeta::Bool=true, bn::Real=0.01,
     pl::Bool=false, ptau::Bool=false)
-    
+
     m.fit && warn("The model is already fit") && return(m)
     N, J = size(m.X)
     n = m.n
@@ -215,7 +215,7 @@ function StatsBase.fit!(m::LGMModel;
         if updatebeta && (mod1(iter_em, 3) == 1 || alreadystable)
             copy!(β_old, m.β)
             updateβ!(m.β, m.X, m.Y, m.groupindex, .001, .001,
-            m.XWX, m.XWY, m.Xscratch, m.gammaM, m.Wim, m.lln, 
+            m.XWX, m.XWY, m.Xscratch, m.gammaM, m.Wim, m.lln,
             m.llN, m.llN2, m.llN3,
             m.xb, N, J, n, ncomponent, ngh, Qmaxiteration)
             debuginfo && println("beta=", m.β)
@@ -279,13 +279,13 @@ function multiplefit!(m::LGMModel, ntrials::Int=25; kwargs...)
     σm = repmat(m.σ, 1, ntrials)
     βm = repmat(m.β, 1, ntrials)
     ml = -Inf .* ones(ntrials)
-    
+
     for im in 1:ntrials
         m.p = rand(Dirichlet(m.ncomponent, 1.0))
         m.μ = rand(m.ncomponent) .* (m.μ_ub .- m.μ_lb) .+ m.μ_lb
         m.σ = rand(m.ncomponent) .* (m.σ_ub .- m.σ_lb) .+ m.σ_lb
         m.fit=false
-        
+
         fit!(m; kwargs...)
         pm[:, im] = m.p
         μm[:, im] = m.μ
@@ -308,12 +308,12 @@ function EMtest(m::LGMModel, ntrials::Int=25, vtau::Vector{Float64}=[0.5;]; kwar
     C1 = C0 + 1
     n = m.n
     debuginfo = get(val_opts(kwargs), :debuginfo, false)
-    
+
     initialize!(m)
     multiplefit!(m, ntrials; kwargs...)
     C0 > 1 && (trand=asymptoticdistribution(m))
     debuginfo && println("loglikelihood of C0:", m.ll)
-    
+
     ranef!(m)
     mingamma = minimum(m.gammaprediction) - 3 * std(m.gammaprediction)
     maxgamma = maximum(m.gammaprediction) + 3 * std(m.gammaprediction)
@@ -337,9 +337,9 @@ function EMtest(m::LGMModel, ntrials::Int=25, vtau::Vector{Float64}=[0.5;]; kwar
         m1.tau = vtau[i]
         m1.sn = m.σ[ind]
         m1.β = m.β
-        
+
         multiplefit!(m1, ntrials; kwargs...)
-        m1.fit=false       
+        m1.fit=false
         fit!(m1, maxiteration=2, tol=0.0)
         debuginfo && println(whichtosplit, " ", vtau[i], "->", m1.ll)
         lrv[i, whichtosplit] = m1.ll
@@ -399,7 +399,7 @@ function coeftable(m::LGMModel)
     cc = coef(m)
     se = stderr(m)
     zz = cc ./ se
-    ModelTable(hcat(cc,se,zz,2.0 * ccdf(Normal(), abs(zz))),
+    CoefTable(hcat(cc,se,zz,2.0 * ccdf(Normal(), abs(zz))),
               ["Estimate","Std.Error","z value", "Pr(>|z|)"],
               ["x$i" for i = 1:size(m.X, 2)], 4)
 end
@@ -430,7 +430,7 @@ function infomatrix(m::LGMModel; debuginfo::Bool=false, includelambda::Bool=true
     S_μσ = zeros(n, 2*C)
     if includelambda
         S_λ = zeros(n, 2*C)
-    end 
+    end
     ml = zeros(n)
     A_mul_B!(m.xb, m.X, m.β)
     for jcom in 1:C
@@ -445,7 +445,7 @@ function infomatrix(m::LGMModel; debuginfo::Bool=false, includelambda::Bool=true
             negateiffalse!(m.llN2, m.Y)
             for i in 1:N
                 @inbounds ind = m.groupindex[i]::UInt32
-                for j in 1:J 
+                for j in 1:J
                     @inbounds summat_beta[ind, ixM, j] += m.llN2[i] * m.X[i,j]
                 end
             end
@@ -533,7 +533,7 @@ function asymptoticdistribution(m::LGMModel; debuginfo::Bool=false, nrep::Int=10
     if C == 1
         return rand(Chisq(2), nrep)
     end
-    
+
     I_all = infomatrix(m, includelambda=true, debuginfo=debuginfo)
     I_λ_η = I_all[(J+3*C):(J+5*C-1), (J+3*C):(J+5*C-1)] - I_all[(J+3*C):(J+5*C-1), 1:(J+3*C-1)] * inv(I_all[1:(J+3*C-1), 1:(J+3*C-1)]) * I_all[1:(J+3*C-1),(J+3*C):(J+5*C-1) ]
     debuginfo && println(round(I_λ_η, 6))
@@ -574,7 +574,7 @@ function predict(m::LGMModel, newX::Matrix{Float64}, newgroup::Vector{UInt32})
     end
     logistic!(newxb)
 end
-""" 
+"""
     latentgmm(Y~x1+x2+(1|groupindex), fr, ncomponent)
 
  - `fr` is a `DataFrame` containing the field `Y`, `x1`, `x2` and `groupindex`
@@ -616,7 +616,7 @@ function FDR(m::LGMModel, C0::IntegerVector=[findmax(m.p)[2];])
 
     piposterior = zeros(n, ncomponent)
     clFDR = zeros(n)
-    
+
     for ix in 1:ngh, jcom in 1:ncomponent
         ixM = ix+ngh*(jcom-1)
         m.gammaM[ixM] = ghx[ix]*m.σ[jcom]*sqrt(2)+m.μ[jcom]
@@ -634,14 +634,14 @@ function FDR(m::LGMModel, C0::IntegerVector=[findmax(m.p)[2];])
     end
     for i in 1:n
         for jcom in 1:ncomponent
-            clFDR[i] = sum(piposterior[i, C0])/sum(m.p[C0])
+            clFDR[i] = sum(piposterior[i, C0])#/sum(m.p[C0])
         end
     end
     return clFDR
 end
 
 function detect(m::LGMModel, C0::IntegerVector=[findmax(m.p)[2];]; alphalevel::Real=.05)
-    
+
     clFDR = FDR(m, C0)
     order = sortperm(clFDR)
     n0 = sum(clFDR .< alphalevel)
@@ -653,7 +653,7 @@ function detect(m::LGMModel, C0::IntegerVector=[findmax(m.p)[2];]; alphalevel::R
         ni[i] = sum(m.groupindex .== ids[i])
         yr[i] = 1 - mean(m.Y[m.groupindex .== ids[i]])
     end
-    ModelTable(hcat(round(clFDR[ids], 4), round(m.gammaprediction[ids],4), ni, round(yr, 4)),
+    CoefTable(Any[round(clFDR[ids], 4), round(m.gammaprediction[ids],4), ni, round(yr, 4)],
               ["FDR", "γ Prediction","Sample Size", "Survival Rate"],
-              ["#$i" for i = ids], 0, [3])
+              ["\\#$i" for i = ids])
 end
