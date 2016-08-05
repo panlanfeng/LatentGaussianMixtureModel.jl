@@ -18,8 +18,8 @@ export LGMModel, ModelTable,
     ranefmixture, infomatrix, multiplefit!, ranef!,
     FDR, detect, latexprint,
     fit!, coef, confint, deviance, loglikelihood, nobs, stderr, vcov, predict, model_response, coeftable
-    
-    
+
+
 import Base.show
 using DataFrames
 
@@ -33,6 +33,6 @@ include("utility.jl")
 include("EM.jl")
 #include("FractionalImputation.jl")
 
-PKGVERSION=v"0.4.0"
+PKGVERSION=v"0.4.1"
 export PKGVERSION
 end # module
