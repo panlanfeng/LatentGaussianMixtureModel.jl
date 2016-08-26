@@ -1,6 +1,6 @@
 #julia4 --machinefile=$PBS_NODEFILE -- run100.jl 1 2 110
 #run on all available cores using:
-addprocs(readcsv(ENV["PBS_NODEFILE"], ASCIIString)[:, 1])
+#addprocs(readcsv(ENV["PBS_NODEFILE"], ASCIIString)[:, 1])
 @everywhere args = @fetchfrom 1 ARGS
 
 include(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "challenge/challengesim.jl"))
