@@ -46,7 +46,7 @@ import Yeppp
     vb=fill(-Inf, ncomponent)
     for kcom in 1:ncomponent
         res=LatentGaussianMixtureModel.latentgmm(X,Y,groupindex,kcom,maxiteration=1000,tol=0.001)
-        vb[kcom]=res[5]-kcom*log(n)*Cn/2.0
+        vb[kcom]=res[5]-kcom*log(nF)*Cn/2.0
     end
     bic,C=findmax(vb)
     println("Mission $b chooses $C components.")
