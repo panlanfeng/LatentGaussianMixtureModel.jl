@@ -1,5 +1,5 @@
 
-function latexprint(io::IO, ct::CoefTable; tableenvir::ASCIIString = "tabular", alignment::ASCIIString="", caption::ASCIIString="", centering::Bool=true)
+function latexprint(io::IO, ct::CoefTable; tableenvir::AbstractString = "tabular", alignment::AbstractString="", caption::AbstractString="", centering::Bool=true)
 
     cols = ct.cols; rownms = ct.rownms; colnms = ct.colnms;
     nc = length(cols)

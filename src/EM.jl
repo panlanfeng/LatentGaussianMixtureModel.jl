@@ -129,7 +129,11 @@ function deltabeta!(XWY::Vector{Float64},
         scale!(Xscratch, llN2, Xscratch)
         Base.BLAS.gemm!('T', 'N', 1.0, Xscratch, X, 1.0, XWX)
     end
-    A_ldiv_B!(cholfact!(XWX, :U), XWY)
+    if VERSION < v"0.5.0-dev+4677"
+        A_ldiv_B!(cholfact!(XWX, :U), XWY)
+    else
+        A_ldiv_B!(cholfact!(Hermitian(XWX, :U)), XWY)
+    end
 end
 function negdeviance(beta2::Vector{Float64}, X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
@@ -321,7 +325,7 @@ function latentgmmrepeat(X::Matrix{Float64},
     wi_init, mu_init, sigmas_init, ml_tmp = LatentGaussianMixtureModel.gmm(gamma_init, ncomponent)
     return latentgmmrepeat(X, Y,
            groupindex, ncomponent, betas_init, wi_init,
-           ones(ncomponent).*mingamma, ones(ncomponent).*maxgamma, 
+           ones(ncomponent).*mingamma, ones(ncomponent).*maxgamma,
            0.25 .* sigmas_init, 2.*sigmas_init; opts...)
 end
 
@@ -332,10 +336,10 @@ function latentgmmrepeat(X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, C::Int,
     betas0::Vector{Float64}, wi_C1::Vector{Float64},
     mu_lb::Vector{Float64}, mu_ub::Vector{Float64},
-    sigmas_lb::Vector{Float64}, sigmas_ub::Vector{Float64}; 
+    sigmas_lb::Vector{Float64}, sigmas_ub::Vector{Float64};
     taufixed::Bool=false, whichtosplit::Int64=1, tau::Float64=0.5,
     ntrials::Int=25, ngh::Int=100,
-    sn::Vector{Float64}=sigmas_ub ./ 2, an=1/maximum(groupindex), 
+    sn::Vector{Float64}=sigmas_ub ./ 2, an=1/maximum(groupindex),
     debuginfo::Bool=false,
     gammaM::Vector = zeros(ngh*C),
     Wim::Matrix = zeros(maximum(groupindex), ngh*C),
@@ -343,7 +347,7 @@ function latentgmmrepeat(X::Matrix{Float64},
     llN2::Vector = zeros(length(Y)),
     llN3::Vector{Float64}=zeros(length(Y)),
     Xscratch::Matrix{Float64}=copy(X),
-    xb::Vector=zeros(length(Y)), tol::Real=.005, 
+    xb::Vector=zeros(length(Y)), tol::Real=.005,
     pl::Bool=false, ptau::Bool=false, bn::Real=1e-4)
 
     n = maximum(groupindex)
@@ -405,7 +409,7 @@ function EMtest(X::Matrix{Float64},
     C0::Int; vtau::Vector{Float64}=[.5;],
     ntrials::Int=25, ngh::Int=100, debuginfo::Bool=false,
     ctauparallel::Bool=true, tol::Real=0.001, bn::Real=1.0)
-    
+
     C1 = C0 + 1
     n = maximum(groupindex)
     M = ngh * C1
@@ -416,7 +420,7 @@ function EMtest(X::Matrix{Float64},
     llN3 = zeros(N)
     Xscratch = copy(X)
     xb = zeros(N)
-    
+
     #gamma_init, betas_init, sigmas_tmp = maxposterior(X, Y, groupindex)
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
     latentgmm(X, Y, groupindex, 1, ones(J),
@@ -429,15 +433,15 @@ function EMtest(X::Matrix{Float64},
 
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmrepeat(X, Y,
        groupindex, C0, betas_init, wi_init,
-       ones(C0).*mingamma, ones(C0).*maxgamma, 
+       ones(C0).*mingamma, ones(C0).*maxgamma,
        0.25 .* sigmas_init, 2.*sigmas_init,
        taufixed=false,
-       ntrials=ntrials, ngh=ngh, 
+       ntrials=ntrials, ngh=ngh,
        sn=std(gamma_init).*ones(C0), an=an1,
        debuginfo=debuginfo,
-       llN=llN, llN2=llN2, xb=xb, tol=tol, 
+       llN=llN, llN2=llN2, xb=xb, tol=tol,
        pl=false, ptau=false, bn=1e-4)
-    
+
     # wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
     #     latentgmm(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
     #     sigmas_init, maxiteration=2000, an=an1,
@@ -488,11 +492,11 @@ function EMtest(X::Matrix{Float64},
             ml_tmp=latentgmmrepeat(X, Y,
                groupindex, C1, betas0, wi_C1,
                mu_lb, mu_ub, sigmas_lb, sigmas_ub,
-               taufixed=true, whichtosplit=whichtosplit, tau=vtau[i], 
-               ntrials=ntrials, ngh=ngh, 
+               taufixed=true, whichtosplit=whichtosplit, tau=vtau[i],
+               ntrials=ntrials, ngh=ngh,
                sn=sigmas0[ind], an=an,
                debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
-               llN=llN, llN2=llN2, xb=xb, tol=tol, 
+               llN=llN, llN2=llN2, xb=xb, tol=tol,
                pl=false, ptau=false, bn=bn)[5]
             if debuginfo
                 println(whichtosplit, " ", vtau[i], "->", ml_tmp)
@@ -527,11 +531,11 @@ function EMtest(X::Matrix{Float64},
              lrv[i, whichtosplit] = latentgmmrepeat(X, Y,
                 groupindex, C1, betas0, wi_C1,
                 mu_lb, mu_ub, sigmas_lb, sigmas_ub,
-                taufixed=true, whichtosplit=whichtosplit, tau=vtau[i], 
-                ntrials=ntrials, ngh=ngh, 
+                taufixed=true, whichtosplit=whichtosplit, tau=vtau[i],
+                ntrials=ntrials, ngh=ngh,
                 sn=sigmas0[ind], an=an,
                 debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
-                llN=llN, llN2=llN2, xb=xb, tol=tol, 
+                llN=llN, llN2=llN2, xb=xb, tol=tol,
                 pl=false, ptau=false, bn=bn)[5]
             if debuginfo
                 println(whichtosplit, " ", vtau[i], "->",
