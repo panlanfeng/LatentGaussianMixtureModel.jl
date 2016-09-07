@@ -648,7 +648,7 @@ function detect(m::LGMModel, C0::IntegerVector=[findmax(m.p)[2];]; alphalevel::R
     Ni=counts(m.groupindex)
     n0=0
     for i in 1:m.n
-        if sum((clFDR.*Ni)[order[1:i]])/sum(Ni[order[1:i]]) < alphalevel
+        if mean(clFDR[order[1:i]]) < alphalevel
             n0 = i
         else
             break

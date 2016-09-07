@@ -69,7 +69,7 @@ function predictgamma(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi:
     llN2 = zeros(N)
     gammaM = zeros(M)
     gammahat = zeros(n)
-    
+
     ghx, ghw = gausshermite(ngh)
     Wim = zeros(n, M)
     for ix in 1:ngh, jcom in 1:ncomponent
@@ -103,7 +103,7 @@ function FDR(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi::Vector, 
     gammaM = zeros(M)
     piposterior = zeros(n, ncomponent)
     clFDR = zeros(n)
-    
+
     ghx, ghw = gausshermite(ngh)
     Wim = zeros(n, M)
     for ix in 1:ngh, jcom in 1:ncomponent
@@ -130,10 +130,10 @@ function FDR(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi::Vector, 
     n0 = 0
     for i in 1:n
         if mean(clFDR[order[1:i]]) < alphalevel
-            n0 += 1
+            n0 = i
         end
     end
-    if n0 == 0 
+    if n0 == 0
         println("Nothing is rejected")
     else
         println("The rejected groups are: ", order[1:n0])
@@ -276,7 +276,7 @@ function vcov(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::Integer
     S_β = zeros(nF, J)
     S_π = zeros(nF, C-1)
     S_μσ = zeros(nF, 2*C)
-    
+
     ml = zeros(nF)
     xtmp = zeros(C*M)
     for jcom in 1:C
@@ -355,7 +355,7 @@ end
 function coefpvalue(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, betas::Array{Float64,1}; ngh::Int=100, debuginfo::Bool=false)
     m = vcov(X, Y, groupindex, wi, mu, sigmas, betas, ngh=ngh, debuginfo=debuginfo)
     shat = sqrt(diag(m))
-    p=cdf(Normal(), betas./shat[1:length(betas)])    
+    p=cdf(Normal(), betas./shat[1:length(betas)])
     2*min(p, 1.- p)
 end
 
