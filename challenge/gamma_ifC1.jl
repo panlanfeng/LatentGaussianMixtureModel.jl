@@ -29,5 +29,6 @@ import Yeppp
     m = LGMModel(X, Y, groupindex, 2)
     LatentGaussianMixtureModel.fit!(m)
     LatentGaussianMixtureModel.ranef!(m)
-    sort(m.gammaprediction)[1:10]
+    println("Mission $b finished.")
+    return [sort(m.gammaprediction)[1:10], m.p, m.μ, m.σ;]
 end
