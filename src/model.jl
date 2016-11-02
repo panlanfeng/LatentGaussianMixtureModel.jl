@@ -422,7 +422,7 @@ function infomatrix(m::LGMModel; debuginfo::Bool=false, includelambda::Bool=true
     n = m.n
     ngh=m.ngh
     C = m.ncomponent
-
+    fill!(m.Wim, 0.0)
     summat_beta = zeros(n, ngh*C, J)
     llnC = zeros(n, C)
     S_β = zeros(n, J)
