@@ -387,7 +387,7 @@ coef(m::LGMModel) = m.β
 ranefmixture(m::LGMModel) = MixtureModel(map((u, v) -> Normal(u, v), m.μ, m.σ), m.p)
 #deviance(m::LGMModel) = -2*loglikelihood(m)
 function stderr(m::LGMModel)
-    vc = vcov(m)
+    vc = vcov(m;includelambda=false)
     J = size(m.X, 2)
     sqrt(diag(vc))[1:J]
 end
@@ -519,9 +519,9 @@ function infomatrix(m::LGMModel; debuginfo::Bool=false, includelambda::Bool=true
     #return inv(I_all)[1:J,1:J]./n
 end
 
-function vcov(m::LGMModel; debuginfo::Bool=false)
+function vcov(m::LGMModel; debuginfo::Bool=false,includelambda::Bool=false)
     J = size(m.X, 2)
-    I_all = infomatrix(m, debuginfo=debuginfo)
+    I_all = infomatrix(m, debuginfo=debuginfo,includelambda=includelambda)
     return inv(I_all)[1:J, 1:J] ./ m.n
 end
 
