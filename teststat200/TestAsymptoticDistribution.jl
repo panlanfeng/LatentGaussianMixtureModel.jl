@@ -48,7 +48,7 @@ import Yeppp
     end
 
     #Randomly data generation based on the setting on datagen.jl
-    srand(b * 100)
+    srand(b * 1000)
     m = MixtureModel(map((u, v) -> Normal(u, v), mu_true, sigmas_true), wi_true)
     gamma_true = rand(m, nF)
 
