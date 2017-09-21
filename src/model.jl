@@ -32,7 +32,7 @@ The following methods are available:
 type LGMModel <: RegressionModel
     X::Matrix{Float64}
     Y::Vector{Bool}
-    groupindex::Vector{UInt32}
+    groupindex::IntegerVector
     ncomponent::Int
     p::Vector{Float64}
     μ::Vector{Float64}
@@ -66,7 +66,7 @@ type LGMModel <: RegressionModel
     tau::Real
     fit::Bool
 
-    function LGMModel(X::Matrix{Float64}, Y::Vector{Bool}, groupindex::Vector{UInt32}, ncomponent::Int;
+    function LGMModel(X::Matrix{Float64}, Y::Vector{Bool}, groupindex::IntegerVector, ncomponent::Int;
         ngh::Int=100,
         taufixed::Bool=false, whichtosplit=1, tau=.5,
         sn=ones(ncomponent), an=1.0/maximum(groupindex))
@@ -440,7 +440,7 @@ function infomatrix(m::LGMModel; debuginfo::Bool=false, includelambda::Bool=true
             logistic!(m.llN2)
             negateiffalse!(m.llN2, m.Y)
             for i in 1:N
-                @inbounds ind = m.groupindex[i]::UInt32
+                @inbounds ind = m.groupindex[i]
                 for j in 1:J
                     @inbounds summat_beta[ind, ixM, j] += m.llN2[i] * m.X[i,j]
                 end
@@ -548,7 +548,7 @@ function asymptoticdistribution(m::LGMModel; debuginfo::Bool=false, nrep::Int=10
     T
 end
 
-function predict(m::LGMModel, newX::Matrix{Float64}, newgroup::Vector{UInt32})
+function predict(m::LGMModel, newX::Matrix{Float64}, newgroup::IntegerVector)
     !m.fit && warn("The model is not fitted!")
     N, J = size(m.X)
     N2, J2 = size(newX)
@@ -585,7 +585,7 @@ function latentgmm(f::Formula, fr::AbstractDataFrame, ncomponent::Int; kwargs...
         throw(ArgumentError("$f has no random-effects terms"))
     end
     # groupindex =  sort!([remat(e,mf.df) for e in retrms]; by = nlevs, rev = true) #or remat(retrms[1], mf.df).f
-    groupindex = convert(Vector{UInt32}, getindex(mf.df, retrms[1].args[3]))
+    groupindex = convert(IntegerVector, getindex(mf.df, retrms[1].args[3]))
     m = LGMModel(X, Y, groupindex, ncomponent; kwargs...)
     return m
 end

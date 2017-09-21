@@ -5,7 +5,7 @@
 
 include(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "challenge/gamma_ifC1.jl"))
 Xraw=readcsv(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "challenge/X.csv"))
-groupindex_raw=convert(Vector{UInt32},readcsv(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "challenge/groupindex.csv"), Int)[:,1])
+#groupindex_raw=convert(Vector{UInt32},readcsv(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "challenge/groupindex.csv"), Int)[:,1])
 @everywhere X = @fetchfrom 1 Xraw
 @everywhere groupindex = @fetchfrom 1 groupindex_raw
 

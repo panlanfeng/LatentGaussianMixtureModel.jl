@@ -16,9 +16,9 @@ Y_raw = readcsv(joinpath(datapath, "Y.csv"));
 
 N, J = size(X)
 
-#read in the groupindex for transplant center and convert to integer vector 
+#read in the groupindex for transplant center and convert to integer vector
 levelsdictionary = levelsmap(groupindex_raw);
-groupindex  = ones(UInt32, N);
+#groupindex  = ones(UInt32, N);
 for i in 1:N
     groupindex[i] = levelsdictionary[groupindex_raw[i]]
 end
@@ -91,7 +91,7 @@ rprint("""
         theme_set(theme_bw(base_size=12))
         cols = c( "Component2"="red", "Component1"="blue")
         ltype = c("Component2"=1, "Component1"=2)
-        
+
         p = ggplot()+ xlab(expression(gamma))+ ylab("") +
         geom_line(aes(x=xs, y=den1, color="Component1", linetype="Component1"), size=0.5) +
         geom_line(aes(x=xs2, y=den2, color="Component2", linetype="Component2"), size=.5)+  scale_color_manual(values=cols, name="linetype")+
@@ -103,4 +103,3 @@ rprint("""
         print(p)
         NULL
         """)
-    
