@@ -79,14 +79,14 @@ function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
     for iterbeta in 1:Qmaxiteration
         deltabeta!(XWY, XWX, X, Y, groupindex, β, Xscratch, gammaM, Wim,
         llN, llN2, llN3, xb, N, J, n, M)
-        if maxabs(XWY ./ (abs(β)+0.001)) < 1e-5
+        if sumabs2(XWY) < J*1e-16
             break
         end
         f = 1.
         dev = negdeviance(β .+ f .* XWY, X, Y, groupindex,
         gammaM, Wim, lln, llN, llN2, xb, N, J, n, M)
         while dev < dev0
-            f ./=2
+            f /= 2.0
             f > minStepFac || error("step-halving failed at beta = $(β), deltabeta=$(XWY), dev=$(dev), dev0=$dev0, f=$f")
             dev = negdeviance(β .+ f .* XWY, X, Y, groupindex,
             gammaM, Wim, lln, llN, llN2, xb, N, J, n, M)
@@ -95,7 +95,7 @@ function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
             β[j] += f * XWY[j]
         end
 
-        if dev - dev0 < betadevtol
+        if (dev - dev0)/abs(dev0) < betadevtol || dev0 == 0.0
             break
         end
         dev0 = dev
@@ -113,6 +113,8 @@ function deltabeta!(XWY::Vector{Float64},
     A_mul_B!(xb, X, β)
     fill!(XWX, 0.)
     fill!(XWY, 0.)
+    fill!(llN2, 0.0)
+    fill!(llN3, 0.0)
 
     for jcol in 1:M
         fill!(llN, gammaM[jcol])
@@ -120,20 +122,21 @@ function deltabeta!(XWY::Vector{Float64},
         logistic!(llN, llN, N)
 
         @inbounds for i in 1:N
-            llN2[i] = llN[i]*(1.0 -llN[i]) #working weight
-            llN[i] = Y[i] ? 1.0 - llN[i] : -llN[i] #working response without denominator
+            Wim_im = Wim[groupindex[i],jcol]
+            llN2[i] += Wim_im * llN[i]*(1.0 -llN[i]) #working weight
+            llN3[i] += -llN[i]*Wim_im #working response without denominator
+            if Y[i]
+                llN3[i] += Wim_im
+            end
         end
-        relocate!(llN3, Wim[:, jcol], groupindex, N)
-        scale!(Xscratch, llN3, X)
-        Base.BLAS.gemv!('T', 1.0, Xscratch, llN, 1.0, XWY)
-        scale!(Xscratch, llN2, Xscratch)
-        Base.BLAS.gemm!('T', 'N', 1.0, Xscratch, X, 1.0, XWX)
     end
-    if VERSION < v"0.5.0-dev+4677"
-        A_ldiv_B!(cholfact!(XWX, :U), XWY)
-    else
-        A_ldiv_B!(cholfact!(Hermitian(XWX, :U)), XWY)
-    end
+    #relocate!(llN3, Wim[:, jcol], groupindex, N)
+    copy!(Xscratch, X)
+    Base.BLAS.gemv!('T', 1.0, Xscratch, llN3, 1.0, XWY)
+    scale!(Xscratch, llN2, Xscratch)
+    Base.BLAS.gemm!('T', 'N', 1.0, Xscratch, X, 1.0, XWX)
+
+    A_ldiv_B!(cholfact!(Hermitian(XWX, :U)), XWY)
 end
 function negdeviance(beta2::Vector{Float64}, X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
@@ -165,7 +168,7 @@ function latentgmm(X::Matrix{Float64},
     maxiteration::Int=100, tol::Real=.005,
     ngh::Int=100, ghx::Vector=zeros(ngh), ghw::Vector=zeros(ngh),
     sn::Vector{Float64}=sigmas_init, an::Float64=1.0/maximum(groupindex),
-    debuginfo::Bool=false, Qmaxiteration::Int=5,
+    debuginfo::Bool=false, Qmaxiteration::Int=30,
     whichtosplit::Int=1, tau::Real=.5, taufixed::Bool=false,
     mu_lb::Vector=fill(-Inf, ncomponent),
     mu_ub::Vector=fill(Inf, ncomponent),
@@ -220,10 +223,7 @@ function latentgmm(X::Matrix{Float64},
         ll=integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, llN2, xb, N, J, n, ncomponent, ngh)
         lldiff = ll - ll0
         ll0 = ll
-        if lldiff < 1e-4
-            #alreadystable = true
-            Qmaxiteration = 2*Qmaxiteration
-        end
+
         if dotest
             if (lldiff < epsilon) && (iter_em > 3)
                 break
@@ -373,7 +373,7 @@ function latentgmmrepeat(X::Matrix{Float64},
              gammaM = gammaM, Wim=Wim,
              llN=llN, llN2=llN2, llN3=llN3,
              Xscratch=Xscratch, xb=xb,
-             Qmaxiteration=2, taufixed=taufixed, ngh=ngh,
+             Qmaxiteration=30, taufixed=taufixed, ngh=ngh,
              dotest=false, tol=tol, bn=bn)
     end
 
@@ -388,7 +388,7 @@ function latentgmmrepeat(X::Matrix{Float64},
             sn=sn, an=an, gammaM = gammaM,
             Wim=Wim, llN=llN, llN2=llN2, llN3=llN3,
             Xscratch=Xscratch, xb=xb,
-            Qmaxiteration=5, taufixed=taufixed, ngh=ngh,
+            Qmaxiteration=30, taufixed=taufixed, ngh=ngh,
             dotest=false, tol=tol, bn=bn)
     end
 

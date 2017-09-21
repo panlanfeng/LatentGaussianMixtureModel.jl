@@ -161,7 +161,7 @@ Fits the model.
 """
 function StatsBase.fit!(m::LGMModel;
     maxiteration::Int=2000, tol::Real=.001,
-    debuginfo::Bool=false, Qmaxiteration::Int=5,
+    debuginfo::Bool=false, Qmaxiteration::Int=30,
     dotest::Bool=false, epsilon::Real=1e-6,
     updatebeta::Bool=true, bn::Real=0.01,
     pl::Bool=false, ptau::Bool=false)
@@ -200,10 +200,6 @@ function StatsBase.fit!(m::LGMModel;
         m.ll=integralweight!(m.Wim, m.X, m.Y, m.groupindex, m.gammaM, m.p, m.ghw, m.llN, m.llN2, m.xb, N, J, n, ncomponent, ngh)
         lldiff = m.ll - ll0
         ll0 = m.ll
-        if lldiff < 1e-4
-            #alreadystable = true
-            Qmaxiteration = 2 * Qmaxiteration
-        end
         if dotest
             if (lldiff < epsilon) && (iter_em > 3)
                 break
