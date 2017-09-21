@@ -1,9 +1,9 @@
 function integralweight!(Wim::Matrix{Float64},
     X::Matrix{Float64}, Y::AbstractArray{Bool, 1},
-    groupindex::IntegerVector,  gammaM::Vector{Float64},
+    groupindex::IntegerVector, gammaM::Vector{Float64},
     wi::Vector{Float64}, ghw::Vector{Float64},
     llN::Vector{Float64}, llN2::Vector{Float64},
-    xb::Vector{Float64},  N::Int, J::Int,
+    xb::Vector{Float64}, N::Int, J::Int,
     n::Int, C::Int, ngh::Int)
     #A_mul_B!(xb, X, betas)
     ll = 0.
@@ -527,8 +527,7 @@ function EMtest(X::Matrix{Float64},
              wi_C1 = wi0[ind]
              wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
              wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
-
-             lrv[i, whichtosplit] = latentgmmrepeat(X, Y,
+             mm_tmp = latentgmmrepeat(X, Y,
                 groupindex, C1, betas0, wi_C1,
                 mu_lb, mu_ub, sigmas_lb, sigmas_ub,
                 taufixed=true, whichtosplit=whichtosplit, tau=vtau[i],
@@ -536,8 +535,10 @@ function EMtest(X::Matrix{Float64},
                 sn=sigmas0[ind], an=an,
                 debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
                 llN=llN, llN2=llN2, xb=xb, tol=tol,
-                pl=false, ptau=false, bn=bn)[5]
+                pl=false, ptau=false, bn=bn)
+             lrv[i, whichtosplit] = mm_tmp[5]
             if debuginfo
+                show(mm_tmp)
                 println(whichtosplit, " ", vtau[i], "->",
                 lrv[i, whichtosplit])
             end

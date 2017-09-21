@@ -337,6 +337,7 @@ function EMtest(m::LGMModel, ntrials::Int=25, vtau::Vector{Float64}=[0.5;]; kwar
         multiplefit!(m1, ntrials; kwargs...)
         m1.fit=false
         fit!(m1, maxiteration=2, tol=0.0)
+        debuginfo && show(m1)
         debuginfo && println(whichtosplit, " ", vtau[i], "->", m1.ll)
         lrv[i, whichtosplit] = m1.ll
     end
