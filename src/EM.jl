@@ -79,7 +79,7 @@ function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
     for iterbeta in 1:Qmaxiteration
         deltabeta!(XWY, XWX, X, Y, groupindex, β, Xscratch, gammaM, Wim,
         llN, llN2, llN3, xb, N, J, n, M)
-        if sumabs2(XWY) < J*1e-16
+        if sum(abs2, XWY) < J*1e-16
             break
         end
         f = 1.

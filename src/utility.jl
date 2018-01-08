@@ -3,7 +3,7 @@
 #Oct 29, 2014
 
 function stopRule(pa::Vector, pa_old::Vector; tol=.005)
-    maximum(abs(pa .- pa_old)./(abs(pa).+.001)) < tol
+    maximum(abs.(pa .- pa_old)./(abs.(pa).+.001)) < tol
 end
 
 function marginallikelihood(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, β::Array{Float64,1}; ngh::Int=100)
@@ -137,7 +137,7 @@ function FDR(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi::Vector, 
         println("Nothing is rejected")
     else
         println("The rejected groups are: ", order[1:n0])
-        println("with FDR values: ", round(clFDR[order[1:n0]], 4))
+        println("with FDR values: ", round.(clFDR[order[1:n0]], 4))
     end
     return clFDR, order[1:n0]
 end
@@ -228,7 +228,7 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
         end
     end
     S_η = hcat(S_β, S_π, S_μσ)
-    debuginfo && println(round(sum(S_η, 1)./sqrt(nF), 6))
+    debuginfo && println(round.(sum(S_η, 1)./sqrt(nF), 6))
     I_η = S_η'*S_η./nF
     I_λη = S_λ'*S_η./nF
     I_λ = S_λ'*S_λ./nF
@@ -237,16 +237,16 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
         warn("Information Matrix is singular!")
         D, V = eig(I_all)
         debuginfo && println(D)
-        tol2 = maximum(abs(D)) * 1e-14
+        tol2 = maximum(abs.(D)) * 1e-14
         D[D.<tol2] = tol2
         I_all = V*diagm(D)*V'
     end
-    debuginfo && println(round(I_all, 6))
+    debuginfo && println(round.(I_all, 6))
     I_λ_η = I_all[(J+3*C):(J+5*C-1), (J+3*C):(J+5*C-1)] - I_all[(J+3*C):(J+5*C-1), 1:(J+3*C-1)] * inv(I_all[1:(J+3*C-1), 1:(J+3*C-1)]) * I_all[1:(J+3*C-1),(J+3*C):(J+5*C-1) ]
-    debuginfo && println(round(I_λ_η, 6))
+    debuginfo && println(round.(I_λ_η, 6))
     D, V = eig(I_λ_η)
     D[D.<0.] = 0.
-    I_λ_η2 = V * diagm(sqrt(D)) * V'
+    I_λ_η2 = V * diagm(sqrt.(D)) * V'
     u = randn(nrep, 2*C) * I_λ_η2
     EM = zeros(nrep, C)
     T = zeros(nrep)
@@ -339,14 +339,14 @@ function vcov(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::Integer
         end
     end
     S_η = hcat(S_β, S_π, S_μσ)
-    debuginfo && println(round(S_η[1:5,:], 5))
-    debuginfo && println(round(sum(S_η, 1)./sqrt(nF), 6))
+    debuginfo && println(round.(S_η[1:5,:], 5))
+    debuginfo && println(round.(sum(S_η, 1)./sqrt(nF), 6))
     I_η = S_η'*S_η./nF
     if 1/cond(I_η) < eps(Float64)
         warn("Information Matrix is singular!")
         D, V = eig(I_η)
         debuginfo && println(D)
-        tol2 = maximum(abs(D)) * 1e-14
+        tol2 = maximum(abs.(D)) * 1e-14
         D[D.<tol2] = tol2
         I_η = V*diagm(D)*V'
     end
@@ -354,9 +354,9 @@ function vcov(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::Integer
 end
 function coefpvalue(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::IntegerVector, wi::Vector{Float64}, mu::Vector{Float64}, sigmas::Vector{Float64}, betas::Array{Float64,1}; ngh::Int=100, debuginfo::Bool=false)
     m = vcov(X, Y, groupindex, wi, mu, sigmas, betas, ngh=ngh, debuginfo=debuginfo)
-    shat = sqrt(diag(m))
-    p=cdf(Normal(), betas./shat[1:length(betas)])
-    2*min(p, 1.- p)
+    shat = sqrt.(diag(m))
+    p=cdf.(Normal(), betas./shat[1:length(betas)])
+    2*min.(p, 1.- p)
 end
 
 ####End of utility functions

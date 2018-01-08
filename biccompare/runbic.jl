@@ -13,7 +13,7 @@ import Yeppp
     debuginfo::Bool=false,ncomponent::Int=5,Cn::Real=3.0)
     nF = 282
     srand(100)
-    n_ij = round(Int64, rand(Poisson(55), 282).+rand(Exponential(95), 282))
+    n_ij = round.(Int64, rand(Poisson(55), 282).+rand(Exponential(95), 282))
     N = sum(n_ij)
 
     groupindex = inverse_rle(1:nF, n_ij)

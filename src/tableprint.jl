@@ -39,7 +39,7 @@ end
 latexprint(ct; kwargs...) = latexprint(STDIN, ct; kwargs...)
 
 function latexprint(io::IO, m::MixtureModel; rounding::Int = 3, surrounding::Bool=false)
-    p = round(probs(m), rounding)
+    p = round.(probs(m), rounding)
     μ = Float64[round(m.components[i].μ, rounding) for i in eachindex(p)]
     σ = Float64[round(m.components[i].σ, rounding) for i in eachindex(p)]
     surrounding && println(io, "\\[")

@@ -6,13 +6,13 @@ Ctrue=3
 
 nF = 282
 srand(100)
-n_ij = round(Int64, rand(Poisson(5), 282).+rand(Exponential(45), 282))
+n_ij = round.(Int64, rand(Poisson(5), 282).+rand(Exponential(45), 282))
 N = sum(n_ij)
 
 groupindex = inverse_rle(1:nF, n_ij)
 J=2  #42 #beta dimension
 srand(100)
-X = rand(Normal(), (N, J))
+X = rand(Normal(), N, J)
 betas_true=ones(J) #rand(Normal(0,1), J)
 if Ctrue == 1
     mu_true = [-log(1/0.1 - 1)]
@@ -33,7 +33,7 @@ srand(b * 100)
 m = MixtureModel(map((u, v) -> Normal(u, v), mu_true, sigmas_true), wi_true)
 gamma_true = rand(m, nF)
 
-prob = exp(gamma_true[groupindex] .+ X*betas_true)
+prob = exp.(gamma_true[groupindex] .+ X*betas_true)
 prob= prob ./ (1 .+ prob)
 Y = Array(Bool, N)
 srand(b * 100)
@@ -51,7 +51,7 @@ end
 
 ncomponent1=Ctrue+1
 C0 = ncomponent1 - 1
-C1 = ncomponent1 
+C1 = ncomponent1
 nF = maximum(groupindex)
 an1 = 0.0 # 1/nF
 gamma_init, beta_init, sigmas_tmp = LatentGaussianMixtureModel.maxposterior(X, Y, groupindex)
@@ -66,7 +66,7 @@ trand=LatentGaussianMixtureModel.asymptoticdistribution(X, Y, groupindex, wi_ini
 vtau=[.5, .3, .1]
 ngh=1000
 Mctau=1000
-gamma0 = vec(mean(gamma_mat, 2))    
+gamma0 = vec(mean(gamma_mat, 2))
 mingamma = minimum(gamma0)
 maxgamma = maximum(gamma0)
 
@@ -109,7 +109,7 @@ wi = repmat(wi_C1, 1, 4*ntrials)
 mu = zeros(ncomponent1, 4*ntrials)
 sigmas = ones(ncomponent1, 4*ntrials)
 betas = repmat(betas0, 1, 4*ntrials)
-ml = -Inf .* ones(4*ntrials) 
+ml = -Inf .* ones(4*ntrials)
 
 i=4
 srand(i)
@@ -133,7 +133,7 @@ end
 
 mlperm = sortperm(ml)
 for j in 1:ntrials
-    i = mlperm[4*ntrials+1 - j] # start from largest ml 
+    i = mlperm[4*ntrials+1 - j] # start from largest ml
     wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] = LatentGaussianMixtureModel.latentgmm_ctau(X, Y, groupindex, ncomponent1, betas0, wi[:, i], mu[:, i], sigmas[:, i], whichtosplit, tau, ghx, ghw, mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=50, Mmax=50, M_discard=500, an=0., Q_maxiter=2, debuginfo=true)
 end
 

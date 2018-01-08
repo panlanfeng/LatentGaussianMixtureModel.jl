@@ -18,7 +18,7 @@ N, J = size(X)
 
 #read in the groupindex for transplant center and convert to integer vector
 levelsdictionary = levelsmap(groupindex_raw);
-#groupindex  = ones(UInt32, N);
+groupindex  = ones(Int, N);
 for i in 1:N
     groupindex[i] = levelsdictionary[groupindex_raw[i]]
 end

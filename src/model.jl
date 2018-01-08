@@ -184,7 +184,7 @@ function StatsBase.fit!(m::LGMModel;
         alreadystable = true
     end
     for iter_em in 1:maxiteration
-        if any(isnan(m.β)) || any(isnan(m.p))
+        if any(isnan.(m.β)) || any(isnan.(m.p))
             error("NaN in paramters!")
         end
         for ix in 1:ngh, jcom in 1:ncomponent
@@ -386,7 +386,7 @@ ranefmixture(m::LGMModel) = MixtureModel(map((u, v) -> Normal(u, v), m.μ, m.σ)
 function stderr(m::LGMModel)
     vc = vcov(m;includelambda=false)
     J = size(m.X, 2)
-    sqrt(diag(vc))[1:J]
+    sqrt.(diag(vc))[1:J]
 end
 function confint(m::LGMModel, level::Real)
     hcat(coef(m),coef(m)) + stderr(m)*quantile(Normal(),(1. -level)/2.)*[1. -1.]
@@ -396,7 +396,7 @@ function coeftable(m::LGMModel)
     cc = coef(m)
     se = stderr(m)
     zz = cc ./ se
-    CoefTable(hcat(cc,se,zz,2.0 * ccdf(Normal(), abs(zz))),
+    CoefTable(hcat(cc,se,zz,2.0 * ccdf.(Normal(), abs.(zz))),
               ["Estimate","Std.Error","z value", "Pr(>|z|)"],
               ["x$i" for i = 1:size(m.X, 2)], 4)
 end
@@ -493,8 +493,8 @@ function infomatrix(m::LGMModel; debuginfo::Bool=false, includelambda::Bool=true
         end
     end
     S_η = hcat(S_β, S_π, S_μσ)
-    debuginfo && println(round(S_η[1:5,:], 5))
-    debuginfo && println(round(sum(S_η, 1)./sqrt(n), 6))
+    debuginfo && println(round.(S_η[1:5,:], 5))
+    debuginfo && println(round.(sum(S_η, 1)./sqrt(n), 6))
     I_η = S_η'*S_η./n
     if includelambda
         I_η = S_η'*S_η./n
@@ -508,7 +508,7 @@ function infomatrix(m::LGMModel; debuginfo::Bool=false, includelambda::Bool=true
         warn("Information Matrix is singular!")
         D, V = eig(I_all)
         debuginfo && println(D)
-        tol2 = maximum(abs(D)) * 1e-14
+        tol2 = maximum(abs.(D)) * 1e-14
         D[D.<tol2] = tol2
         I_all = V*diagm(D)*V'
     end
@@ -533,10 +533,10 @@ function asymptoticdistribution(m::LGMModel; debuginfo::Bool=false, nrep::Int=10
 
     I_all = infomatrix(m, includelambda=true, debuginfo=debuginfo)
     I_λ_η = I_all[(J+3*C):(J+5*C-1), (J+3*C):(J+5*C-1)] - I_all[(J+3*C):(J+5*C-1), 1:(J+3*C-1)] * inv(I_all[1:(J+3*C-1), 1:(J+3*C-1)]) * I_all[1:(J+3*C-1),(J+3*C):(J+5*C-1) ]
-    debuginfo && println(round(I_λ_η, 6))
+    debuginfo && println(round.(I_λ_η, 6))
     D, V = eig(I_λ_η)
     D[D.<0.] = 0.
-    I_λ_η2 = V * diagm(sqrt(D)) * V'
+    I_λ_η2 = V * diagm(sqrt.(D)) * V'
     u = randn(nrep, 2*C) * I_λ_η2
     EM = zeros(nrep, C)
     T = zeros(nrep)

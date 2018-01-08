@@ -1,6 +1,6 @@
 module LatentGaussianMixtureModel
 
-
+using StatsModels
 using Distributions
 using StatsBase, StatsFuns
 using FastGaussQuadrature

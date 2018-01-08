@@ -25,7 +25,7 @@ Y_raw = readcsv(joinpath(datapath, "Y.csv"));
 
 N, J = size(X)
 
-#read in the groupindex for transplant center and convert to integer vector 
+#read in the groupindex for transplant center and convert to integer vector
 levelsdictionary = levelsmap(groupindex_raw);
 groupindex  = ones(Int64, N);
 for i in 1:N
@@ -37,7 +37,7 @@ n = maximum(groupindex);
 # read in the binary response Y and convert to Bool Vector
 #Not sure what Y looks like, so I list several possibilities here.
 
-Y = Array(Bool, N);
+Y = Array{Bool}(N);
 for i in 1:N
     if Y_raw[i] in ["Yes","YES","y", "Y", 1, "1", 1.0, "1.0", "true", "TRUE", "True"]
         Y[i] = true
@@ -101,7 +101,7 @@ p=LatentGaussianMixtureModel.coefpvalue(X, Y, groupindex, wi, mu, sigmas, betas)
 
 ####-------------------------------------------------
 ## Part Three: False Dicovery Rate
-# 
+#
 CNull = findmax(wi)[2]
 clFDR, rejectid = LatentGaussianMixtureModel.FDR(X, Y, groupindex, wi, mu, sigmas, betas, [CNull;], alphalevel=0.05)
 println("The rejected transplant centers are:", rejectid)
@@ -127,10 +127,10 @@ import Distributions, StatsBase
 using RCall, KernelEstimator
 mhat = MixtureModel(map((u, v) -> Normal(u, v), mu, sigmas), wi)
 xs = linspace(minimum(gammaprediction)-0.5, maximum(gammaprediction)+1., 400);
-denhat = pdf(mhat, xs);
+denhat = pdf.(mhat, xs);
 denpredict = kerneldensity(gammaprediction, xeval=xs)
-den1 = probs(mhat)[1].*pdf(mhat.components[1], xs);
-den2 =  probs(mhat)[2] .* pdf(mhat.components[2], xs);
+den1 = probs(mhat)[1].*pdf.(mhat.components[1], xs);
+den2 =  probs(mhat)[2] .* pdf.(mhat.components[2], xs);
 
 ##Send the data to R
 @rput gammaprediction xs denhat den1 den2 denpredict
