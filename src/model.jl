@@ -19,7 +19,7 @@ The following methods are available:
   - `model_response` returns the response `Y`
   - `coef` returns the fixed effects `β`
   - `ranef!` return the predict random effects
-  - `stderr` gives the standard error of fixed effects
+  - `stderror` gives the standard error of fixed effects
   - `confint` calculates the confidence interval
   - `coeftable` prints the fixed effects and their p values
   - `loglikelihood` calculates the log marginal likelihood
@@ -29,7 +29,7 @@ The following methods are available:
   - `FDR` detect the "outstanding" random effects while controlling the False  Discovery Rate.
 
 """
-type LGMModel <: RegressionModel
+mutable struct LGMModel <: RegressionModel
     X::Matrix{Float64}
     Y::Vector{Bool}
     groupindex::IntegerVector
@@ -317,13 +317,13 @@ function EMtest(m::LGMModel, ntrials::Int=25, vtau::Vector{Float64}=[0.5;]; kwar
     m1 = LGMModel(m.X, m.Y, m.groupindex, C1, taufixed=true, an=an)
     lrv = zeros(length(vtau), C0)
     for whichtosplit in 1:C0, i in 1:length(vtau)
-        ind = [1:whichtosplit, whichtosplit:C0;]
+        ind = [1:whichtosplit; whichtosplit:C0;]
         if C1==2
             fill!(m1.μ_lb, mingamma)
             fill!(m1.μ_ub, maxgamma)
         elseif C1>2
-            mu_lb = [mingamma, (m.μ[1:(C0-1)] .+ m.μ[2:C0])./2;]
-            mu_ub = [(m.μ[1:(C0-1)] .+ m.μ[2:C0])./2, maxgamma;]
+            mu_lb = [mingamma; (m.μ[1:(C0-1)] .+ m.μ[2:C0])./2;]
+            mu_ub = [(m.μ[1:(C0-1)] .+ m.μ[2:C0])./2; maxgamma;]
             copy!(m1.μ_lb, mu_lb[ind])
             copy!(m1.μ_ub, mu_ub[ind])
         end
@@ -383,18 +383,18 @@ model_response(m::LGMModel) = m.Y
 coef(m::LGMModel) = m.β
 ranefmixture(m::LGMModel) = MixtureModel(map((u, v) -> Normal(u, v), m.μ, m.σ), m.p)
 #deviance(m::LGMModel) = -2*loglikelihood(m)
-function stderr(m::LGMModel)
+function stderror(m::LGMModel)
     vc = vcov(m;includelambda=false)
     J = size(m.X, 2)
     sqrt.(diag(vc))[1:J]
 end
 function confint(m::LGMModel, level::Real)
-    hcat(coef(m),coef(m)) + stderr(m)*quantile(Normal(),(1. -level)/2.)*[1. -1.]
+    hcat(coef(m),coef(m)) + stderror(m)*quantile(Normal(),(1. -level)/2.)*[1. -1.]
 end
 confint(m::LGMModel) = confint(m, 0.95)
 function coeftable(m::LGMModel)
     cc = coef(m)
-    se = stderr(m)
+    se = stderror(m)
     zz = cc ./ se
     CoefTable(hcat(cc,se,zz,2.0 * ccdf.(Normal(), abs.(zz))),
               ["Estimate","Std.Error","z value", "Pr(>|z|)"],

@@ -1,6 +1,7 @@
-julia 0.3
+julia 0.7
 Distributions
 StatsBase
+StatsModels
 StatsFuns
 Yeppp
 FastGaussQuadrature

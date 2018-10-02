@@ -5,19 +5,21 @@ using Distributions
 using StatsBase, StatsFuns
 using FastGaussQuadrature
 using Yeppp
+using Printf
+using Distributed
 
 import GaussianMixtureTest: gmm, pn, decidepenalty
 import StatsBase: RealArray, RealVector, RealMatrix, IntegerArray, IntegerVector, IntegerMatrix, IntUnitRange
 import StatsFuns: logπ
 
 
-import StatsBase: coef, confint, deviance, loglikelihood, nobs, stderr, vcov, predict, fit!, model_response, RegressionModel, coeftable
+import StatsBase: coef, confint, deviance, loglikelihood, nobs, stderror, vcov, predict, fit!, model_response, RegressionModel, coeftable
 
 export LGMModel, ModelTable,
     initialize!, latentgmm, EMtest, asymptoticdistribution,
     ranefmixture, infomatrix, multiplefit!, ranef!,
     FDR, detect, latexprint,
-    fit!, coef, confint, deviance, loglikelihood, nobs, stderr, vcov, predict, model_response, coeftable
+    fit!, coef, confint, deviance, loglikelihood, nobs, stderror, vcov, predict, model_response, coeftable
 
 
 import Base.show

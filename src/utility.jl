@@ -356,7 +356,7 @@ function coefpvalue(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::I
     m = vcov(X, Y, groupindex, wi, mu, sigmas, betas, ngh=ngh, debuginfo=debuginfo)
     shat = sqrt.(diag(m))
     p=cdf.(Normal(), betas./shat[1:length(betas)])
-    2*min.(p, 1.- p)
+    2*min.(p, 1 .- p)
 end
 
 ####End of utility functions

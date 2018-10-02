@@ -1,6 +1,6 @@
 
 function log1pexp!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, res2::AbstractArray{Float64}, n::Int64=length(x))
-    
+
     copy!(res2, x)
     Yeppp.exp!(res, x)
     log1p!(res, res, n)
@@ -13,14 +13,14 @@ function log1pexp!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, res2:
 end
 mylog1pexp(x::AbstractFloat, x2::AbstractFloat)=x2 < 18.0 ? x : x2 < 33.3 ? x2+exp(-x2) : x2
 function log1pexp!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, n::Int64=length(x))
-     
+
     res2=copy(x)
     log1pexp!(res, x, res2, n)
 end
 # log1pexp(x::AbstractFloat) = x < 18.0 ? log1p(exp(x)) : x < 33.3 ? x + exp(-x) : x
 log1pexp!(x::AbstractArray{Float64}, n::Int64=length(x))=log1pexp!(x, x, n)
 
-function sumexp{T<:Real}(x::AbstractArray{T})
+function sumexp(x::AbstractArray{T}) where T<:Real
     isempty(x) && return -Inf
     u = maximum(x)
     s = 0.
@@ -29,7 +29,7 @@ function sumexp{T<:Real}(x::AbstractArray{T})
     end
     s * exp(u)
 end
-function sumexp{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T})
+function sumexp(x::AbstractArray{T}, coef::AbstractArray{T}) where T<:Real
     isempty(x) && return -Inf
     u = maximum(x)
     s = 0.
@@ -39,7 +39,7 @@ function sumexp{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T})
     s * exp(u)
 end
 
-function ratiosumexp!{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T}, s::AbstractArray{T}, ncomponent::Int)
+function ratiosumexp!(x::AbstractArray{T}, coef::AbstractArray{T}, s::AbstractArray{T}, ncomponent::Int) where T<:Real
     #length(x) != length(coef) && error("Length should be the same!")
     #isempty(x) && return -Inf
     u = maximum(x)
@@ -50,7 +50,7 @@ function ratiosumexp!{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T}, s::A
     #s ./ sum(s) #* exp(u)
     nothing
 end
-function ratiosumexp!{T<:Real}(x::AbstractArray{T}, coef::AbstractArray{T}, s::AbstractMatrix{T}, irow::Int, ncomponent::Int)
+function ratiosumexp!(x::AbstractArray{T}, coef::AbstractArray{T}, s::AbstractMatrix{T}, irow::Int, ncomponent::Int) where T<:Real
 
     u = maximum(x)
     ssum=0.0
@@ -170,7 +170,7 @@ end
 
 # 1/(1+exp(-x))
 function logistic!(res::AbstractArray{Float64}, x::AbstractArray{Float64}, n::Int=length(x))
-    
+
     negate!(res, x, n)
     Yeppp.exp!(res, res)
     add!(res, res, 1.0, n)
@@ -225,15 +225,15 @@ function H1(y, mu, sigmas)
 end
 function H2(y, mu, sigmas)
     z = (y .- mu)./sigmas
-    (z.^2 .-1)./sigmas^2./2
+    (z .^ 2 .-1) ./ sigmas^2 ./ 2
 end
 
 function H3(y, mu, sigmas)
     z = (y .- mu)./sigmas
-    (z.^3 .-3.*z) ./ sigmas^3./6
+    (z .^3 .- 3 .* z) ./ sigmas^3 ./ 6
 end
 
 function H4(y, mu, sigmas)
     z = (y .- mu)./sigmas
-    (z.^4 .-6.*z.^2 .+ 3) ./ sigmas^4 ./ 24
+    (z .^4 .- 6 .* z .^ 2 .+ 3) ./ sigmas^4 ./ 24
 end

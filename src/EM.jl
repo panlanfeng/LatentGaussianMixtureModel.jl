@@ -326,7 +326,7 @@ function latentgmmrepeat(X::Matrix{Float64},
     return latentgmmrepeat(X, Y,
            groupindex, ncomponent, betas_init, wi_init,
            ones(ncomponent).*mingamma, ones(ncomponent).*maxgamma,
-           0.25 .* sigmas_init, 2.*sigmas_init; opts...)
+           0.25 .* sigmas_init, 2 .* sigmas_init; opts...)
 end
 
 """
@@ -434,7 +434,7 @@ function EMtest(X::Matrix{Float64},
     wi_init, mu_init, sigmas_init, betas_init, ml_C0 = latentgmmrepeat(X, Y,
        groupindex, C0, betas_init, wi_init,
        ones(C0).*mingamma, ones(C0).*maxgamma,
-       0.25 .* sigmas_init, 2.*sigmas_init,
+       0.25 .* sigmas_init, 2 .* sigmas_init,
        taufixed=false,
        ntrials=ntrials, ngh=ngh,
        sn=std(gamma_init).*ones(C0), an=an1,
@@ -468,17 +468,17 @@ function EMtest(X::Matrix{Float64},
     Wim = zeros(n, ngh*C1)
     lr = 0.0
     if ctauparallel
-        lr=@parallel (max) for irun in 1:(C0*length(vtau))
+        lr=@distributed (max) for irun in 1:(C0*length(vtau))
 
             whichtosplit = mod1(irun, C0)
             i = cld(irun, C0)
-            ind = [1:whichtosplit, whichtosplit:C0;]
+            ind = [1:whichtosplit; whichtosplit:C0;]
             if C1==2
                 mu_lb = mingamma .* ones(2)
                 mu_ub = maxgamma .* ones(2)
             elseif C1>2
-                mu_lb = [mingamma, (mu0[1:(C0-1)] .+ mu0[2:C0])./2;]
-                mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2, maxgamma;]
+                mu_lb = [mingamma; (mu0[1:(C0-1)] .+ mu0[2:C0])./2;]
+                mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2; maxgamma;]
                 mu_lb = mu_lb[ind]
                 mu_ub = mu_ub[ind]
             end
@@ -511,13 +511,13 @@ function EMtest(X::Matrix{Float64},
 
              #whichtosplit = mod1(irun, C0)
              #i = cld(irun, C0)
-             ind = [1:whichtosplit, whichtosplit:C0;]
+             ind = [1:whichtosplit; whichtosplit:C0;]
              if C1==2
                  mu_lb = mingamma .* ones(2)
                  mu_ub = maxgamma .* ones(2)
              elseif C1>2
-                 mu_lb = [mingamma, (mu0[1:(C0-1)] .+ mu0[2:C0])./2;]
-                 mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2, maxgamma;]
+                 mu_lb = [mingamma; (mu0[1:(C0-1)] .+ mu0[2:C0])./2;]
+                 mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2; maxgamma;]
                  mu_lb = mu_lb[ind]
                  mu_ub = mu_ub[ind]
              end

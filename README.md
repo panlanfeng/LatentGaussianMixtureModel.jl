@@ -14,7 +14,7 @@ To update to a new version, just run
 Pkg.update()
 ~~~
 
-Currently this package only support single random effect on intercept with logistic link. The easiest way to use is constructing a `LGMModel` object via the following 
+Currently this package only support single random effect on intercept with logistic link. The easiest way to use is constructing a `LGMModel` object via the following
 
 ~~~julia
 using DataFrames
@@ -23,8 +23,8 @@ df = readtable("data.csv")
 #fit a two components mixture
 m = latentgmm(Y~x1+x2+x3+(1|groupindex), df, 2)
 
-#or 
-X = readcsv("X.csv"); 
+#or
+X = readcsv("X.csv");
 Y=readcsv("Y.csv");
 groupindex = readcsv("groupindex.csv");
 m = LGMModel(X, Y, groupindex, 2)
@@ -35,7 +35,7 @@ and then fit the model via the function `fit!`
 ~~~julia
 fit!(m)
 ~~~
-The estimated parameters can accessed by 
+The estimated parameters can accessed by
 
 ~~~julia
 m.p, m.μ, m.σ, m.β
@@ -53,7 +53,7 @@ See arguments available for constructing the `LGMModel` by running
 ~~~julia
 ?LGMModel
 ~~~
-and see arguments for `fit!` by 
+and see arguments for `fit!` by
 
 ~~~julia
 ?fit!
@@ -65,7 +65,7 @@ The `LGMModel` object is a subtype of `RegressionModel` and the following method
  - `model_response` returns the response `Y`
  - `coef` returns the fixed effects `β`
  - `ranef!` return the predict random effects
- - `stderr` gives the standard error of fixed effects
+ - `stderror` gives the standard error of fixed effects
  - `confint` calculates the confidence interval
  - `coeftable` prints the fixed effects and their p values
  - `loglikelihood` calculates the log marginal likelihood
@@ -74,10 +74,10 @@ The `LGMModel` object is a subtype of `RegressionModel` and the following method
  - `predict` computes the probability of `Y` being 1 at given new data
  - `FDR` detect the "outstanding" random effects while controlling the False  Discovery Rate.
 
-For example, 
+For example,
 
 ~~~julia
-coef(m) 
+coef(m)
 coeftable(m)
 loglikelihood(m)
 ~~~
