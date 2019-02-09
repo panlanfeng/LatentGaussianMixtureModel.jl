@@ -3,21 +3,22 @@ import LatentGaussianMixtureModel
 import Distributions, StatsBase
 import Yeppp
 
+
 @everywhere using LatentGaussianMixtureModel
-@everywhere using Distributions, Yeppp, StatsBase
+@everywhere using Distributions, Yeppp, StatsBase, Random
 
 
 #Brun calculate the statistic for one data set;
 #b is the the random number seed, from 1 to 100
 @everywhere function Brun(b::Integer, Ctrue::Integer, Calternative::Integer; debuginfo::Bool=false, ntrials::Int=5, showpower=false)
     nF = 282
-    srand(100)
+    Random.seed!(100)
     n_ij = round.(Int64, rand(Poisson(55), 282).+rand(Exponential(95), 282))
     N = sum(n_ij)
 
     groupindex = inverse_rle(1:nF, n_ij)
     J=2  #42 #beta dimension
-    srand(200*b)
+    Random.seed!(200*b)
     X = rand(Distributions.Normal(), N, 2)
     betas_true=ones(J)
     if Ctrue == 1
@@ -48,7 +49,7 @@ import Yeppp
     end
 
     #Randomly data generation based on the setting on datagen.jl
-    srand(b * 1000)
+    Random.seed!(b * 1000)
     m = MixtureModel(map((u, v) -> Normal(u, v), mu_true, sigmas_true), wi_true)
     gamma_true = rand(m, nF)
 

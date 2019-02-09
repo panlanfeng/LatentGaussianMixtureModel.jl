@@ -1,4 +1,5 @@
 import Distributions, StatsBase, Random
+@everywhere using Distributions, StatsBase, Random
 @everywhere function datagen(n::Int, Ctrue::Int, N::Int, J::Int, n_ij::Vector{Int64}; b::Int=round(Int,rand()*1000), adjustmean::Bool=false, showpower::Bool=false, Xstd::Real=1.0)
 
     Random.seed!(200*b)
