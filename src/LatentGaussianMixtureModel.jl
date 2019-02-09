@@ -7,6 +7,8 @@ using FastGaussQuadrature
 using Yeppp
 using Printf
 using Distributed
+using LinearAlgebra
+using Statistics
 
 import GaussianMixtureTest: gmm, pn, decidepenalty
 import StatsBase: RealArray, RealVector, RealMatrix, IntegerArray, IntegerVector, IntegerMatrix, IntUnitRange

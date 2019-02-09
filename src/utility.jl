@@ -20,7 +20,7 @@ function marginallikelihood(beta_new::Array{Float64,1}, X::Matrix{Float64}, Y::A
     M = length(ghx)
     C = length(wi)
     # xb = X*beta_new
-    A_mul_B!(xb, X, beta_new)
+    mul!(xb, X, beta_new)
     ll = 0.0
     #ll_nF=zeros(nF)
     # sumlog_nF = zeros(nF)
@@ -77,7 +77,7 @@ function predictgamma(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi:
         gammaM[ixM] = ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom]
     end
 
-    A_mul_B!(xb, X, β)
+    mul!(xb, X, β)
     integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, llN2, xb, N, J, n, ncomponent, ngh)
     for i in 1:n
         for j in 1:M
@@ -111,7 +111,7 @@ function FDR(X::Matrix, Y::Vector{Bool}, groupindex::IntegerVector, wi::Vector, 
         gammaM[ixM] = ghx[ix]*sigmas[jcom]*sqrt(2)+mu[jcom]
     end
 
-    A_mul_B!(xb, X, β)
+    mul!(xb, X, β)
     integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, llN2, xb, N, J, n, ncomponent, ngh)
     for i in 1:n
         for jcom in 1:ncomponent
@@ -152,7 +152,7 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
     end
     ghx, ghw = gausshermite(ngh)
     xb = zeros(N)
-    A_mul_B!(xb, X, betas)
+    mul!(xb, X, betas)
     llvec = zeros(N)
     llN2 = zeros(N)
     ll_nF = zeros(nF, C)
@@ -267,7 +267,7 @@ function vcov(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::Integer
     C = length(wi)
     ghx, ghw = gausshermite(ngh)
     xb = zeros(N)
-    A_mul_B!(xb, X, betas)
+    mul!(xb, X, betas)
     llvec = zeros(N)
     llN2 = zeros(N)
     ll_nF = zeros(nF, C)
@@ -344,7 +344,7 @@ function vcov(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::Integer
     I_η = S_η'*S_η./nF
     if 1/cond(I_η) < eps(Float64)
         warn("Information Matrix is singular!")
-        D, V = eig(I_η)
+        D, V = eigen(I_η)
         debuginfo && println(D)
         tol2 = maximum(abs.(D)) * 1e-14
         D[D.<tol2] = tol2

@@ -196,7 +196,7 @@ function StatsBase.fit!(m::LGMModel;
         copy!(μ_old, m.μ)
         copy!(σ_old, m.σ)
 
-        A_mul_B!(m.xb, m.X, m.β)
+        LinearAlgebra.mul!(m.xb, m.X, m.β)
         m.ll=integralweight!(m.Wim, m.X, m.Y, m.groupindex, m.gammaM, m.p, m.ghw, m.llN, m.llN2, m.xb, N, J, n, ncomponent, ngh)
         lldiff = m.ll - ll0
         ll0 = m.ll
@@ -367,7 +367,7 @@ function ranef!(m::LGMModel)
         ixM = ix+ngh*(jcom-1)
         m.gammaM[ixM] = m.ghx[ix]*m.σ[jcom]*sqrt(2)+m.μ[jcom]
     end
-    A_mul_B!(m.xb, m.X, m.β)
+    LinearAlgebra.mul!(m.xb, m.X, m.β)
     integralweight!(m.Wim, m.X, m.Y, m.groupindex, m.gammaM, m.p, m.ghw, m.llN, m.llN2, m.xb, N, J, n, ncomponent, ngh)
     fill!(m.gammaprediction, 0.0)
     for i in 1:n
@@ -403,7 +403,7 @@ end
 
 function loglikelihood(m::LGMModel)
     N, J = size(m.X)
-    A_mul_B!(m.xb, m.X, m.β)
+    LinearAlgebra.mul!(m.xb, m.X, m.β)
     for ix in 1:m.ngh, jcom in 1:m.ncomponent
         ixM = ix+m.ngh*(jcom-1)
         m.gammaM[ixM] = m.ghx[ix]*m.σ[jcom]*sqrt(2)+m.μ[jcom]
@@ -429,7 +429,7 @@ function infomatrix(m::LGMModel; debuginfo::Bool=false, includelambda::Bool=true
         S_λ = zeros(n, 2*C)
     end
     ml = zeros(n)
-    A_mul_B!(m.xb, m.X, m.β)
+    LinearAlgebra.mul!(m.xb, m.X, m.β)
     for jcom in 1:C
         for ix in 1:ngh
             ixM = ix+ngh*(jcom-1)
@@ -556,7 +556,7 @@ function predict(m::LGMModel, newX::Matrix{Float64}, newgroup::IntegerVector)
     J != J2 && error("Dimension Dismatch in new data")
     newxb = zeros(N2)
     newgamma = zeros(N2)
-    A_mul_B!(newxb, newX, m.β)
+    LinearAlgebra.mul!(newxb, newX, m.β)
     ranef!(m)
     overallmean = sum(m.μ .* m.p)
     for i in eachindex(newgroup)
@@ -619,7 +619,7 @@ function FDR(m::LGMModel, C0::IntegerVector=[findmax(m.p)[2];])
         m.gammaM[ixM] = ghx[ix]*m.σ[jcom]*sqrt(2)+m.μ[jcom]
     end
 
-    A_mul_B!(m.xb, m.X, m.β)
+    LinearAlgebra.mul!(m.xb, m.X, m.β)
     integralweight!(Wim, X, Y, groupindex, gammaM, m.p, ghw, m.llN, m.llN2, m.xb, N, J, n, ncomponent, ngh)
     for i in 1:n
         for jcom in 1:ncomponent

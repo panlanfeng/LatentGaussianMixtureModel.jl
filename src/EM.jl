@@ -110,7 +110,7 @@ function deltabeta!(XWY::Vector{Float64},
     llN::Vector{Float64},llN2::Vector{Float64},
     llN3::Vector{Float64}, xb::Vector{Float64},
     N::Int, J::Int, n::Int, M::Int)
-    A_mul_B!(xb, X, β)
+    LinearAlgebra.mul!(xb, X, β)
     fill!(XWX, 0.)
     fill!(XWY, 0.)
     fill!(llN2, 0.0)
@@ -132,11 +132,11 @@ function deltabeta!(XWY::Vector{Float64},
     end
     #relocate!(llN3, Wim[:, jcol], groupindex, N)
     copy!(Xscratch, X)
-    Base.BLAS.gemv!('T', 1.0, Xscratch, llN3, 1.0, XWY)
-    scale!(Xscratch, llN2, Xscratch)
-    Base.BLAS.gemm!('T', 'N', 1.0, Xscratch, X, 1.0, XWX)
+    LinearAlgebra.BLAS.gemv!('T', 1.0, Xscratch, llN3, 1.0, XWY)
+    LinearAlgebra.mul!(Xscratch, Diagonal(llN2), Xscratch)
+    LinearAlgebra.BLAS.gemm!('T', 'N', 1.0, Xscratch, X, 1.0, XWX)
 
-    A_ldiv_B!(cholfact!(Hermitian(XWX, :U)), XWY)
+    ldiv!(cholesky!(Hermitian(XWX, :U)), XWY)
 end
 function negdeviance(beta2::Vector{Float64}, X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
@@ -145,7 +145,7 @@ function negdeviance(beta2::Vector{Float64}, X::Matrix{Float64},
     llN2::Vector{Float64}, xb::Vector{Float64},
     N::Int, J::Int, n::Int, M::Int)
     dev = 0.
-    A_mul_B!(xb, X, beta2)
+    LinearAlgebra.mul!(xb, X, beta2)
     for jcol in 1:M
         fill!(llN, gammaM[jcol])
         Yeppp.add!(llN, llN, xb)
@@ -196,9 +196,9 @@ function latentgmm(X::Matrix{Float64},
     sigmas = copy(sigmas_init)
     β = copy(β_init)
 
-    wi_old = ones(wi)./ncomponent
-    mu_old = zeros(mu)
-    sigmas_old = ones(sigmas)
+    wi_old = ones(ncomponent)./ncomponent
+    mu_old = zeros(ncomponent)
+    sigmas_old = ones(ncomponent)
     beta_old = randn(J)
     if !taufixed || (ghx[1] == 0.0)
         ghx, ghw = gausshermite(ngh)
@@ -219,7 +219,7 @@ function latentgmm(X::Matrix{Float64},
         copy!(mu_old, mu)
         copy!(sigmas_old, sigmas)
 
-        A_mul_B!(xb, X, β)
+        LinearAlgebra.mul!(xb, X, β)
         ll=integralweight!(Wim, X, Y, groupindex, gammaM, wi, ghw, llN, llN2, xb, N, J, n, ncomponent, ngh)
         lldiff = ll - ll0
         ll0 = ll
