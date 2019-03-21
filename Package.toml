@@ -1,0 +1,3 @@
+name = "LatentGaussianMixtureModel"
+uuid = "bf7dd2fb-5038-5d63-9f84-cbcfe42549ae"
+repo = "https://github.com/panlanfeng/LatentGaussianMixtureModel.jl.git"
