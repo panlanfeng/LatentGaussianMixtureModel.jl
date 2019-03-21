@@ -85,7 +85,7 @@ function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
         f = 1.
         dev = negdeviance(β .+ f .* XWY, X, Y, groupindex,
         gammaM, Wim, lln, llN, llN2, xb, N, J, n, M)
-        while dev < dev0
+        while dev0 - dev > abs(dev)*betadevtol #dev < dev0
             f /= 2.0
             f > minStepFac || error("step-halving failed at beta = $(β), deltabeta=$(XWY), dev=$(dev), dev0=$dev0, f=$f")
             dev = negdeviance(β .+ f .* XWY, X, Y, groupindex,
@@ -354,10 +354,10 @@ function latentgmmrepeat(X::Matrix{Float64},
     tau = min(tau, 1-tau)
     ghx, ghw = gausshermite(ngh)
 
-    wi = repmat(wi_C1, 1, 4*ntrials)
+    wi = repeat(wi_C1, 1, 4*ntrials)
     mu = zeros(C, 4*ntrials)
     sigmas = ones(C, 4*ntrials)
-    betas = repmat(betas0, 1, 4*ntrials)
+    betas = repeat(betas0, 1, 4*ntrials)
     ml = -Inf .* ones(4*ntrials)
     for i in 1:4*ntrials
         wi[:, i] = rand(Dirichlet(C, 1.0))
