@@ -101,7 +101,7 @@ mutable struct LGMModel <: RegressionModel
 end
 function show(io::IO, obj::LGMModel)
     if !obj.fit
-        warn("Model has not been fit")
+        @warn("Model has not been fit")
         return nothing
     end
 
@@ -142,7 +142,7 @@ function val_opts(opts)
         opt_typ = valid_opt_types[findfirst(valid_opts, opt_name)]
         !isa(opt_val, opt_typ) && throw(ArgumentError("$opt_name should be of type $opt_typ, got $(typeof(opt_val))"))
         d[opt_name] = opt_val
-        haskey(deprecated_opts, opt_name) && warn("$opt_name is deprecated, use $(deprecated_opts[opt_name]) instead")
+        haskey(deprecated_opts, opt_name) && @warn("$opt_name is deprecated, use $(deprecated_opts[opt_name]) instead")
     end
     d
 end
@@ -166,7 +166,7 @@ function StatsBase.fit!(m::LGMModel;
     updatebeta::Bool=true, bn::Real=0.01,
     pl::Bool=false, ptau::Bool=false)
 
-    m.fit && warn("The model is already fit") && return(m)
+    m.fit && @warn("The model is already fit") && return(m)
     N, J = size(m.X)
     n = m.n
     ncomponent = m.ncomponent
@@ -252,7 +252,7 @@ function StatsBase.fit!(m::LGMModel;
             end
         end
         if (iter_em == maxiteration) && (maxiteration > 50)
-            warn("Fail to converge with $(iter_em) iterations. The taufixed is $(m.taufixed).")
+            @warn("Fail to converge with $(iter_em) iterations. The taufixed is $(m.taufixed).")
             println("Current parameters are
             $(m.p), $(m.μ), $(m.σ), $(m.β).")
             println(" Current likelihood is $(m.ll). The likelihood increase from last iteration is $(lldiff).")
@@ -505,7 +505,7 @@ function infomatrix(m::LGMModel; debuginfo::Bool=false, includelambda::Bool=true
         I_all = I_η
     end
     if 1/cond(I_all) < eps(Float64)
-        warn("Information Matrix is singular!")
+        @warn("Information Matrix is singular!")
         D, V = eigen(I_all)
         debuginfo && println(D)
         tol2 = maximum(abs.(D)) * 1e-14
@@ -550,7 +550,7 @@ function asymptoticdistribution(m::LGMModel; debuginfo::Bool=false, nrep::Int=10
 end
 
 function predict(m::LGMModel, newX::Matrix{Float64}, newgroup::IntegerVector)
-    !m.fit && warn("The model is not fitted!")
+    !m.fit && @warn("The model is not fitted!")
     N, J = size(m.X)
     N2, J2 = size(newX)
     J != J2 && error("Dimension Dismatch in new data")
@@ -598,7 +598,7 @@ end
  - `alphalevel` is the False Discovery Rate
 """
 function FDR(m::LGMModel, C0::IntegerVector=[findmax(m.p)[2];])
-    !m.fit && warn("The model is not yet fitted!")
+    !m.fit && @warn("The model is not yet fitted!")
     n = m.n
     X, Y, groupindex, ncomponent = m.X, m.Y, m.groupindex, m.ncomponent
     ghw, ghx = m.ghw, m.ghx

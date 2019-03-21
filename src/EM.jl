@@ -257,7 +257,7 @@ function latentgmm(X::Matrix{Float64},
             wi[whichtosplit+1] = wi_tmp*(1-tau)
         end
         if any(wi .< 1e-8)
-            warn("Some elements of $wi are too small. Consider another starting value or reduce the number of components. Give up.")
+            @warn("Some elements of $wi are too small. Consider another starting value or reduce the number of components. Give up.")
             break
         end
         if debuginfo
@@ -276,7 +276,7 @@ function latentgmm(X::Matrix{Float64},
             end
         end
         if (iter_em == maxiteration) && (maxiteration > 50)
-            warn("latentgmm not converge! $(iter_em), $(taufixed),
+            @warn("latentgmm not converge! $(iter_em), $(taufixed),
             $(ll), $(lldiff), $(wi), $(mu), $(sigmas), $(β)")
             println("latentgmm not converge! $(iter_em), $(taufixed),
             $(ll), $(lldiff), $(wi), $(mu), $(sigmas), $(β)")

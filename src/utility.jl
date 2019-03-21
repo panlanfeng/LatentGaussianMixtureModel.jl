@@ -234,7 +234,7 @@ function asymptoticdistribution(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, g
     I_λ = S_λ'*S_λ./nF
     I_all = vcat(hcat(I_η, I_λη'), hcat(I_λη, I_λ))
     if 1/cond(I_all) < eps(Float64)
-        warn("Information Matrix is singular!")
+        @warn("Information Matrix is singular!")
         D, V = eigen(I_all)
         debuginfo && println(D)
         tol2 = maximum(abs.(D)) * 1e-14
@@ -343,7 +343,7 @@ function vcov(X::Matrix{Float64}, Y::AbstractArray{Bool, 1}, groupindex::Integer
     debuginfo && println(round.(sum(S_η, 1)./sqrt(nF), 6))
     I_η = S_η'*S_η./nF
     if 1/cond(I_η) < eps(Float64)
-        warn("Information Matrix is singular!")
+        @warn("Information Matrix is singular!")
         D, V = eigen(I_η)
         debuginfo && println(D)
         tol2 = maximum(abs.(D)) * 1e-14
