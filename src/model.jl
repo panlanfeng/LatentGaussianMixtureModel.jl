@@ -270,10 +270,10 @@ function StatsBase.fit!(m::LGMModel;
 end
 
 function multiplefit!(m::LGMModel, ntrials::Int=25; kwargs...)
-    pm = repmat(m.p, 1, ntrials)
-    μm = repmat(m.μ, 1, ntrials)
-    σm = repmat(m.σ, 1, ntrials)
-    βm = repmat(m.β, 1, ntrials)
+    pm = repeat(m.p, 1, ntrials)
+    μm = repeat(m.μ, 1, ntrials)
+    σm = repeat(m.σ, 1, ntrials)
+    βm = repeat(m.β, 1, ntrials)
     ml = -Inf .* ones(ntrials)
 
     for im in 1:ntrials

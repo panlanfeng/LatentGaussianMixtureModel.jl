@@ -3,10 +3,11 @@
 #addprocs(readcsv(ENV["PBS_NODEFILE"], ASCIIString)[:, 1])
 @everywhere args = @fetchfrom 1 ARGS
 import LatentGaussianMixtureModel
+using DelimitedFiles
 #include(joinpath(Pkg.dir("LatentGaussianMixtureModel"), "biccompare/runbic.jl"))
 include(joinpath(dirname(pathof(LatentGaussianMixtureModel)), "..", "biccompare/runbic.jl"))
 @everywhere C=parse(Int,args[2])
 teststat = pmap((b) -> Brun(b, C), 1:parse(Int, args[1]))
-writecsv("bic$(C).csv", teststat)
+writedlm("bic$(C).csv", teststat, ',')
 run(`sed -i "s/\[//g" bic$(C).csv`)
 run(`sed -i "s/\]//g" bic$(C).csv`)
