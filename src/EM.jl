@@ -554,7 +554,9 @@ function EMtest(X::Matrix{Float64},
     else
         pvalue = mean(trand .> Tvalue)
     end
-    println("The Test Statistic is ", Tvalue)
-    println("The p vlaue of the test is ", pvalue)
-    return(Tvalue, pvalue)
+    if debuginfo
+        println("The Test Statistic is ", Tvalue)
+        println("The p vlaue of the test is ", pvalue)
+    end
+    return(Tvalue, pvalue, ml_C0, lr)
 end

@@ -2,6 +2,7 @@
 import LatentGaussianMixtureModel
 import Distributions, StatsBase
 import Yeppp
+using Distributed
 
 @everywhere using LatentGaussianMixtureModel
 @everywhere using Distributions, Yeppp, StatsBase, Random

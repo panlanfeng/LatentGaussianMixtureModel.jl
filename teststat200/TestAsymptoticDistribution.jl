@@ -27,11 +27,11 @@ import Yeppp
         sigmas_true = [0.5]
     elseif Ctrue == 2
         mu_all = log(1/0.779-1)
-        mu_true = [mu_all - 2.0, mu_all + 2.0;]
-        wi_true = [0.5, 0.5;]
-        sigmas_true = [1.2, 0.8;]
+        mu_true = [mu_all - 2.0, mu_all + 2.0]
+        wi_true = [0.5, 0.5]
+        sigmas_true = [1.2, 0.8]
     elseif Ctrue == 3
-        mu_true = [log(1/0.779 - 1) - 4.0, log(1/0.779 - 1) + 1.0, log(1/0.779 - 1) + 4.0;]
+        mu_true = [log(1/0.779 - 1) - 4.0, log(1/0.779 - 1) + 1.0, log(1/0.779 - 1) + 4.0]
         wi_true = [.3, .4, .3]
         sigmas_true = [1.2, .8, .9]
     end
@@ -42,7 +42,7 @@ import Yeppp
             wi_true =  [.6, .4]
             sigmas_true = [1.2, .8]
         elseif Ctrue == 3
-            mu_true = [mu_all - 2.0, mu_all + 1.0, mu_all + 3.5;]
+            mu_true = [mu_all - 2.0, mu_all + 1.0, mu_all + 3.5]
             wi_true = [.3, .4, .3]
             sigmas_true = [1.2, .8, .9]
         end
@@ -53,10 +53,10 @@ import Yeppp
     m = MixtureModel(map((u, v) -> Normal(u, v), mu_true, sigmas_true), wi_true)
     gamma_true = rand(m, nF)
 
-    prob = exp(gamma_true[groupindex] .+ X*betas_true)
+    prob = exp.(gamma_true[groupindex] .+ X*betas_true)
     prob= prob ./ (1 .+ prob)
     Y = Bool[rand(Binomial(1, prob[i])) == 1 for i in 1:N];
-    X = X .- mean(X, 1);
+    X = X .- mean(X, dims=1);
 
     lr=LatentGaussianMixtureModel.EMtest(X, Y, groupindex, Calternative-1, ntrials=ntrials, debuginfo=debuginfo, ctauparallel=false, ngh=100)
     println("Mission $b completed with lr=$lr")
