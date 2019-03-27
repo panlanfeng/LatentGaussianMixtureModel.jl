@@ -275,7 +275,7 @@ function latentgmm(X::Matrix{Float64},
                 break
             end
         end
-        if (iter_em == maxiteration) && (maxiteration > 50)
+        if (iter_em == maxiteration) && (maxiteration > 50) && !taufixed
             @warn("latentgmm not converge! $(iter_em), $(taufixed),
             $(ll), $(lldiff), $(wi), $(mu), $(sigmas), $(β)")
             println("latentgmm not converge! $(iter_em), $(taufixed),

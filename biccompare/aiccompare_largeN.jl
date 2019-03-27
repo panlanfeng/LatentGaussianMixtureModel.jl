@@ -11,7 +11,7 @@ using Distributed
 
 #Brun calculate the statistic for one data set;
 #b is the the random number seed, from 1 to 100
-@everywhere function Brun(b::Integer, Ctrue::Integer; debuginfo::Bool=false, ntrials::Int=5, showpower=true)
+@everywhere function Brun(b::Integer, Ctrue::Integer; debuginfo::Bool=false, ntrials::Int=5, showpower=true, ncomponent::Int=5)
     nF = 282
     Random.seed!(100)
     n_ij = round.(Int64, rand(Poisson(250), 282).+rand(Exponential(250), 282))
@@ -59,14 +59,15 @@ using Distributed
     Y = Bool[rand(Binomial(1, prob[i])) == 1 for i in 1:N];
     X = X .- mean(X, dims=1);
 
-    ncomponent = 5
     vb = fill(-Inf, ncomponent)
     vb2 = fill(-Inf, ncomponent)
-    for kcom in 1:ncomponent
+    for kcom in 1:(ncomponent-1)
         lr=LatentGaussianMixtureModel.EMtest(X, Y, groupindex, kcom, ntrials=ntrials, debuginfo=debuginfo, ctauparallel=false, ngh=100)
         vb[kcom] = lr[2]
         vb2[kcom] = lr[3]
     end
+    vb[5] = 1.0
+    vb2[5] = LatentGaussianMixtureModel.latentgmmrepeat(X, Y, groupindex, kcom, ntrials=ntrials)[5]
 
     println("Mission $b with $vb and $vb2")
     return vcat(vb,vb2)
