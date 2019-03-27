@@ -14,7 +14,7 @@ using Distributed
 @everywhere function Brun(b::Integer, Ctrue::Integer; debuginfo::Bool=false, ntrials::Int=5, showpower=true)
     nF = 282
     Random.seed!(100)
-    n_ij = round.(Int64, rand(Poisson(55), 282).+rand(Exponential(95), 282))
+    n_ij = round.(Int64, rand(Poisson(250), 282).+rand(Exponential(250), 282))
     N = sum(n_ij)
 
     groupindex = inverse_rle(1:nF, n_ij)
