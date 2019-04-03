@@ -67,7 +67,7 @@ using Distributed
         vb2[kcom] = lr[3]
     end
     vb[5] = 1.0
-    vb2[5] = LatentGaussianMixtureModel.latentgmmrepeat(X, Y, groupindex, kcom, ntrials=ntrials)[5]
+    vb2[5] = LatentGaussianMixtureModel.latentgmmrepeat(X, Y, groupindex, 5, ntrials=ntrials)[5]
 
     println("Mission $b with $vb and $vb2")
     return vcat(vb,vb2)
