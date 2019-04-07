@@ -354,42 +354,80 @@ function latentgmmrepeat(X::Matrix{Float64},
     tau = min(tau, 1-tau)
     ghx, ghw = gausshermite(ngh)
 
-    wi = repeat(wi_C1, 1, 4*ntrials)
-    mu = zeros(C, 4*ntrials)
-    sigmas = ones(C, 4*ntrials)
-    betas = repeat(betas0, 1, 4*ntrials)
-    ml = -Inf .* ones(4*ntrials)
-    for i in 1:4*ntrials
-        wi[:, i] = rand(Dirichlet(C, 1.0))
-        mu[:, i] = rand(C) .* (mu_ub .- mu_lb) .+ mu_lb
-        sigmas[:, i] = rand(C) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
+    if inparallel
+        wi = SharedArray(repeat(wi_C1, 1, 4*ntrials))
+        mu = SharedArray(zeros(C, 4*ntrials))
+        sigmas = SharedArray(ones(C, 4*ntrials))
+        betas = SharedArray(repeat(betas0, 1, 4*ntrials))
+        ml = SharedArray(-Inf .* ones(4*ntrials))
+        @sync @distributed for i in 1:4*ntrials
+            wi[:, i] = rand(Dirichlet(C, 1.0))
+            mu[:, i] = rand(C) .* (mu_ub .- mu_lb) .+ mu_lb
+            sigmas[:, i] = rand(C) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
 
-        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] =
-             latentgmm(X, Y, groupindex, C, betas0,
-             wi[:, i], mu[:, i], sigmas[:, i],
-             whichtosplit=whichtosplit, tau=tau,
-             ghx=ghx, ghw=ghw, mu_lb=mu_lb, mu_ub=mu_ub,
-             maxiteration=16, sn=sn, an=an,
-             gammaM = gammaM, Wim=Wim,
-             llN=llN, llN2=llN2, llN3=llN3,
-             Xscratch=Xscratch, xb=xb,
-             Qmaxiteration=30, taufixed=taufixed, ngh=ngh,
-             dotest=false, tol=tol, bn=bn)
-    end
+            wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] =
+                 latentgmm(X, Y, groupindex, C, betas0,
+                 wi[:, i], mu[:, i], sigmas[:, i],
+                 whichtosplit=whichtosplit, tau=tau,
+                 ghx=ghx, ghw=ghw, mu_lb=mu_lb, mu_ub=mu_ub,
+                 maxiteration=16, sn=sn, an=an,
+                 gammaM = gammaM, Wim=Wim,
+                 llN=llN, llN2=llN2, llN3=llN3,
+                 Xscratch=Xscratch, xb=xb,
+                 Qmaxiteration=30, taufixed=taufixed, ngh=ngh,
+                 dotest=false, tol=tol, bn=bn)
+        end
+        mlperm = sortperm(ml)
+        @sync @distributed for j in 1:ntrials
+            i = mlperm[4*ntrials+1 - j] # start from largest ml
+            wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] =
+                latentgmm(X, Y, groupindex, C, betas[:, i],
+                wi[:, i], mu[:, i], sigmas[:, i],
+                whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw,
+                mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=2000,
+                sn=sn, an=an, gammaM = gammaM,
+                Wim=Wim, llN=llN, llN2=llN2, llN3=llN3,
+                Xscratch=Xscratch, xb=xb,
+                Qmaxiteration=30, taufixed=taufixed, ngh=ngh,
+                dotest=false, tol=tol, bn=bn)
+        end
+    else
+        wi = repeat(wi_C1, 1, 4*ntrials)
+        mu = zeros(C, 4*ntrials)
+        sigmas = ones(C, 4*ntrials)
+        betas = repeat(betas0, 1, 4*ntrials)
+        ml = -Inf .* ones(4*ntrials)
+        for i in 1:4*ntrials
+            wi[:, i] = rand(Dirichlet(C, 1.0))
+            mu[:, i] = rand(C) .* (mu_ub .- mu_lb) .+ mu_lb
+            sigmas[:, i] = rand(C) .* (sigmas_ub .- sigmas_lb) .+ sigmas_lb
 
-    mlperm = sortperm(ml)
-    for j in 1:ntrials
-        i = mlperm[4*ntrials+1 - j] # start from largest ml
-        wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] =
-            latentgmm(X, Y, groupindex, C, betas[:, i],
-            wi[:, i], mu[:, i], sigmas[:, i],
-            whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw,
-            mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=2000,
-            sn=sn, an=an, gammaM = gammaM,
-            Wim=Wim, llN=llN, llN2=llN2, llN3=llN3,
-            Xscratch=Xscratch, xb=xb,
-            Qmaxiteration=30, taufixed=taufixed, ngh=ngh,
-            dotest=false, tol=tol, bn=bn)
+            wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] =
+                 latentgmm(X, Y, groupindex, C, betas0,
+                 wi[:, i], mu[:, i], sigmas[:, i],
+                 whichtosplit=whichtosplit, tau=tau,
+                 ghx=ghx, ghw=ghw, mu_lb=mu_lb, mu_ub=mu_ub,
+                 maxiteration=16, sn=sn, an=an,
+                 gammaM = gammaM, Wim=Wim,
+                 llN=llN, llN2=llN2, llN3=llN3,
+                 Xscratch=Xscratch, xb=xb,
+                 Qmaxiteration=30, taufixed=taufixed, ngh=ngh,
+                 dotest=false, tol=tol, bn=bn)
+        end
+        mlperm = sortperm(ml)
+        for j in 1:ntrials
+            i = mlperm[4*ntrials+1 - j] # start from largest ml
+            wi[:, i], mu[:, i], sigmas[:, i], betas[:, i], ml[i] =
+                latentgmm(X, Y, groupindex, C, betas[:, i],
+                wi[:, i], mu[:, i], sigmas[:, i],
+                whichtosplit=whichtosplit, tau=tau, ghx=ghx, ghw=ghw,
+                mu_lb=mu_lb,mu_ub=mu_ub, maxiteration=2000,
+                sn=sn, an=an, gammaM = gammaM,
+                Wim=Wim, llN=llN, llN2=llN2, llN3=llN3,
+                Xscratch=Xscratch, xb=xb,
+                Qmaxiteration=30, taufixed=taufixed, ngh=ngh,
+                dotest=false, tol=tol, bn=bn)
+        end
     end
 
     mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
@@ -471,84 +509,48 @@ function EMtest(X::Matrix{Float64},
     gammaM = zeros(ngh*C1)
     Wim = zeros(n, ngh*C1)
     lr = 0.0
-    if ctauparallel
-        lr=@distributed (max) for irun in 1:(C0*length(vtau))
 
-            whichtosplit = mod1(irun, C0)
-            i = cld(irun, C0)
-            ind = [1:whichtosplit; whichtosplit:C0;]
-            if C1==2
-                mu_lb = mingamma .* ones(2)
-                mu_ub = maxgamma .* ones(2)
-            elseif C1>2
-                mu_lb = [mingamma; (mu0[1:(C0-1)] .+ mu0[2:C0])./2;]
-                mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2; maxgamma;]
-                mu_lb = mu_lb[ind]
-                mu_ub = mu_ub[ind]
-            end
-            sigmas_lb = 0.25 .* sigmas0[ind]
-            sigmas_ub = 2 .* sigmas0[ind]
+    lrv = zeros(length(vtau), C0)
+    kl_tmp=zeros(length(vtau), C0)
+    ll_tmp = zeros(length(vtau), C0)
+    for whichtosplit in 1:C0, i in 1:length(vtau)
 
-            wi_C1 = wi0[ind]
-            wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
-            wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
+         #whichtosplit = mod1(irun, C0)
+         #i = cld(irun, C0)
+         ind = [1:whichtosplit; whichtosplit:C0;]
+         if C1==2
+             mu_lb = mingamma .* ones(2)
+             mu_ub = maxgamma .* ones(2)
+         elseif C1>2
+             mu_lb = [mingamma; (mu0[1:(C0-1)] .+ mu0[2:C0])./2;]
+             mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2; maxgamma;]
+             mu_lb = mu_lb[ind]
+             mu_ub = mu_ub[ind]
+         end
+         sigmas_lb = 0.25 .* sigmas0[ind]
+         sigmas_ub = 2 .* sigmas0[ind]
 
-            ml_tmp=latentgmmrepeat(X, Y,
-               groupindex, C1, betas0, wi_C1,
-               mu_lb, mu_ub, sigmas_lb, sigmas_ub,
-               taufixed=true, whichtosplit=whichtosplit, tau=vtau[i],
-               ntrials=ntrials, ngh=ngh,
-               sn=sigmas0[ind], an=an,
-               debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
-               llN=llN, llN2=llN2, xb=xb, tol=tol,
-               pl=false, ptau=false, bn=bn)[5]
-            if debuginfo
-                println(whichtosplit, " ", vtau[i], "->", ml_tmp)
-            end
-            ml_tmp
+         wi_C1 = wi0[ind]
+         wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
+         wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
+         mm_tmp = latentgmmrepeat(X, Y,
+            groupindex, C1, betas0, wi_C1,
+            mu_lb, mu_ub, sigmas_lb, sigmas_ub,
+            taufixed=true, whichtosplit=whichtosplit, tau=vtau[i],
+            ntrials=ntrials, ngh=ngh,
+            sn=sigmas0[ind], an=an,
+            debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
+            llN=llN, llN2=llN2, xb=xb, tol=tol,
+            pl=false, ptau=false, bn=bn)
+         lrv[i, whichtosplit] = mm_tmp[5]
+        if debuginfo
+            show(mm_tmp)
+            println(whichtosplit, " ", vtau[i], "->",
+            lrv[i, whichtosplit])
         end
-    else
-        lrv = zeros(length(vtau), C0)
-        kl_tmp=zeros(length(vtau), C0)
-        ll_tmp = zeros(length(vtau), C0)
-        for whichtosplit in 1:C0, i in 1:length(vtau)
-
-             #whichtosplit = mod1(irun, C0)
-             #i = cld(irun, C0)
-             ind = [1:whichtosplit; whichtosplit:C0;]
-             if C1==2
-                 mu_lb = mingamma .* ones(2)
-                 mu_ub = maxgamma .* ones(2)
-             elseif C1>2
-                 mu_lb = [mingamma; (mu0[1:(C0-1)] .+ mu0[2:C0])./2;]
-                 mu_ub = [(mu0[1:(C0-1)] .+ mu0[2:C0])./2; maxgamma;]
-                 mu_lb = mu_lb[ind]
-                 mu_ub = mu_ub[ind]
-             end
-             sigmas_lb = 0.25 .* sigmas0[ind]
-             sigmas_ub = 2 .* sigmas0[ind]
-
-             wi_C1 = wi0[ind]
-             wi_C1[whichtosplit] = wi_C1[whichtosplit]*vtau[i]
-             wi_C1[whichtosplit+1] = wi_C1[whichtosplit+1]*(1-vtau[i])
-             mm_tmp = latentgmmrepeat(X, Y,
-                groupindex, C1, betas0, wi_C1,
-                mu_lb, mu_ub, sigmas_lb, sigmas_ub,
-                taufixed=true, whichtosplit=whichtosplit, tau=vtau[i],
-                ntrials=ntrials, ngh=ngh,
-                sn=sigmas0[ind], an=an,
-                debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
-                llN=llN, llN2=llN2, xb=xb, tol=tol,
-                pl=false, ptau=false, bn=bn)
-             lrv[i, whichtosplit] = mm_tmp[5]
-            if debuginfo
-                show(mm_tmp)
-                println(whichtosplit, " ", vtau[i], "->",
-                lrv[i, whichtosplit])
-            end
-        end
-        lr = maximum(lrv)
     end
+    lr = maximum(lrv)
+
     if debuginfo
         println("lr=", lr)
     end
