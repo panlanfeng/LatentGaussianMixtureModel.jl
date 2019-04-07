@@ -182,7 +182,7 @@ function latentgmm(X::Matrix{Float64},
     xb::Vector{Float64}=zeros(length(Y)),
     gammaM::Vector{Float64}=zeros( ncomponent*ngh),
     dotest::Bool=false, epsilon::Real=1e-6,
-    updatebeta::Bool=true, pl::Bool=true, ptau::Bool=false, bn::Real=1e-4)
+    updatebeta::Bool=true, pl::Bool=false, ptau::Bool=false, bn::Real=3.0 / maximum(groupindex))
 
     # initialize theta
     length(wi_init) == length(mu_init) == length(sigmas_init) == ncomponent || error("The length of initial values should be $ncomponent")
@@ -244,11 +244,17 @@ function latentgmm(X::Matrix{Float64},
         updateθ!(wi, mu, sigmas, X, Y, groupindex,
         gammaM, Wim, Wm, sn, an, N, J, n, ncomponent, ngh)
 
-        if bn > 0.0
-            for kcom in 1:ncomponent
-                wi[kcom]=(wi[kcom]*n+bn/ncomponent)/(n+bn)
+
+        for kcom in 1:ncomponent
+            if wi[kcom] < bn
+                wi[kcom] = bn
             end
         end
+        tmpsum = sum(wi)
+        for kcom in 1:ncomponent
+            wi[kcom] = wi[kcom] / tmpsum
+        end
+
         if taufixed
             Yeppp.max!(mu, mu, mu_lb)
             Yeppp.min!(mu, mu, mu_ub)
@@ -282,13 +288,7 @@ function latentgmm(X::Matrix{Float64},
             $(ll), $(lldiff), $(wi), $(mu), $(sigmas), $(β)")
         end
     end
-    if pl
-        ll += sum(pn(sigmas, sn, an=an))
-    end
-    if ptau
-        tau2 = wi[whichtosplit] / (wi[whichtosplit]+wi[whichtosplit+1])
-        ll += log(1 - abs(1 - 2*tau2))
-    end
+
     return(wi, mu, sigmas, β, ll)
 end
 
@@ -348,7 +348,7 @@ function latentgmmrepeat(X::Matrix{Float64},
     llN3::Vector{Float64}=zeros(length(Y)),
     Xscratch::Matrix{Float64}=copy(X),
     xb::Vector=zeros(length(Y)), tol::Real=.005,
-    pl::Bool=false, ptau::Bool=false, bn::Real=1e-4)
+    pl::Bool=false, ptau::Bool=false, bn::Real=3.0 /maximum(groupindex),optional_EM_iteration::Bool=false, inparallel::Bool=false)
 
     n = maximum(groupindex)
     tau = min(tau, 1-tau)
@@ -395,20 +395,24 @@ function latentgmmrepeat(X::Matrix{Float64},
     mlmax, imax = findmax(ml[mlperm[(3*ntrials+1):4*ntrials]])
     imax = mlperm[3*ntrials+imax]
 
-    re=latentgmm(X, Y, groupindex, C,
-        betas[:, imax], wi[:, imax], mu[:, imax], sigmas[:, imax],
-         maxiteration=2, an=an, sn=sn, debuginfo=false, ngh=ngh,
-         mu_lb=mu_lb, mu_ub=mu_ub,
-         tol=0., pl=pl, ptau=ptau, whichtosplit=whichtosplit, bn=bn)
-    debuginfo && println("Trial:", re)
-    return(re)
+    if optional_EM_iteration
+        re=latentgmm(X, Y, groupindex, C,
+            betas[:, imax], wi[:, imax], mu[:, imax], sigmas[:, imax],
+             maxiteration=2, an=an, sn=sn, debuginfo=false, ngh=ngh,
+             mu_lb=mu_lb, mu_ub=mu_ub,
+             tol=0., pl=pl, ptau=ptau, whichtosplit=whichtosplit, bn=bn)
+        debuginfo && println("Trial:", re)
+        return(re)
+    else
+        return(wi[:,imax], mu[:,imax], sigmas[:,imax], betas[:,imax], ml[imax])
+    end
 end
 
 function EMtest(X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
     C0::Int; vtau::Vector{Float64}=[.5;],
     ntrials::Int=25, ngh::Int=100, debuginfo::Bool=false,
-    ctauparallel::Bool=true, tol::Real=0.001, bn::Real=1.0)
+    ctauparallel::Bool=true, tol::Real=0.001, bn::Real=3.0 / maximum(groupindex))
 
     C1 = C0 + 1
     n = maximum(groupindex)
@@ -440,7 +444,7 @@ function EMtest(X::Matrix{Float64},
        sn=std(gamma_init).*ones(C0), an=an1,
        debuginfo=debuginfo,
        llN=llN, llN2=llN2, xb=xb, tol=tol,
-       pl=false, ptau=false, bn=1e-4)
+       pl=false, ptau=false, bn=bn)
 
     # wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
     #     latentgmm(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
