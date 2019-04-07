@@ -9,6 +9,7 @@ using Printf
 using Distributed
 using LinearAlgebra
 using Statistics
+using SharedArrays
 
 import GaussianMixtureTest: gmm, pn, decidepenalty
 import StatsBase: RealArray, RealVector, RealMatrix, IntegerArray, IntegerVector, IntegerMatrix, IntUnitRange

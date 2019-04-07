@@ -510,7 +510,7 @@ function infomatrix(m::LGMModel; debuginfo::Bool=false, includelambda::Bool=true
         debuginfo && println(D)
         tol2 = maximum(abs.(D)) * 1e-14
         D[D.<tol2] = tol2
-        I_all = V*diagm(D)*V'
+        I_all = V*Diagonal(D)*V'
     end
     return I_all
     #return inv(I_all)[1:J,1:J]./n
@@ -536,12 +536,12 @@ function asymptoticdistribution(m::LGMModel; debuginfo::Bool=false, nrep::Int=10
     debuginfo && println(round.(I_λ_η, 6))
     D, V = eigen(I_λ_η)
     D[D.<0.] = 0.
-    I_λ_η2 = V * diagm(sqrt.(D)) * V'
+    I_λ_η2 = V * Diagonal(sqrt.(D)) * V'
     u = randn(nrep, 2*C) * I_λ_η2
     EM = zeros(nrep, C)
     T = zeros(nrep)
     for kcom in 1:C
-        EM[:, kcom] = sum(u[:, (2*kcom-1):(2*kcom)] * inv(I_λ_η[(2*kcom-1):(2*kcom), (2*kcom-1):(2*kcom)]) .* u[:, (2*kcom-1):(2*kcom)], 2)
+        EM[:, kcom] = sum(u[:, (2*kcom-1):(2*kcom)] * inv(I_λ_η[(2*kcom-1):(2*kcom), (2*kcom-1):(2*kcom)]) .* u[:, (2*kcom-1):(2*kcom)], dims=2)
     end
     for i in 1:nrep
         T[i] = maximum(EM[i, :])
