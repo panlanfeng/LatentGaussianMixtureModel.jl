@@ -85,7 +85,7 @@ function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
         f = 1.
         dev = negdeviance(β .+ f .* XWY, X, Y, groupindex,
         gammaM, Wim, lln, llN, llN2, xb, N, J, n, M)
-        while dev0 - dev > abs(dev)*betadevtol #dev < dev0
+        while dev - dev0 > abs(dev)*betadevtol*0.001 #dev < dev0
             f /= 2.0
             f > minStepFac || error("step-halving failed at beta = $(β), deltabeta=$(XWY), dev=$(dev), dev0=$dev0, f=$f")
             dev = negdeviance(β .+ f .* XWY, X, Y, groupindex,
@@ -95,7 +95,7 @@ function updateβ!(β::Vector{Float64}, X::Matrix{Float64},
             β[j] += f * XWY[j]
         end
 
-        if (dev - dev0)/abs(dev0) < betadevtol || dev0 == 0.0
+        if (dev0 - dev)/dev < 0.001*betadevtol || dev == 0.0
             break
         end
         dev0 = dev
@@ -138,6 +138,7 @@ function deltabeta!(XWY::Vector{Float64},
 
     ldiv!(cholesky!(Hermitian(XWX, :U)), XWY)
 end
+#actual deviance, no longer negative
 function negdeviance(beta2::Vector{Float64}, X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
     gammaM::Vector{Float64}, Wim::Matrix{Float64},
@@ -157,7 +158,7 @@ function negdeviance(beta2::Vector{Float64}, X::Matrix{Float64},
         end
         dev += wsum(lln, Wim[:, jcol])
     end
-    -dev
+    dev
 end
 
 function latentgmm(X::Matrix{Float64},
@@ -450,7 +451,7 @@ function EMtest(X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
     C0::Int; vtau::Vector{Float64}=[.5;],
     ntrials::Int=25, ngh::Int=100, debuginfo::Bool=false,
-    ctauparallel::Bool=true, tol::Real=0.001, bn::Real=3.0 / maximum(groupindex))
+    ctauparallel::Bool=true, tol::Real=0.001, bn::Real=3.0 / maximum(groupindex),  inparallel::Bool=false)
 
     C1 = C0 + 1
     n = maximum(groupindex)
@@ -482,7 +483,7 @@ function EMtest(X::Matrix{Float64},
        sn=std(gamma_init).*ones(C0), an=an1,
        debuginfo=debuginfo,
        llN=llN, llN2=llN2, xb=xb, tol=tol,
-       pl=false, ptau=false, bn=bn)
+       pl=false, ptau=false, bn=bn, inparallel=inparallel)
 
     # wi_init, mu_init, sigmas_init, betas_init, ml_C0 =
     #     latentgmm(X, Y, groupindex, C0, betas_init, wi_init, mu_init,
@@ -541,7 +542,7 @@ function EMtest(X::Matrix{Float64},
             sn=sigmas0[ind], an=an,
             debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
             llN=llN, llN2=llN2, xb=xb, tol=tol,
-            pl=false, ptau=false, bn=bn)
+            pl=false, ptau=false, bn=bn, inparallel=inparallel)
          lrv[i, whichtosplit] = mm_tmp[5]
         if debuginfo
             show(mm_tmp)
