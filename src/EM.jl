@@ -282,7 +282,7 @@ function latentgmm(X::Matrix{Float64},
                 break
             end
         end
-        if (iter_em == maxiteration) && (maxiteration > 50) && !taufixed
+        if (iter_em == maxiteration) && (maxiteration > 50) && !taufixed && !dotest
             @warn("latentgmm not converge! $(iter_em), $(taufixed),
             $(ll), $(lldiff), $(wi), $(mu), $(sigmas), $(β)")
             println("latentgmm not converge! $(iter_em), $(taufixed),
@@ -451,7 +451,7 @@ function EMtest(X::Matrix{Float64},
     Y::AbstractArray{Bool, 1}, groupindex::IntegerVector,
     C0::Int; vtau::Vector{Float64}=[.5;],
     ntrials::Int=25, ngh::Int=100, debuginfo::Bool=false,
-    ctauparallel::Bool=true, tol::Real=0.001, bn::Real=3.0 / maximum(groupindex),  inparallel::Bool=false)
+    ctauparallel::Bool=true, tol::Real=0.001, bn::Real=3.0 / maximum(groupindex),  optional_EM_iteration::Bool=false, inparallel::Bool=false)
 
     C1 = C0 + 1
     n = maximum(groupindex)
@@ -542,7 +542,7 @@ function EMtest(X::Matrix{Float64},
             sn=sigmas0[ind], an=an,
             debuginfo=debuginfo, gammaM = gammaM, Wim=Wim,
             llN=llN, llN2=llN2, xb=xb, tol=tol,
-            pl=false, ptau=false, bn=bn, inparallel=inparallel)
+            pl=false, ptau=false, bn=bn, optional_EM_iteration=optional_EM_iteration, inparallel=inparallel)
          lrv[i, whichtosplit] = mm_tmp[5]
         if debuginfo
             show(mm_tmp)
